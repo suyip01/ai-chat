@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
-import { listUsers, createUser, updateUser, deleteUser, changePassword } from '../services/users.js';
+import { listUsers, createUser, updateUser, deleteUser, changePassword } from '../admin-services/users.js';
 
 const router = Router();
 router.use(authRequired);
@@ -61,4 +61,3 @@ router.post('/:id/password', async (req, res) => {
 });
 
 export default router;
-

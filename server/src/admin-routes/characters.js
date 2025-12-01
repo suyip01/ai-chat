@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
-import { listCharacters, getCharacter, createCharacter, updateCharacter, deleteCharacter, setCharacterStatus } from '../services/characters.js';
+import { listCharacters, getCharacter, createCharacter, updateCharacter, deleteCharacter, setCharacterStatus } from '../admin-services/characters.js';
 
 const router = Router();
 
@@ -35,7 +35,10 @@ router.post('/', async (req, res) => {
     const id = await createCharacter(payload);
     res.json({ id });
   }
-  catch { res.status(500).json({ error: 'server_error' }); }
+  catch (e) {
+    console.error('POST /api/admin/characters error:', e?.message || e, 'body:', req.body);
+    res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' });
+  }
 });
 
 router.put('/:id', async (req, res) => {
@@ -44,14 +47,14 @@ router.put('/:id', async (req, res) => {
   const body = req.body || {};
   const payload = { ...body, creator: body.creator || req.admin?.username || 'Admin', creatorRole: body.creatorRole || 'admin_role' };
   try { await updateCharacter(id, payload); res.json({ ok: true }); }
-  catch { res.status(500).json({ error: 'server_error' }); }
+  catch (e) { console.error('PUT /api/admin/characters/:id error:', e?.message || e, 'id:', id, 'body:', req.body); res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' }); }
 });
 
 router.delete('/:id', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'bad_id' });
   try { const ok = await deleteCharacter(id); if (!ok) return res.status(404).json({ error: 'not_found' }); res.json({ ok }); }
-  catch { res.status(500).json({ error: 'server_error' }); }
+  catch (e) { console.error('DELETE /api/admin/characters/:id error:', e?.message || e, 'id:', id); res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' }); }
 });
 
 router.post('/:id/status', async (req, res) => {
@@ -60,7 +63,7 @@ router.post('/:id/status', async (req, res) => {
   const { status } = req.body || {};
   if (!status) return res.status(400).json({ error: 'missing_status' });
   try { await setCharacterStatus(id, status); res.json({ ok: true }); }
-  catch { res.status(500).json({ error: 'server_error' }); }
+  catch (e) { console.error('POST /api/admin/characters/:id/status error:', e?.message || e, 'id:', id, 'status:', status); res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' }); }
 });
 
 export default router;

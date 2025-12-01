@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
-import { getSettings, updateSettings } from '../services/settings.js';
+import { getSettings, updateSettings } from '../admin-services/settings.js';
 
 const router = Router();
 router.use(authRequired);
@@ -16,4 +16,3 @@ router.put('/', async (req, res) => {
 });
 
 export default router;
-

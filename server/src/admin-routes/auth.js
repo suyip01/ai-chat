@@ -2,7 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import pool from '../db.js';
-import { pruneRefreshTokens } from '../services/tokens.js';
+import { pruneRefreshTokens } from '../admin-services/tokens.js';
 import { getPublicKeyPem, decryptWithPrivateKey } from '../crypto.js';
 
 const router = Router();

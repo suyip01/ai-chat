@@ -15,7 +15,6 @@ export const ensureCharacterSchema = async () => {
   if (alters.length) {
     await pool.query(`ALTER TABLE characters ${alters.join(', ')}`);
   }
-  // ensure foreign key for scene_template_id
   const [fk] = await pool.query(
     'SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=? AND REFERENCED_TABLE_NAME=?',
     [process.env.DB_NAME, 'characters', 'scene_template_id', 'templates']
@@ -47,7 +46,6 @@ export const listCharacters = async (creatorRole) => {
      ORDER BY c.status='published' DESC, c.created_at ASC`,
     params
   );
-  // fetch style examples per character
   const ids = rows.map(r => r.id);
   let styleMap = new Map();
   if (ids.length) {
@@ -131,7 +129,7 @@ export const createCharacter = async (payload) => {
       relationship, plot_theme, plot_summary, opening_line, system_prompt, system_prompt_scene,
       prompt_model_id, prompt_temperature, scene_model_id, scene_temperature,
       hobbies, experiences, status)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [id, name, gender, avatar, intro, creator, creatorRole, templateId, sceneTemplateId, identity, tagline, personality,
      relationship, plotTheme, plotSummary, openingLine, systemPrompt, systemPromptScene,
      promptModelId, promptTemperature, sceneModelId, sceneTemperature,

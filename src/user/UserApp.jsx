@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import LoginPage from './components/LoginPage.jsx';
 import UserHome from './UserHome.jsx';
 import { ToastProvider } from './components/Toast.jsx';
+import './styles.css';
 
 const UserApp = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);

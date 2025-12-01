@@ -1,4 +1,4 @@
-export const BASE_URL = '/api/client';
+export const BASE_URL = '/api';
 
 const getToken = () => localStorage.getItem('user_access_token') || '';
 const getRefresh = () => localStorage.getItem('user_refresh_token') || '';
@@ -65,13 +65,27 @@ export const userAuthAPI = {
         const r = await fetch(`${BASE_URL}/crypto/public-key`);
         return r.text();
     },
-    async login(username, passwordEncrypted) {
+    async login(username, password) {
         const res = await fetch(`${BASE_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password_encrypted: passwordEncrypted })
+            body: JSON.stringify({ username, password })
         });
         if (!res.ok) throw new Error('Login failed');
         return res.json();
+    }
+};
+
+export const userCharactersAPI = {
+    async list(params = {}) {
+        const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
+        const r = await fetch(`${BASE_URL}/characters${qs}`, { headers: { 'Content-Type': 'application/json' } });
+        if (!r.ok) throw new Error('List failed');
+        return r.json();
+    },
+    async get(id) {
+        const r = await fetch(`${BASE_URL}/characters/${id}`);
+        if (!r.ok) throw new Error('Get failed');
+        return r.json();
     }
 };

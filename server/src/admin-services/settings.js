@@ -29,4 +29,3 @@ export const updateSettings = async (payload) => {
     [selected_model, selected_chat_model, selected_story_model, model_temperature, chat_temperature, story_temperature, default_template_id || null]
   );
 };
-

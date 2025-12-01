@@ -55,6 +55,12 @@ const request = async (path, options = {}) => {
     if (res.status === 401) { logout(); throw new Error('unauthorized'); }
   }
   if (!res.ok) throw new Error('failed');
+  if (!res.ok) {
+    let body = '';
+    try { body = await res.text(); } catch {}
+    console.error('[admin.api.request] failed', { path, status: res.status, body });
+    throw new Error('failed');
+  }
   return res.json();
 };
 
@@ -120,5 +126,24 @@ export const usersAPI = {
   },
   async changePassword(id, password) {
     return request(`/users/${id}/password`, { method: 'POST', body: JSON.stringify({ password }) });
+  },
+};
+
+export const adminsAPI = {
+  async list(q) {
+    const qs = q ? `?q=${encodeURIComponent(q)}` : '';
+    return request(`/admins${qs}`);
+  },
+  async create({ username, email, password }) {
+    return request('/admins', { method: 'POST', body: JSON.stringify({ username, email, password }) });
+  },
+  async update(id, payload) {
+    return request(`/admins/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+  },
+  async remove(id) {
+    return request(`/admins/${id}`, { method: 'DELETE' });
+  },
+  async changePassword(id, password) {
+    return request(`/admins/${id}/password`, { method: 'POST', body: JSON.stringify({ password }) });
   },
 };

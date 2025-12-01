@@ -11,7 +11,7 @@ const LoginPage = ({ onLogin }) => {
     try {
       const r = await fetch(`${BASE_URL}/crypto/public-key`);
       const pem = await r.text();
-      const b64 = pem.replace(/-----BEGIN PUBLIC KEY-----/,'').replace(/-----END PUBLIC KEY-----/,'').replace(/\s+/g,'');
+      const b64 = pem.replace(/-----BEGIN PUBLIC KEY-----/, '').replace(/-----END PUBLIC KEY-----/, '').replace(/\s+/g, '');
       const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
       const key = await window.crypto.subtle.importKey('spki', bin.buffer, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
       const enc = await window.crypto.subtle.encrypt({ name: 'RSA-OAEP' }, key, new TextEncoder().encode(password));
@@ -21,6 +21,7 @@ const LoginPage = ({ onLogin }) => {
       const data = await res.json();
       if (data?.access_token) localStorage.setItem('admin_access_token', data.access_token);
       if (data?.refresh_token) localStorage.setItem('admin_refresh_token', data.refresh_token);
+      localStorage.setItem('admin_username', username);
       onLogin();
     } catch {
       showToast('登录失败', 'error');

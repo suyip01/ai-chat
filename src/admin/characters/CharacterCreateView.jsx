@@ -217,7 +217,8 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
                   notify && notify('保存成功：角色已保存');
                 }
                 onCancel();
-              } catch {
+              } catch (e) {
+                console.error('[characters.save] failed', { mode, payload, error: e });
                 notify && notify('保存失败：请稍后重试', 'error');
               }
             }}

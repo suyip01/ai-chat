@@ -7,8 +7,6 @@ export const pruneRefreshTokens = async (adminId, limit = 2) => {
   );
   if (rows.length > limit) {
     const toRevoke = rows.slice(0, rows.length - limit).map(r => r.id);
-    // revoke oldest active tokens beyond the limit
     await pool.query('UPDATE admin_refresh_tokens SET revoked=1 WHERE id IN (?)', [toRevoke]);
   }
 };
-

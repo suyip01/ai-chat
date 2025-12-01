@@ -1,0 +1,9 @@
+/* Global mobile-first touch and viewport tweaks */
+html, body, #root { height: 100%; }
+body { touch-action: pan-y; overscroll-behavior-y: contain; background: #F3E5F5; }
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Simulator: limit width on desktop */
+@media (min-width: 768px) {
+  .app-shell { max-width: 430px; margin-left: auto; margin-right: auto; }
+}

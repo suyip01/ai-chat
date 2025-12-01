@@ -19,4 +19,3 @@ export const removeModel = async (id) => {
   const [res] = await pool.query('DELETE FROM models WHERE id=?', [id]);
   return res.affectedRows > 0;
 };
-

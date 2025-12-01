@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
-import { generateRolePrompt } from '../services/sysprompt.js';
+import { generateRolePrompt } from '../admin-services/sysprompt.js';
 
 const router = Router();
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
-import { listModels, createModel, removeModel } from '../services/models.js';
+import { listModels, createModel, removeModel } from '../admin-services/models.js';
 
 const router = Router();
 router.use(authRequired);
@@ -33,4 +33,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 export default router;
-

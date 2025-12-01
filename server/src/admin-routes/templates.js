@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
-import { listTemplates, createTemplate, updateTemplate, deleteTemplate, copyTemplate, setDefaultTemplate } from '../services/templates.js';
+import { listTemplates, createTemplate, updateTemplate, deleteTemplate, copyTemplate, setDefaultTemplate } from '../admin-services/templates.js';
 
 const router = Router();
 
@@ -72,4 +72,3 @@ router.post('/:id/default', authRequired, async (req, res) => {
 });
 
 export default router;
-

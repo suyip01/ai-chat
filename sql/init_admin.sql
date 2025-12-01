@@ -3,6 +3,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS settings;
 DROP TABLE IF EXISTS admin_refresh_tokens;
+DROP TABLE IF EXISTS user_refresh_tokens;
 DROP TABLE IF EXISTS admins;
 DROP TABLE IF EXISTS character_style_examples;
 DROP TABLE IF EXISTS character_tags;
@@ -116,6 +117,17 @@ CREATE TABLE admin_refresh_tokens (
   revoked TINYINT(1) NOT NULL DEFAULT 0,
   FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE,
   INDEX idx_admin_token (admin_id, token)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE user_refresh_tokens (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  token VARCHAR(512) NOT NULL,
+  issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL,
+  revoked TINYINT(1) NOT NULL DEFAULT 0,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_token (user_id, token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE models (
