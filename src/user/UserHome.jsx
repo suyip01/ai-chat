@@ -82,11 +82,11 @@ const UserHome = () => {
                                                 <KeepAlive saveScrollPosition="screen" cacheKey="home" targetId="content-scroll">
                                                     <motion.div
                                                         key={activeTab}
-                                                        initial={{ x: '4%', opacity: 0 }}
-                                                        animate={{ x: 0, opacity: 1 }}
-                                                        exit={{ x: '-4%', opacity: 0 }}
-                                                        transition={{ duration: 0.36, ease: [0.2, 0, 0, 1] }}
-                                                        className={`absolute inset-0 will-change-transform bg-[#F3E5F5] hide-scrollbar ${hideNav ? 'overflow-hidden' : 'overflow-y-auto pb-24'}`}
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        exit={{ opacity: 0 }}
+                                                        transition={{ duration: 0.24, ease: [0.2, 0, 0, 1] }}
+                                                        className={`absolute inset-0 will-change-opacity bg-[#F3E5F5] hide-scrollbar ${hideNav ? 'overflow-hidden' : 'overflow-y-auto pb-24'}`}
                                                     >
                                                         {renderContent()}
                                                     </motion.div>
@@ -97,7 +97,7 @@ const UserHome = () => {
                                     <Route
                                         path="/characters/:id"
                                         element={
-                                            <motion.div initial={{ x: '100%', opacity: 0 }} animate={{ x: '0%', opacity: 1 }} exit={{ x: '100%', opacity: 0 }} transition={{ duration: 0.26, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 will-change-transform">
+                                            <motion.div initial={{ x: '100%', opacity: 0 }} animate={{ x: '0%', opacity: 1 }} exit={{ x: '100%', opacity: 0 }} transition={{ duration: 0.24, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 will-change-transform">
                                                 <CharacterDetail />
                                             </motion.div>
                                         }
@@ -105,7 +105,7 @@ const UserHome = () => {
                                     <Route
                                         path="/characters/:id/chat"
                                         element={
-                                            <motion.div initial={{ x: '100%', opacity: 0 }} animate={{ x: '0%', opacity: 1 }} exit={{ x: '100%', opacity: 0 }} transition={{ duration: 0.26, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 will-change-transform">
+                                            <motion.div initial={{ x: '100%', opacity: 0 }} animate={{ x: '0%', opacity: 1 }} exit={{ x: '100%', opacity: 0 }} transition={{ duration: 0.24, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 will-change-transform">
                                                 <ChatWindowsPage />
                                             </motion.div>
                                         }
