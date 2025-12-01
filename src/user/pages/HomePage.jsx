@@ -60,6 +60,14 @@ const HomePage = () => {
     const [publishedChars, setPublishedChars] = React.useState([]);
     const [publishedCacheChecked, setPublishedCacheChecked] = React.useState(false);
 
+    const isReload = React.useMemo(() => {
+        try {
+            const nav = performance.getEntriesByType('navigation')[0];
+            if (nav && nav.type) return nav.type === 'reload';
+        } catch {}
+        return performance && performance.navigation && performance.navigation.type === 1;
+    }, []);
+
     const loadByTag = async (tag) => {
         setActiveTag(tag);
         setLoadingChars(true);
@@ -72,15 +80,17 @@ const HomePage = () => {
     };
 
     React.useEffect(() => {
-        try {
-            const cached = sessionStorage.getItem('home_published_chars');
-            if (cached) {
-                const arr = JSON.parse(cached);
-                if (Array.isArray(arr) && arr.length) setPublishedChars(arr);
-            }
-        } catch { }
+        if (!isReload) {
+            try {
+                const cached = sessionStorage.getItem('home_published_chars');
+                if (cached) {
+                    const arr = JSON.parse(cached);
+                    if (Array.isArray(arr) && arr.length) setPublishedChars(arr);
+                }
+            } catch {}
+        }
         setPublishedCacheChecked(true);
-    }, []);
+    }, [isReload]);
 
     React.useEffect(() => {
         const fetchInitial = async () => {
@@ -92,8 +102,8 @@ const HomePage = () => {
             } catch (e) { setErrorText('加载失败'); }
             finally { setLoadingChars(false); }
         };
-        if (publishedCacheChecked && activeTab === 'character' && publishedChars.length === 0) fetchInitial();
-    }, [activeTab, publishedCacheChecked]);
+        if (publishedCacheChecked && activeTab === 'character' && (isReload || publishedChars.length === 0)) fetchInitial();
+    }, [activeTab, publishedCacheChecked, isReload]);
 
     React.useEffect(() => {
         if (publishedChars && publishedChars.length) {
@@ -141,10 +151,9 @@ const HomePage = () => {
             </header>
 
             <div className="flex-1 overflow-y-auto p-4 max-w-md mx-auto relative w-full hide-scrollbar">
-                <AnimatePresence initial={false} mode="sync">
-                    <motion.div key={activeTab} initial={{ x: '4%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '-4%', opacity: 0 }} transition={{ duration: 0.28, ease: [0.2, 0, 0, 1] }} className="relative w-full h-full">
-                        {activeTab === 'game' ? (
-                            <>
+                <div className="relative w-full h-full">
+                    <div className={`transition-opacity duration-200 ${activeTab==='game' ? 'opacity-100' : 'opacity-0 hidden'}`}>
+                        <>
                                 {/* Hero Banner */}
                                 <div className="relative w-full aspect-[4/5] bg-slate-900 overflow-hidden shadow-xl shadow-purple-900/10 group cursor-pointer">
                                     {/* 模拟背景图 */}
@@ -226,10 +235,11 @@ const HomePage = () => {
                                         ))}
                                     </div>
                                 </div>
-                            </>
-                        ) : (
-                            <> {/* Character Tab Content */}
-                                <div className="animate-fade-in mt-2">
+                        </>
+                    </div>
+                    <div className={`transition-opacity duration-200 ${activeTab==='character' ? 'opacity-100' : 'opacity-0 hidden'}`}>
+                        <> {/* Character Tab Content */}
+                                <div className="mt-2">
                                     <div className="flex justify-between items-center mb-6">
                                         <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                                             <span className="w-1.5 h-6 bg-purple-500 rounded-full"></span>
@@ -320,10 +330,9 @@ const HomePage = () => {
                                         )}
                                     </div>
                                 )}
-                            </>
-                        )}
-                    </motion.div>
-                </AnimatePresence>
+                        </>
+                    </div>
+                </div>
             </div>
         </div>
     );
