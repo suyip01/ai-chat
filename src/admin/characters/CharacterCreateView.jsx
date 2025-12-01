@@ -1,13 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { ChevronLeft, Save, Info, X, ChevronDown, RefreshCw, Wand2, FileText } from 'lucide-react';
+import { ChevronLeft, Save, Info, X, ChevronDown, RefreshCw, Wand2, FileText, HelpCircle } from 'lucide-react';
 import { MOCK_TEMPLATES } from '../data/mock.js';
+import { charactersAPI, templatesAPI, modelsAPI, syspromptAPI, uploadAPI } from '../api.js';
+import AvatarEditor from '../components/AvatarEditor.jsx';
 
 const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) => {
   const [formData, setFormData] = useState({
     name: '', gender: '男', identity: '', tagline: '', tags: [], templateId: '',
     plotTheme: '', plotSummary: '', openingLine: '', styleExamples: ['', '', ''],
     hobbies: '', experiences: '', published: false, generatedPrompt: '', personality: '',
-    relationship: '陌生人', customRelationship: '',
+    relationship: '陌生人', customRelationship: '', intro: '', sceneDescription: '',
+    sceneGeneratedPrompt: '', avatar: '',
   });
   const RELATIONSHIP_PRESETS = ['陌生人', '暧昧', '恋爱中', '冷战', '分手'];
   const [isCustomRel, setIsCustomRel] = useState(false);
@@ -17,7 +20,7 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
       const isPresetRel = RELATIONSHIP_PRESETS.includes(initialData.relationship);
       setFormData({
         name: initialData.name || '', gender: initialData.gender || '男', identity: initialData.identity || '',
-        tagline: initialData.tagline || '', tags: initialData.tags || [], templateId: '',
+        tagline: initialData.tagline || '', tags: initialData.tags || [], templateId: initialData.templateId ? String(initialData.templateId) : '',
         plotTheme: initialData.plotTheme || '', plotSummary: initialData.plotSummary || '',
         openingLine: initialData.openingLine || initialData.opening || '',
         styleExamples: initialData.styleExamples || ['', '', ''], hobbies: initialData.hobbies || '',
@@ -25,27 +28,53 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
         generatedPrompt: initialData.systemPrompt || '', personality: initialData.personality || '',
         relationship: isPresetRel ? (initialData.relationship || '陌生人') : '',
         customRelationship: !isPresetRel ? (initialData.relationship || '') : '',
+        intro: initialData.intro || '',
+        avatar: initialData.avatar || '',
+        sceneDescription: initialData.sceneDescription || '',
+        sceneGeneratedPrompt: initialData.systemPromptScene || '',
+        templateIdScene: initialData.sceneTemplateId ? String(initialData.sceneTemplateId) : '',
       });
       setIsCustomRel(!isPresetRel && !!initialData.relationship);
+      setSelectedPromptModel(initialData.promptModelId || '');
+      setPromptTemperature(typeof initialData.promptTemperature === 'number' ? initialData.promptTemperature : (initialData.promptTemperature || 0.1));
+      setSelectedSceneModel(initialData.sceneModelId || '');
+      setSceneTemperature(typeof initialData.sceneTemperature === 'number' ? initialData.sceneTemperature : (initialData.sceneTemperature || 0.1));
     }
   }, [initialData]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingMain, setIsGeneratingMain] = useState(false);
+  const [isGeneratingScene, setIsGeneratingScene] = useState(false);
+  const [showAvatarEditor, setShowAvatarEditor] = useState(false);
   const [tagInput, setTagInput] = useState('');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [isDropdownOpenMain, setIsDropdownOpenMain] = useState(false);
+  const [isDropdownOpenScene, setIsDropdownOpenScene] = useState(false);
+  const dropdownRefMain = useRef(null);
+  const dropdownRefScene = useRef(null);
+  const [isModelOpenMain, setIsModelOpenMain] = useState(false);
+  const [isModelOpenScene, setIsModelOpenScene] = useState(false);
+  const modelRefMain = useRef(null);
+  const modelRefScene = useRef(null);
+  const [selectedPromptModel, setSelectedPromptModel] = useState('');
+  const [selectedSceneModel, setSelectedSceneModel] = useState('');
+  const [promptTemperature, setPromptTemperature] = useState(0.1);
+  const [sceneTemperature, setSceneTemperature] = useState(0.1);
+  const [modelList, setModelList] = useState([]);
   const [showTagModal, setShowTagModal] = useState(false);
   const [customTagInput, setCustomTagInput] = useState('');
+  const [tplList, setTplList] = useState([]);
+  const [tplLoading, setTplLoading] = useState(false);
+
   const availableTags = [
-    'M/M','M/F','BL','BG','耽美','百合','责任感','偶像','占有欲','霸道','调戏','腹黑','温柔','年下','年上','感性','体贴','理性','反差','激情','校园','贴心','偏执','疯批','傲娇','职场','冷漠','忧郁','人夫','养胃','控制欲','黏人','可爱','成熟','性感'
+    'M/M', 'M/F', 'BL', 'BG', '耽美', '百合', '责任感', '偶像', '占有欲', '霸道', '调戏', '腹黑', '温柔', '年下', '年上', '感性', '体贴', '理性', '反差', '激情', '校园', '贴心', '偏执', '疯批', '傲娇', '职场', '冷漠', '忧郁', '人夫', '养胃', '控制欲', '黏人', '可爱', '成熟', '性感'
   ];
   useEffect(() => {
     const onDocClick = (e) => {
-      if (isDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsDropdownOpen(false);
-      }
+      if (isDropdownOpenMain && dropdownRefMain.current && !dropdownRefMain.current.contains(e.target)) setIsDropdownOpenMain(false);
+      if (isDropdownOpenScene && dropdownRefScene.current && !dropdownRefScene.current.contains(e.target)) setIsDropdownOpenScene(false);
+      if (isModelOpenMain && modelRefMain.current && !modelRefMain.current.contains(e.target)) setIsModelOpenMain(false);
+      if (isModelOpenScene && modelRefScene.current && !modelRefScene.current.contains(e.target)) setIsModelOpenScene(false);
     };
     const onKey = (e) => {
-      if (e.key === 'Escape') setIsDropdownOpen(false);
+      if (e.key === 'Escape') { setIsDropdownOpenMain(false); setIsDropdownOpenScene(false); setIsModelOpenMain(false); setIsModelOpenScene(false); }
     };
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
@@ -53,27 +82,75 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
       document.removeEventListener('mousedown', onDocClick);
       document.removeEventListener('keydown', onKey);
     };
-  }, [isDropdownOpen]);
-  const selectedTemplateName = formData.templateId ? MOCK_TEMPLATES.find((t) => t.id === parseInt(formData.templateId))?.name : '-- 请选择 --';
-  const handleGeneratePrompt = () => {
+  }, [isDropdownOpenMain, isDropdownOpenScene, isModelOpenMain, isModelOpenScene]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await modelsAPI.list();
+        const sortKey = (m) => {
+          const nick = m.model_nickname || '';
+          const mt = nick.match(/^模型-([A-Z])$/i);
+          if (mt) return mt[1].toUpperCase();
+          return m.model_name || m.model_id || '';
+        };
+        setModelList((data.items || []).sort((a, b) => sortKey(a).localeCompare(sortKey(b))));
+      } catch { }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setTplLoading(true);
+        const data = await templatesAPI.list();
+        setTplList(data.items || []);
+      } catch { }
+      finally { setTplLoading(false); }
+    })();
+  }, []);
+
+  const getModelDisplay = (id) => {
+    const m = modelList.find(x => x.model_id === id);
+    return m ? (m.model_nickname || m.model_name || m.model_id) : '-- 请选择 --';
+  };
+  const selectedTemplateNameMain = formData.templateId ? tplList.find((t) => t.id === parseInt(formData.templateId))?.name : '-- 请选择 --';
+  const selectedTemplateNameScene = formData.templateIdScene ? tplList.find((t) => t.id === parseInt(formData.templateIdScene))?.name : '-- 请选择 --';
+  const openTplDropdownMain = async () => {
+    const open = !isDropdownOpenMain;
+    setIsDropdownOpenMain(open);
+  };
+  const openTplDropdownScene = async () => {
+    const open = !isDropdownOpenScene;
+    setIsDropdownOpenScene(open);
+  };
+  const handleGeneratePrompt = async () => {
     if (!formData.templateId) return alert('请先选择一个提示词模版');
-    setIsGenerating(true);
-    const selectedTemplate = MOCK_TEMPLATES.find((t) => t.id === parseInt(formData.templateId));
-    if (selectedTemplate) {
-      setTimeout(() => {
-        let rawContent = selectedTemplate.content;
-        const filledContent = rawContent
-          .replace(/{{name}}/g, formData.name || '[角色名]')
-          .replace(/{{gender}}/g, formData.gender || '未知')
-          .replace(/{{identity}}/g, formData.identity || '[暂无设定]')
-          .replace(/{{tagline}}/g, formData.tagline || '[暂无人设]')
-          .replace(/{{tags}}/g, formData.tags.join('、') || '暂无')
-          .replace(/{{opening}}/g, `【主题】${formData.plotTheme}\n【梗概】${formData.plotSummary}\n【开场】${formData.openingLine}` || '[暂无开场白]');
-        setFormData((prev) => ({ ...prev, generatedPrompt: filledContent }));
-        setIsGenerating(false);
-      }, 800);
-    } else {
-      setIsGenerating(false);
+    setIsGeneratingMain(true);
+    setFormData((prev) => ({ ...prev, generatedPrompt: '' }));
+    try {
+      const selectedTemplate = tplList.find((t) => t.id === parseInt(formData.templateId));
+      const payload = {
+        templateContent: selectedTemplate?.content || '',
+        model: selectedPromptModel || undefined,
+        temperature: promptTemperature === '' ? undefined : parseFloat(promptTemperature),
+        name: formData.name,
+        gender: formData.gender,
+        identity: formData.identity,
+        tagline: formData.tagline,
+        tags: formData.tags,
+        intro: formData.intro,
+        personality: formData.personality,
+        relationship: isCustomRel ? formData.customRelationship : formData.relationship,
+        styleExamples: formData.styleExamples,
+        hobbies: formData.hobbies,
+        experiences: formData.experiences,
+      };
+      const resp = await syspromptAPI.generate(payload);
+      setFormData((prev) => ({ ...prev, generatedPrompt: resp.prompt || '' }));
+    } catch {
+    } finally {
+      setIsGeneratingMain(false);
     }
   };
   const handleAddTag = (e) => {
@@ -84,7 +161,8 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
       setTagInput('');
     }
   };
-  const handleTemplateSelect = (id) => { setFormData((prev) => ({ ...prev, templateId: id })); setIsDropdownOpen(false); };
+  const handleTemplateSelectMain = (id) => { setFormData((prev) => ({ ...prev, templateId: id })); setIsDropdownOpenMain(false); };
+  const handleTemplateSelectScene = (id) => { setFormData((prev) => ({ ...prev, templateIdScene: id })); setIsDropdownOpenScene(false); };
   const handleRelSelect = (rel) => { setIsCustomRel(false); setFormData((prev) => ({ ...prev, relationship: rel, customRelationship: '' })); };
   const handleCustomRelSelect = () => { setIsCustomRel(true); setFormData((prev) => ({ ...prev, relationship: '' })); };
   const handleStyleExampleChange = (index, value) => { const newExamples = [...formData.styleExamples]; newExamples[index] = value; setFormData((prev) => ({ ...prev, styleExamples: newExamples })); };
@@ -99,14 +177,49 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
         <div className="ml-auto flex gap-3">
           <button onClick={onCancel} className="px-6 py-2.5 rounded-xl bg-white text-gray-500 font-bold text-sm shadow-sm hover:bg-gray-50">取消</button>
           <button
-            onClick={() => {
+            onClick={async () => {
               if (!formData.name || !formData.name.trim()) {
                 notify && notify('保存失败：请输入角色名称', 'error');
                 return;
               }
-              const msg = mode === 'edit' ? '保存成功：角色已更新' : '保存成功：角色已保存';
-              notify && notify(msg);
-              onCancel();
+              const payload = {
+                name: formData.name.trim(),
+                gender: formData.gender,
+                templateId: formData.templateId ? parseInt(formData.templateId) : (initialData?.templateId ?? null),
+                sceneTemplateId: formData.templateIdScene ? parseInt(formData.templateIdScene) : (initialData?.sceneTemplateId ?? null),
+                identity: formData.identity || null,
+                tagline: formData.tagline || null,
+                personality: formData.personality || null,
+                relationship: isCustomRel ? (formData.customRelationship || null) : (formData.relationship || null),
+                plotTheme: formData.plotTheme || null,
+                plotSummary: formData.plotSummary || null,
+                openingLine: formData.openingLine || null,
+                systemPrompt: formData.generatedPrompt || null,
+                systemPromptScene: formData.sceneGeneratedPrompt || null,
+                promptModelId: selectedPromptModel || null,
+                promptTemperature: promptTemperature === '' ? null : parseFloat(promptTemperature),
+                sceneModelId: selectedSceneModel || null,
+                sceneTemperature: sceneTemperature === '' ? null : parseFloat(sceneTemperature),
+                hobbies: formData.hobbies || null,
+                experiences: formData.experiences || null,
+                status: formData.published ? 'published' : 'draft',
+                tags: formData.tags || [],
+                styleExamples: formData.styleExamples || [],
+                intro: formData.intro || null,
+                avatar: formData.avatar || null,
+              };
+              try {
+                if (mode === 'edit' && initialData?.id) {
+                  await charactersAPI.update(initialData.id, payload);
+                  notify && notify('保存成功：角色已更新');
+                } else {
+                  await charactersAPI.create(payload);
+                  notify && notify('保存成功：角色已保存');
+                }
+                onCancel();
+              } catch {
+                notify && notify('保存失败：请稍后重试', 'error');
+              }
             }}
             className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold text-sm shadow-lg shadow-purple-200 flex items-center gap-2"
           >
@@ -116,6 +229,10 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
       </div>
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8 space-y-6">
+          <div className="solid-card p-8 rounded-3xl space-y-4">
+            <h3 className="font-cute text-lg text-purple-900 flex items-center gap-2 mb-2"><span className="w-1.5 h-4 bg-yellow-400 rounded-full"></span> 角色封面简介</h3>
+            <textarea rows="2" value={formData.intro} onChange={(e) => setFormData({ ...formData, intro: e.target.value })} className="dream-input w-full px-4 py-3 rounded-xl text-sm resize-none" placeholder="简要描述角色，用于封面展示"></textarea>
+          </div>
           <div className="solid-card p-8 rounded-3xl space-y-6">
             <h3 className="font-cute text-lg text-purple-900 flex items-center gap-2 mb-2"><span className="w-1.5 h-4 bg-yellow-400 rounded-full"></span> 基础设定</h3>
             <div className="grid grid-cols-2 gap-6">
@@ -146,7 +263,7 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
             </div>
             <div>
               <label className="block text-xs font-bold text-purple-800 mb-2">角色标签</label>
-              <div onClick={() => setShowTagModal(true)} className="dream-input w-full px-3 py-2 min-h-[46px] flex flex-wrap gap-2 items-center bg-white/60 cursor-pointer hover:bg-white transition">
+              <div onClick={() => setShowTagModal(true)} className="dream-input w-full px-3 py-2 min-h-[46px] flex flex-wrap gap-2 items-center bg-white/60 cursor-pointer hover:bg-white transition rounded-2xl border border-purple-100">
                 {formData.tags.length === 0 && (
                   <span className="text-xs text-[#B3A4C8] ml-1">点击添加标签 (#傲娇 #高冷...)</span>
                 )}
@@ -225,35 +342,67 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
             )}
           </div>
           <div className="solid-card p-8 rounded-3xl relative overflow-visible bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-100">
-            <h3 className="font-cute text-lg text-purple-900 mb-4 flex items-center gap-2"><span className="w-1.5 h-4 bg-yellow-400 rounded-full"></span> 提示词生成配置</h3>
+            <h3 className="font-cute text-lg text-purple-900 mb-4 flex items-center gap-2"><span className="w-1.5 h-4 bg-yellow-400 rounded-full"></span> 角色提示词配置</h3>
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-purple-800 mb-2">角色提示词AI模型</label>
+              <div className="flex items-center gap-4">
+                <div className="relative z-50 flex-1" ref={modelRefMain}>
+                  <button onClick={() => setIsModelOpenMain(!isModelOpenMain)} className={`dream-input w-full px-4 py-3 rounded-xl text-sm text-left font-bold transition-all bg-white flex justify-between items-center ${isModelOpenMain ? 'border-purple-500 ring-4 ring-purple-100/50' : ''}`}>
+                    <span className={`${selectedPromptModel ? 'text-gray-700' : 'text-gray-400 font-normal'}`}>{getModelDisplay(selectedPromptModel)}</span>
+                    <div className={`text-purple-400 transition-transform ${isModelOpenMain ? 'rotate-180' : ''}`}>▼</div>
+                  </button>
+                  {isModelOpenMain && (
+                    <ul className="absolute top-full mt-1 w-full bg-white border border-purple-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50">
+                      {modelList.length === 0 ? (
+                        <li className="px-4 py-3 text-sm text-gray-400">暂无模型</li>
+                      ) : (
+                        modelList.map(m => (
+                          <li key={m.id} onClick={() => { setSelectedPromptModel(m.model_id); setIsModelOpenMain(false); }} className={`px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 cursor-pointer transition-colors ${selectedPromptModel === m.model_id ? 'bg-purple-100 font-bold text-purple-700' : ''}`}>{m.model_nickname || m.model_name || m.model_id}</li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 min-w-[140px] justify-end">
+                  <input type="number" min="0" max="2" step="0.05" value={promptTemperature} onChange={(e) => setPromptTemperature(e.target.value)} className="dream-input w-24 px-2 py-3 rounded-xl text-sm font-bold text-center" />
+                  <div className="relative group">
+                    <HelpCircle size={18} className="text-purple-400 cursor-help" />
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 p-3 bg-white/90 backdrop-blur-sm border border-purple-100 text-purple-900 text-xs rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none text-center">
+                      温度：高数值输出随机，低数值输出集中。
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div className="flex gap-4 items-end">
               <div className="flex-1">
                 <label className="block text-xs font-bold text-purple-800 mb-2">选择基础模版</label>
-                <div className="relative z-50" ref={dropdownRef}>
-                  <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className={`dream-input w-full px-4 py-3 rounded-xl text-sm text-left font-bold transition-all bg-white flex justify-between items-center ${isDropdownOpen ? 'border-purple-500 ring-4 ring-purple-100/50' : ''}`}>
-                    <span className={`${formData.templateId ? 'text-gray-700' : 'text-gray-400 font-normal'}`}>{selectedTemplateName}</span>
-                    <div className={`text-purple-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>▼</div>
+                <div className="relative z-20 flex-1" ref={dropdownRefMain}>
+                  <button onClick={openTplDropdownMain} className={`dream-input w-full px-4 py-3 rounded-xl text-sm text-left font-bold transition-all bg-white flex justify-between items-center ${isDropdownOpenMain ? 'border-purple-500 ring-4 ring-purple-100/50' : ''}`}>
+                    <span className={`${formData.templateId ? 'text-gray-700' : 'text-gray-400 font-normal'}`}>{selectedTemplateNameMain}</span>
+                    <div className={`text-purple-400 transition-transform ${isDropdownOpenMain ? 'rotate-180' : ''}`}>▼</div>
                   </button>
-                  {isDropdownOpen && (
+                  {isDropdownOpenMain && (
                     <ul className="absolute top-full mt-1 w-full bg-white border border-purple-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50">
-                      <li onClick={() => handleTemplateSelect('')} className="px-4 py-3 text-sm text-gray-400 hover:bg-purple-50 cursor-pointer border-b border-purple-50">-- 请选择 --</li>
-                      {MOCK_TEMPLATES.map((tpl) => (
-                        <li key={tpl.id} onClick={() => handleTemplateSelect(tpl.id.toString())} className={`px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 cursor-pointer transition-colors ${formData.templateId == tpl.id ? 'bg-purple-100 font-bold text-purple-700' : ''}`}>{tpl.name} ({tpl.type})</li>
-                      ))}
+                      <li onClick={() => handleTemplateSelectMain('')} className="px-4 py-3 text-sm text-gray-400 hover:bg-purple-50 cursor-pointer border-b border-purple-50">-- 请选择 --</li>
+                      {tplLoading ? (
+                        <li className="px-4 py-3 text-sm text-gray-400">加载中...</li>
+                      ) : (
+                        tplList.map((tpl) => (
+                          <li key={tpl.id} onClick={() => handleTemplateSelectMain(tpl.id.toString())} className={`px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 cursor-pointer transition-colors ${formData.templateId == tpl.id ? 'bg-purple-100 font-bold text-purple-700' : ''}`}>{tpl.name} ({tpl.type})</li>
+                        ))
+                      )}
                     </ul>
                   )}
                 </div>
               </div>
-              <button onClick={handleGeneratePrompt} disabled={isGenerating} className="px-6 py-3 rounded-xl bg-purple-600 text-white font-bold text-sm shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px] justify-center">
-                {isGenerating ? <span className="animate-spin"><RefreshCw size={16} /></span> : <Wand2 size={16} className="text-yellow-300" />}
-                {isGenerating ? '生成中...' : '生成提示词'}
+              <button onClick={handleGeneratePrompt} disabled={isGeneratingMain} className="px-6 py-3 rounded-xl bg-purple-600 text-white font-bold text-sm shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px] justify-center z-0">
+                {isGeneratingMain ? <span className="animate-spin"><RefreshCw size={16} /></span> : <Wand2 size={16} className="text-yellow-300" />}
+                {isGeneratingMain ? '生成中...' : '生成提示词'}
               </button>
             </div>
             <p className="text-xs text-purple-400 mt-2 ml-1">* 将根据上方填写的设定，自动填充到模版占位符中</p>
-          </div>
-          <div className="solid-card p-8 rounded-3xl space-y-4">
-            <div className="flex justify-between items-center"><h3 className="font-cute text-lg text-purple-900 flex items-center gap-2"><span className="w-1.5 h-4 bg-yellow-400 rounded-full"></span> 最终角色提示词 (System Prompt)</h3><span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">可二次编辑</span></div>
-            <div className="relative">
+            <div className="mt-4 relative">
               <textarea rows="12" value={formData.generatedPrompt} onChange={(e) => setFormData({ ...formData, generatedPrompt: e.target.value })} className="dream-input w-full px-5 py-4 rounded-xl text-sm leading-relaxed font-mono text-gray-700 bg-white focus:bg-white resize-y shadow-inner" placeholder="点击上方“生成提示词”按钮，或在此直接编写 Prompt..."></textarea>
               {!formData.generatedPrompt && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
@@ -262,12 +411,111 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
               )}
             </div>
           </div>
+          <div className="solid-card p-8 rounded-3xl relative overflow-visible bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-100">
+            <h3 className="font-cute text-lg text-purple-900 mb-4 flex items-center gap-2"><span className="w-1.5 h-4 bg-yellow-400 rounded-full"></span> 角色提示词配置（带场景描述）</h3>
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-purple-800 mb-2">角色提示词AI模型（场景）</label>
+              <div className="flex items-center gap-4">
+                <div className="relative z-50 flex-1" ref={modelRefScene}>
+                  <button onClick={() => setIsModelOpenScene(!isModelOpenScene)} className={`dream-input w-full px-4 py-3 rounded-xl text-sm text-left font-bold transition-all bg-white flex justify-between items-center ${isModelOpenScene ? 'border-purple-500 ring-4 ring-purple-100/50' : ''}`}>
+                    <span className={`${selectedSceneModel ? 'text-gray-700' : 'text-gray-400 font-normal'}`}>{getModelDisplay(selectedSceneModel)}</span>
+                    <div className={`text-purple-400 transition-transform ${isModelOpenScene ? 'rotate-180' : ''}`}>▼</div>
+                  </button>
+                  {isModelOpenScene && (
+                    <ul className="absolute top-full mt-1 w-full bg-white border border-purple-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50">
+                      {modelList.length === 0 ? (
+                        <li className="px-4 py-3 text-sm text-gray-400">暂无模型</li>
+                      ) : (
+                        modelList.map(m => (
+                          <li key={m.id} onClick={() => { setSelectedSceneModel(m.model_id); setIsModelOpenScene(false); }} className={`px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 cursor-pointer transition-colors ${selectedSceneModel === m.model_id ? 'bg-purple-100 font-bold text-purple-700' : ''}`}>{m.model_nickname || m.model_name || m.model_id}</li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 min-w-[140px] justify-end">
+                  <input type="number" min="0" max="2" step="0.05" value={sceneTemperature} onChange={(e) => setSceneTemperature(e.target.value)} className="dream-input w-24 px-2 py-3 rounded-xl text-sm font-bold text-center" />
+                  <div className="relative group">
+                    <HelpCircle size={18} className="text-purple-400 cursor-help" />
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 p-3 bg-white/90 backdrop-blur-sm border border-purple-100 text-purple-900 text-xs rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none text-center">
+                      温度：高数值输出随机，低数值输出集中。
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-4 items-end mt-4">
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-purple-800 mb-2">选择基础模版</label>
+                <div className="relative z-20 flex-1" ref={dropdownRefScene}>
+                  <button onClick={openTplDropdownScene} className={`dream-input w-full px-4 py-3 rounded-xl text-sm text-left font-bold transition-all bg-white flex justify-between items-center ${isDropdownOpenScene ? 'border-purple-500 ring-4 ring-purple-100/50' : ''}`}>
+                    <span className={`${formData.templateIdScene ? 'text-gray-700' : 'text-gray-400 font-normal'}`}>{selectedTemplateNameScene}</span>
+                    <div className={`text-purple-400 transition-transform ${isDropdownOpenScene ? 'rotate-180' : ''}`}>▼</div>
+                  </button>
+                  {isDropdownOpenScene && (
+                    <ul className="absolute top-full mt-1 w-full bg-white border border-purple-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50">
+                      <li onClick={() => handleTemplateSelectScene('')} className="px-4 py-3 text-sm text-gray-400 hover:bg-purple-50 cursor-pointer border-b border-purple-50">-- 请选择 --</li>
+                      {tplLoading ? (
+                        <li className="px-4 py-3 text-sm text-gray-400">加载中...</li>
+                      ) : (
+                        tplList.map((tpl) => (
+                          <li key={tpl.id} onClick={() => handleTemplateSelectScene(tpl.id.toString())} className={`px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 cursor-pointer transition-colors ${formData.templateIdScene == tpl.id ? 'bg-purple-100 font-bold text-purple-700' : ''}`}>{tpl.name} ({tpl.type})</li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </div>
+              </div>
+              <button onClick={async () => {
+                if (!formData.templateIdScene) return alert('请先选择一个提示词模版');
+                setIsGeneratingScene(true);
+                setFormData((prev) => ({ ...prev, sceneGeneratedPrompt: '' }));
+                try {
+                  const selectedTemplate = tplList.find((t) => t.id === parseInt(formData.templateIdScene));
+                  const payload = {
+                    templateContent: selectedTemplate?.content || '',
+                    model: selectedSceneModel || undefined,
+                    temperature: sceneTemperature === '' ? undefined : parseFloat(sceneTemperature),
+                    name: formData.name,
+                    gender: formData.gender,
+                    identity: formData.identity,
+                    tagline: formData.tagline,
+                    tags: formData.tags,
+                    intro: formData.intro,
+                    personality: formData.personality,
+                    relationship: isCustomRel ? formData.customRelationship : formData.relationship,
+                    styleExamples: formData.styleExamples,
+                    hobbies: formData.hobbies,
+                    experiences: formData.experiences,
+                  };
+                  const resp = await syspromptAPI.generate(payload);
+                  setFormData((prev) => ({ ...prev, sceneGeneratedPrompt: resp.prompt || '' }));
+                } catch {
+                } finally {
+                  setIsGeneratingScene(false);
+                }
+              }} disabled={isGeneratingScene} className="px-6 py-3 rounded-xl bg-purple-600 text-white font-bold text-sm shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px] justify-center z-0">
+                {isGeneratingScene ? <span className="animate-spin"><RefreshCw size={16} /></span> : <Wand2 size={16} className="text-yellow-300" />}
+                {isGeneratingScene ? '生成中...' : '生成提示词'}
+              </button>
+            </div>
+            <p className="text-xs text-purple-400 mt-2 ml-1">* 将根据上方填写的设定，自动填充到模版占位符中</p>
+            <div className="mt-4 relative">
+              <textarea rows="12" value={formData.sceneGeneratedPrompt} onChange={(e) => setFormData({ ...formData, sceneGeneratedPrompt: e.target.value })} className="dream-input w-full px-5 py-4 rounded-xl text-sm leading-relaxed font-mono text-gray-700 bg-white focus:bg-white resize-y shadow-inner" placeholder="点击上方“生成提示词”按钮，或在此直接编写 Prompt..."></textarea>
+              {!formData.sceneGeneratedPrompt && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+                  <div className="text-center"><FileText size={48} className="mx-auto mb-2 text-purple-300" /><p className="text-sm font-bold text-purple-400">等待生成...</p></div>
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
         <div className="col-span-12 lg:col-span-4 space-y-6">
           <div className="glass-card p-6 rounded-3xl flex flex-col items-center text-center">
             <h3 className="font-cute text-purple-900 mb-4 w-full text-left border-b border-purple-100 pb-2">头像预览</h3>
-            <div className="w-32 h-32 rounded-full bg-gray-100 border-4 border-white shadow-xl flex items-center justify-center mb-4 relative group cursor-pointer overflow-hidden">
-              {formData.avatar ? <span className="text-4xl">🧑‍⚕️</span> : <div className="text-4xl text-gray-300 font-bold">{formData.name ? formData.name[0] : '?'}</div>}
+            <div onClick={() => setShowAvatarEditor(true)} className="w-32 h-32 rounded-full bg-gray-100 border-4 border-white shadow-xl flex items-center justify-center mb-4 relative group cursor-pointer overflow-hidden">
+              {formData.avatar ? <img src={formData.avatar} alt="Avatar" className="w-full h-full object-cover" /> : <div className="text-4xl text-gray-300 font-bold">{formData.name ? formData.name[0] : '?'}</div>}
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold">更换头像</div>
             </div>
             <div className="w-full">
@@ -311,7 +559,7 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
                 <div>
                   <div className="text-xs font-bold text-gray-400 mb-2 ml-1">直接添加 (自定义)</div>
                   <div className="flex gap-2">
-                    <input value={customTagInput} onChange={(e) => setCustomTagInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const val = customTagInput.trim(); if (val) setFormData((prev) => (prev.tags.includes(val) ? prev : { ...prev, tags: [...prev.tags, val] })); setCustomTagInput(''); } }} type="text" placeholder="输入标签，不用加#" className="dream-input flex-1 px-4 py-2 text-sm bg-white" />
+                    <input value={customTagInput} onChange={(e) => setCustomTagInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const val = customTagInput.trim(); if (val) setFormData((prev) => (prev.tags.includes(val) ? prev : { ...prev, tags: [...prev.tags, val] })); setCustomTagInput(''); } }} type="text" placeholder="输入标签，不用加#" className="dream-input flex-1 px-4 py-2 text-sm bg-white rounded-xl" />
                     <button onClick={() => { const val = customTagInput.trim(); if (val) setFormData((prev) => (prev.tags.includes(val) ? prev : { ...prev, tags: [...prev.tags, val] })); setCustomTagInput(''); }} className="bg-gradient-to-r from-purple-400 to-purple-500 text-white px-4 rounded-xl font-bold text-sm shadow-md active:scale-95 transition">添加</button>
                   </div>
                 </div>
@@ -327,6 +575,26 @@ const CharacterCreateView = ({ initialData, onCancel, mode = 'new', notify }) =>
             </div>
           </div>
         </>
+      )}
+      {showAvatarEditor && (
+        <AvatarEditor
+          initialImage={formData.avatar || null}
+          onSave={async (dataUrl) => {
+            try {
+              const r = await uploadAPI.avatar(dataUrl);
+              setFormData((p) => ({ ...p, avatar: r.url }));
+            } catch { }
+            setShowAvatarEditor(false);
+          }}
+          onCancel={() => setShowAvatarEditor(false)}
+        />
+      )}
+      {showAvatarEditor && (
+        <AvatarEditor
+          initialImage={formData.avatar}
+          onSave={(newAvatar) => { setFormData(prev => ({ ...prev, avatar: newAvatar })); setShowAvatarEditor(false); }}
+          onCancel={() => setShowAvatarEditor(false)}
+        />
       )}
     </div>
   );

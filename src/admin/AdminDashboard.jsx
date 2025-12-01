@@ -53,12 +53,13 @@ const AdminDashboard = () => {
         }}
         onLogout={() => { setIsLoggedIn(false); localStorage.removeItem('admin_access_token'); localStorage.removeItem('admin_refresh_token'); navigate('/super-admin/login'); }}
       />
-      <main className="flex-1 ml-64 p-8 relative z-10">
+      <main className="flex-1 ml-16 xl:ml-56 p-8 relative z-10 transition-all duration-300">
         <div className="absolute top-0 right-0 p-4 pointer-events-none opacity-20">
           <Sparkles size={120} className="text-purple-300" />
         </div>
         {activeTab === 'templates' && <TemplatesView />}
-        {activeTab === 'characters' && <CharacterManagement />}
+        {(activeTab === 'characters' || activeTab === 'official_characters') && <CharacterManagement creatorRole="admin_role" />}
+        {activeTab === 'user_characters' && <CharacterManagement creatorRole="user_role" />}
         {activeTab === 'users' && <UsersView />}
         {activeTab === 'settings' && <SettingsView />}
       </main>

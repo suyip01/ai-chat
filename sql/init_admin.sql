@@ -55,7 +55,9 @@ CREATE TABLE characters (
   gender VARCHAR(16) NOT NULL,
   avatar VARCHAR(64),
   intro TEXT,
+  creator VARCHAR(64) NOT NULL,
   template_id BIGINT,
+  scene_template_id BIGINT,
   identity TEXT,
   tagline VARCHAR(255),
   personality TEXT,
@@ -64,10 +66,18 @@ CREATE TABLE characters (
   plot_summary TEXT,
   opening_line VARCHAR(255),
   system_prompt TEXT,
+  system_prompt_scene TEXT,
+  prompt_model_id VARCHAR(64),
+  prompt_temperature DECIMAL(3,2),
+  scene_model_id VARCHAR(64),
+  scene_temperature DECIMAL(3,2),
   hobbies TEXT,
   experiences TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  creator_role ENUM('user_role','admin_role') NOT NULL,
   status ENUM('published','draft') NOT NULL DEFAULT 'draft',
-  FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
+  FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL,
+  FOREIGN KEY (scene_template_id) REFERENCES templates(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE character_tags (
@@ -90,6 +100,9 @@ CREATE TABLE settings (
   selected_model VARCHAR(64) NOT NULL,
   selected_chat_model VARCHAR(64) NOT NULL,
   selected_story_model VARCHAR(64) NOT NULL,
+  model_temperature DECIMAL(3,2) NOT NULL DEFAULT 0.10,
+  chat_temperature DECIMAL(3,2) NOT NULL DEFAULT 0.10,
+  story_temperature DECIMAL(3,2) NOT NULL DEFAULT 0.10,
   default_template_id BIGINT,
   FOREIGN KEY (default_template_id) REFERENCES templates(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -103,6 +116,14 @@ CREATE TABLE admin_refresh_tokens (
   revoked TINYINT(1) NOT NULL DEFAULT 0,
   FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE,
   INDEX idx_admin_token (admin_id, token)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE models (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  model_id VARCHAR(64) NOT NULL UNIQUE,
+  model_name VARCHAR(128) NOT NULL,
+  model_nickname VARCHAR(128),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;

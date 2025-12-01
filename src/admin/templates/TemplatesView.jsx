@@ -131,9 +131,18 @@ const TemplatesViewContent = () => {
                   )}
                 </td>
                 <td className="p-3 text-right pr-8 space-x-2">
-                  <button onClick={() => handleEdit(tpl)} className="text-purple-400 hover:text-purple-600 p-1"><Edit3 size={16} /></button>
-                  <button onClick={() => handleCopy(tpl)} className="text-purple-400 hover:text-purple-600 p-1"><Copy size={16} /></button>
-                  <button onClick={() => openDelete(tpl)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={16} /></button>
+                  <span className="relative inline-flex group">
+                    <button onClick={() => handleEdit(tpl)} aria-label="编辑" className="text-purple-400 hover:text-purple-600 p-1"><Edit3 size={16} /></button>
+                    <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md text-xs bg-gray-800 text-white whitespace-nowrap opacity-0 group-hover:opacity-100">编辑</span>
+                  </span>
+                  <span className="relative inline-flex group">
+                    <button onClick={() => handleCopy(tpl)} aria-label="复制" className="text-purple-400 hover:text-purple-600 p-1"><Copy size={16} /></button>
+                    <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md text-xs bg-gray-800 text-white whitespace-nowrap opacity-0 group-hover:opacity-100">复制</span>
+                  </span>
+                  <span className="relative inline-flex group">
+                    <button onClick={() => openDelete(tpl)} aria-label="删除" className="text-red-400 hover:text-red-600 p-1"><Trash2 size={16} /></button>
+                    <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md text-xs bg-gray-800 text-white whitespace-nowrap opacity-0 group-hover:opacity-100">删除</span>
+                  </span>
                 </td>
               </tr>
             ))}
