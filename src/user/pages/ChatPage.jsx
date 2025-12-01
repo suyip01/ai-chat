@@ -40,6 +40,10 @@ const CHAT_DATA = [
 ];
 
 const ChatPage = () => {
+    const extra = React.useMemo(() => {
+        try { return JSON.parse(localStorage.getItem('chat_sessions') || '[]'); } catch { return []; }
+    }, []);
+    const chats = [...extra, ...CHAT_DATA];
     return (
         <div className="pb-24 min-h-full">
             {/* Header */}
@@ -74,7 +78,7 @@ const ChatPage = () => {
 
                 {/* 聊天列表 */}
                 <div className="space-y-2">
-                    {CHAT_DATA.map((chat) => (
+                    {chats.map((chat) => (
                         <div key={chat.id} className="flex gap-4 p-4 hover:bg-white hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300 cursor-pointer rounded-2xl border border-transparent hover:border-purple-50 group">
                             {/* 头像 */}
                             <div className="relative flex-shrink-0">

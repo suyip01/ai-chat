@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
 import ProfilePage from './pages/ProfilePage';
 import CharacterDetail from './pages/CharacterDetail.jsx';
+import ChatWindowsPage from './pages/ChatWindowsPage.jsx';
 import { Routes, Route } from 'react-router-dom';
 import KeepAlive from './keepalive.js';
 import { useLocation } from 'react-router-dom';
@@ -11,6 +12,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 const UserHome = () => {
     const [activeTab, setActiveTab] = useState('home');
+    const location = useLocation();
+    const hideNav = /^\/characters\/[^/]+\/chat$/.test(location.pathname);
+    React.useEffect(() => { if (location.state && location.state.tab) { setActiveTab(location.state.tab); } }, [location]);
 
     // 内容区域根据 Tab 切换
     const renderContent = () => {
@@ -23,7 +27,7 @@ const UserHome = () => {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-[#F3E5F5] overflow-hidden font-sans text-slate-800 relative">
+        <div className="flex flex-col h-screen supports-[height:100dvh]:h-[100dvh] bg-white overflow-hidden font-sans text-slate-800 relative">
 
             {/* Ambient Background (from LoginPage) */}
             <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
@@ -59,7 +63,7 @@ const UserHome = () => {
                 order-2 md:order-1 -> 移动端在下(Flex中排第2)，PC端在左(Flex中排第1)
             */}
             <div className="order-2 flex-shrink-0 z-50">
-                <NavBar activeTab={activeTab} setActiveTab={setActiveTab} />
+                {!hideNav && <NavBar activeTab={activeTab} setActiveTab={setActiveTab} />}
             </div>
 
             {/* 主内容区域：
@@ -68,35 +72,47 @@ const UserHome = () => {
             <main className="order-1 flex-1 h-full overflow-y-auto relative w-full scroll-smooth z-10 hide-scrollbar">
                 <div className="h-full min-h-full">
                     <div id="content-scroll" className="app-shell mx-auto max-w-[430px] w-full h-full overflow-y-auto hide-scrollbar relative">
-                        {(() => {
-                            const location = useLocation();
-                            return (
-                                <AnimatePresence initial={false} mode="sync">
-                                    <Routes location={location} key={location.key}>
-                                        <Route
-                                            path="/"
-                                            element={
-                                                <motion.div initial={{ x: 0, opacity: 1 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '-8%', opacity: 0 }} transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 will-change-transform">
-                                                    <KeepAlive saveScrollPosition="screen" cacheKey="home" targetId="content-scroll">
-                                                        <motion.div key={activeTab} initial={{ x: '4%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '-4%', opacity: 0 }} transition={{ duration: 0.36, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 overflow-y-auto will-change-transform bg-[#F3E5F5] pb-24 hide-scrollbar">
-                                                            {renderContent()}
-                                                        </motion.div>
-                                                    </KeepAlive>
-                                                </motion.div>
-                                            }
-                                        />
-                                        <Route
-                                            path="/characters/:id"
-                                            element={
-                                                <motion.div initial={{ x: '100%', opacity: 0 }} animate={{ x: '0%', opacity: 1 }} exit={{ x: '100%', opacity: 0 }} transition={{ duration: 0.26, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 will-change-transform">
-                                                    <CharacterDetail />
-                                                </motion.div>
-                                            }
-                                        />
-                                    </Routes>
-                                </AnimatePresence>
-                            );
-                        })()}
+                        {
+                            <AnimatePresence initial={false} mode="sync">
+                                <Routes location={location} key={location.key}>
+                                    <Route
+                                        path="/"
+                                        element={
+                                            <motion.div initial={{ x: 0, opacity: 1 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '-8%', opacity: 0 }} transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 will-change-transform">
+                                                <KeepAlive saveScrollPosition="screen" cacheKey="home" targetId="content-scroll">
+                                                    <motion.div
+                                                        key={activeTab}
+                                                        initial={{ x: '4%', opacity: 0 }}
+                                                        animate={{ x: 0, opacity: 1 }}
+                                                        exit={{ x: '-4%', opacity: 0 }}
+                                                        transition={{ duration: 0.36, ease: [0.2, 0, 0, 1] }}
+                                                        className={`absolute inset-0 will-change-transform bg-[#F3E5F5] hide-scrollbar ${hideNav ? 'overflow-hidden' : 'overflow-y-auto pb-24'}`}
+                                                    >
+                                                        {renderContent()}
+                                                    </motion.div>
+                                                </KeepAlive>
+                                            </motion.div>
+                                        }
+                                    />
+                                    <Route
+                                        path="/characters/:id"
+                                        element={
+                                            <motion.div initial={{ x: '100%', opacity: 0 }} animate={{ x: '0%', opacity: 1 }} exit={{ x: '100%', opacity: 0 }} transition={{ duration: 0.26, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 will-change-transform">
+                                                <CharacterDetail />
+                                            </motion.div>
+                                        }
+                                    />
+                                    <Route
+                                        path="/characters/:id/chat"
+                                        element={
+                                            <motion.div initial={{ x: '100%', opacity: 0 }} animate={{ x: '0%', opacity: 1 }} exit={{ x: '100%', opacity: 0 }} transition={{ duration: 0.26, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 will-change-transform">
+                                                <ChatWindowsPage />
+                                            </motion.div>
+                                        }
+                                    />
+                                </Routes>
+                            </AnimatePresence>
+                        }
                     </div>
                 </div>
             </main>
