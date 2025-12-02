@@ -1,7 +1,8 @@
 export default {
   content: [
-    '../index.html',
-    './user/**/*.{js,ts,jsx,tsx}',
+    './index.html',
+    './admin/**/*.{js,jsx,ts,tsx}',
+    './user/**/*.{js,jsx,ts,tsx}',
   ],
   theme: {
     extend: {
