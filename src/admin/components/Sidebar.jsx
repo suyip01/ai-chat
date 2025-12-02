@@ -157,10 +157,18 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, username }) => {
         ))}
       </nav>
       <div className="p-4 border-t border-purple-100">
-        <button onClick={onLogout} className="w-full flex items-center justify-center xl:justify-start gap-3 px-2 xl:px-4 py-3 text-red-400 hover:bg-red-50 rounded-2xl transition-colors font-bold text-sm">
-          <LogOut size={18} className="flex-shrink-0" />
-          <span className="hidden xl:block">退出登录</span>
-        </button>
+        <div className="w-full flex xl:flex-row flex-col items-center xl:justify-start justify-center gap-3">
+          <div className="group relative w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center">
+            <User size={16} />
+            <div className="absolute left-1/2 -translate-x-1/2 -translate-y-full -top-2 bg-purple-700 text-white text-xs px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+              {username}
+            </div>
+          </div>
+          <button onClick={onLogout} className="w-full xl:flex-1 flex items-center justify-center xl:justify-start gap-3 px-2 xl:px-4 py-3 text-red-400 hover:bg-red-50 rounded-2xl transition-colors font-bold text-sm">
+            <LogOut size={18} className="flex-shrink-0" />
+            <span className="hidden xl:block">退出登录</span>
+          </button>
+        </div>
       </div>
     </div>
   );

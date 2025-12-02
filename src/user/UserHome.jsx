@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import NavBar from './components/NavBar';
-import HomePage from './pages/HomePage';
-import ChatPage from './pages/ChatPage';
-import ProfilePage from './pages/ProfilePage';
+import NavBar from './components/NavBar.jsx';
+import HomePage from './pages/HomePage.jsx';
+import ChatPage from './pages/ChatPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
 import CharacterDetail from './pages/CharacterDetail.jsx';
 import ChatWindowsPage from './pages/ChatWindowsPage.jsx';
 import { Routes, Route } from 'react-router-dom';

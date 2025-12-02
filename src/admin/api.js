@@ -100,6 +100,9 @@ export const syspromptAPI = {
   async generate(payload) {
     return request('/sysprompt/generate', { method: 'POST', body: JSON.stringify(payload) });
   },
+  async generateNoScene(payload) {
+    return request('/sysprompt/generate-noscene', { method: 'POST', body: JSON.stringify(payload) });
+  },
 };
 
 export const uploadAPI = {

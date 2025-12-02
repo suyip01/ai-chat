@@ -55,7 +55,6 @@ CREATE TABLE characters (
   name VARCHAR(128) NOT NULL,
   gender VARCHAR(16) NOT NULL,
   avatar VARCHAR(64),
-  intro TEXT,
   creator VARCHAR(64) NOT NULL,
   template_id BIGINT,
   scene_template_id BIGINT,
@@ -63,6 +62,9 @@ CREATE TABLE characters (
   tagline VARCHAR(255),
   personality TEXT,
   relationship VARCHAR(64),
+  character_type ENUM('原创角色','二次创作','其他') NOT NULL DEFAULT '原创角色',
+  age INT,
+  occupation VARCHAR(128),
   plot_theme VARCHAR(255),
   plot_summary TEXT,
   opening_line VARCHAR(255),
@@ -77,7 +79,6 @@ CREATE TABLE characters (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   creator_role ENUM('user_role','admin_role') NOT NULL,
   status ENUM('published','draft') NOT NULL DEFAULT 'draft',
-  FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL,
   FOREIGN KEY (scene_template_id) REFERENCES templates(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

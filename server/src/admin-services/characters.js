@@ -12,6 +12,9 @@ export const ensureCharacterSchema = async () => {
   if (!names.has('scene_model_id')) alters.push('ADD COLUMN scene_model_id VARCHAR(64) NULL');
   if (!names.has('scene_temperature')) alters.push('ADD COLUMN scene_temperature DECIMAL(3,2) NULL');
   if (!names.has('scene_template_id')) alters.push('ADD COLUMN scene_template_id BIGINT NULL');
+  if (!names.has('character_type')) alters.push('ADD COLUMN character_type ENUM("原创角色","二次创作","其他") NOT NULL DEFAULT "原创角色"');
+  if (!names.has('age')) alters.push('ADD COLUMN age INT NULL');
+  if (!names.has('occupation')) alters.push('ADD COLUMN occupation VARCHAR(128) NULL');
   if (alters.length) {
     await pool.query(`ALTER TABLE characters ${alters.join(', ')}`);
   }
@@ -31,15 +34,15 @@ export const listCharacters = async (creatorRole) => {
   const where = creatorRole ? 'WHERE c.creator_role = ?' : '';
   const params = creatorRole ? [creatorRole] : [];
   const [rows] = await pool.query(
-    `SELECT c.id, c.name, c.gender, c.avatar, c.intro, c.creator, c.creator_role, c.template_id, c.scene_template_id, c.identity, c.tagline,
+    `SELECT c.id, c.name, c.gender, c.avatar, c.creator, c.creator_role, c.scene_template_id, c.identity, c.tagline,
             c.personality, c.relationship, c.plot_theme, c.plot_summary, c.opening_line,
             c.system_prompt, c.system_prompt_scene, c.prompt_model_id, c.prompt_temperature, c.scene_model_id, c.scene_temperature,
             c.hobbies, c.experiences, c.status, c.created_at,
-            t1.name AS template_name, t2.name AS scene_template_name,
+            c.character_type, c.age, c.occupation,
+            t2.name AS scene_template_name,
             GROUP_CONCAT(ct.tag) AS tags
      FROM characters c
      LEFT JOIN character_tags ct ON ct.character_id = c.id
-     LEFT JOIN templates t1 ON t1.id = c.template_id
      LEFT JOIN templates t2 ON t2.id = c.scene_template_id
      ${where}
      GROUP BY c.id
@@ -61,7 +64,6 @@ export const listCharacters = async (creatorRole) => {
     name: r.name,
     gender: r.gender,
     avatar: r.avatar,
-    intro: r.intro,
     creator: r.creator,
     creatorRole: r.creator_role,
     identity: r.identity,
@@ -75,8 +77,6 @@ export const listCharacters = async (creatorRole) => {
     systemPromptScene: r.system_prompt_scene,
     promptModelId: r.prompt_model_id,
     promptTemperature: r.prompt_temperature,
-    templateId: r.template_id,
-    templateName: r.template_name || null,
     sceneModelId: r.scene_model_id,
     sceneTemperature: r.scene_temperature,
     sceneTemplateId: r.scene_template_id,
@@ -87,6 +87,9 @@ export const listCharacters = async (creatorRole) => {
     createdAt: r.created_at,
     tags: r.tags ? r.tags.split(',') : [],
     styleExamples: styleMap.get(r.id) || [],
+    characterType: r.character_type,
+    age: r.age,
+    occupation: r.occupation,
   }));
 };
 
@@ -94,7 +97,6 @@ export const getCharacter = async (id) => {
   const [rows] = await pool.query('SELECT * FROM characters WHERE id=?', [id]);
   if (!rows.length) return null;
   const c = rows[0];
-  const [[tpl1]] = await pool.query('SELECT name FROM templates WHERE id=?', [c.template_id]);
   const [[tpl2]] = await pool.query('SELECT name FROM templates WHERE id=?', [c.scene_template_id]);
   const [tags] = await pool.query('SELECT tag FROM character_tags WHERE character_id=?', [id]);
   const [styles] = await pool.query('SELECT idx, content FROM character_style_examples WHERE character_id=? ORDER BY idx ASC', [id]);
@@ -108,32 +110,35 @@ export const getCharacter = async (id) => {
     sceneModelId: c.scene_model_id,
     sceneTemperature: c.scene_temperature,
     sceneTemplateId: c.scene_template_id,
-    templateName: tpl1?.name || null,
     sceneTemplateName: tpl2?.name || null,
+    characterType: c.character_type,
+    age: c.age,
+    occupation: c.occupation,
   };
 };
 
 export const createCharacter = async (payload) => {
   const id = Date.now();
   const {
-    name, gender, avatar = null, intro = null, creator, creatorRole = 'admin_role', templateId = null, sceneTemplateId = null,
+    name, gender, avatar = null, creator, creatorRole = 'admin_role', sceneTemplateId = null,
     identity = null, tagline = null, personality = null, relationship = null,
     plotTheme = null, plotSummary = null, openingLine = null, systemPrompt = null,
     systemPromptScene = null,
     promptModelId = null, promptTemperature = null,
     sceneModelId = null, sceneTemperature = null,
     hobbies = null, experiences = null, status = 'draft', tags = [], styleExamples = [],
+    characterType = '原创角色', age = null, occupation = null,
   } = payload;
   await pool.query(
-    `INSERT INTO characters (id, name, gender, avatar, intro, creator, creator_role, template_id, scene_template_id, identity, tagline, personality,
+    `INSERT INTO characters (id, name, gender, avatar, creator, creator_role, scene_template_id, identity, tagline, personality,
       relationship, plot_theme, plot_summary, opening_line, system_prompt, system_prompt_scene,
       prompt_model_id, prompt_temperature, scene_model_id, scene_temperature,
-      hobbies, experiences, status)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [id, name, gender, avatar, intro, creator, creatorRole, templateId, sceneTemplateId, identity, tagline, personality,
+      hobbies, experiences, status, character_type, age, occupation)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [id, name, gender, avatar, creator, creatorRole, sceneTemplateId, identity, tagline, personality,
      relationship, plotTheme, plotSummary, openingLine, systemPrompt, systemPromptScene,
      promptModelId, promptTemperature, sceneModelId, sceneTemperature,
-     hobbies, experiences, status]
+     hobbies, experiences, status, characterType, age, occupation]
   );
   if (tags && tags.length) {
     const values = tags.map(tag => [id, tag]);
@@ -148,23 +153,24 @@ export const createCharacter = async (payload) => {
 
 export const updateCharacter = async (id, payload) => {
   const {
-    name, gender, avatar = null, intro = null, creator, creatorRole = 'admin_role', templateId = null, sceneTemplateId = null,
+    name, gender, avatar = null, creator, creatorRole = 'admin_role', sceneTemplateId = null,
     identity = null, tagline = null, personality = null, relationship = null,
     plotTheme = null, plotSummary = null, openingLine = null, systemPrompt = null, systemPromptScene = null,
     promptModelId = null, promptTemperature = null,
     sceneModelId = null, sceneTemperature = null,
     hobbies = null, experiences = null, status, tags = [], styleExamples = [],
+    characterType = '原创角色', age = null, occupation = null,
   } = payload;
   await pool.query(
-    `UPDATE characters SET name=?, gender=?, avatar=?, intro=?, creator=?, creator_role=?, template_id=?, scene_template_id=?, identity=?, tagline=?, personality=?,
+    `UPDATE characters SET name=?, gender=?, avatar=?, creator=?, creator_role=?, scene_template_id=?, identity=?, tagline=?, personality=?,
       relationship=?, plot_theme=?, plot_summary=?, opening_line=?, system_prompt=?, system_prompt_scene=?,
       prompt_model_id=?, prompt_temperature=?, scene_model_id=?, scene_temperature=?,
-      hobbies=?, experiences=?, status=?
+      hobbies=?, experiences=?, status=?, character_type=?, age=?, occupation=?
      WHERE id=?`,
-    [name, gender, avatar, intro, creator, creatorRole, templateId, sceneTemplateId, identity, tagline, personality,
+    [name, gender, avatar, creator, creatorRole, sceneTemplateId, identity, tagline, personality,
      relationship, plotTheme, plotSummary, openingLine, systemPrompt, systemPromptScene,
      promptModelId, promptTemperature, sceneModelId, sceneTemperature,
-     hobbies, experiences, status, id]
+     hobbies, experiences, status, characterType, age, occupation, id]
   );
   await pool.query('DELETE FROM character_tags WHERE character_id=?', [id]);
   await pool.query('DELETE FROM character_style_examples WHERE character_id=?', [id]);

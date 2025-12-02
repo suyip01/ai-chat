@@ -50,39 +50,33 @@ const CharacterManagementInner = ({ creatorRole }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {characterList.map((char) => (
           <div key={char.id} className="relative">
-            <div className="glass-card p-4 rounded-3xl hover:shadow-xl transition-all group relative overflow-hidden h-[260px] flex flex-col">
+            <div className="glass-card p-4 rounded-3xl hover:shadow-xl transition-all group relative overflow-hidden h-[220px] flex flex-col">
               <div className={`absolute top-4 right-4 text-xs px-2 py-0.5 rounded-md font-bold ${char.status === 'published' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>{char.status === 'published' ? '已发布' : '草稿'}</div>
-              <div className="flex items-center gap-4 mb-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-200 to-indigo-200 flex items-center justify-center text-white text-xl font-bold shadow-inner border-2 border-white overflow-hidden">
+              <div className="flex items-start gap-4">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-200 to-indigo-200 flex items-center justify-center text-white text-xl font-bold shadow-inner border-2 border-white overflow-hidden flex-shrink-0">
                   {char.avatar ? (
                     <img src={char.avatar} alt="avatar" className="w-full h-full object-cover" />
                   ) : (
                     <span>{char.name ? (char.name[0]) : '?'}</span>
                   )}
                 </div>
-                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-lg text-gray-800">{char.name}</h3>
-                  <div className="flex gap-1 mt-1 flex-nowrap overflow-hidden whitespace-nowrap">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="font-bold text-lg text-gray-800 truncate">{char.name}</h3>
+                    <div className="text-xs text-gray-400 truncate">
+                      {(char.age != null && char.age !== '') ? `${char.age}岁` : ''}
+                      {char.occupation ? `${(char.age != null && char.age !== '') ? ' · ' : ''}${char.occupation}` : ''}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 mt-2 flex-wrap">
                     {char.tags.map((t) => (
                       <span key={t} className="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100">#{t}</span>
                     ))}
                   </div>
+                  <p className="text-gray-600 text-sm mt-2 truncate">{char.tagline || '暂无一句话人设'}</p>
                 </div>
               </div>
-              <p className="text-gray-500 text-xs mb-3 leading-relaxed" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'pre-line' }}>{(char.intro && char.intro.trim()) ? char.intro : '暂无简介\n暂无简介'}</p>
-              <div className="bg-white/50 rounded-xl p-2 mb-3 text-xs text-gray-500">
-                <div className="flex items-start gap-3">
-                  <div className="text-gray-500">
-                    <div>引用</div>
-                    <div>模版</div>
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-bold text-purple-600 truncate">标准：{char.templateName || '-'}</div>
-                    <div className="font-bold text-purple-600 truncate">场景：{char.sceneTemplateName || '-'}</div>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-auto flex gap-2 pt-2 border-t border-white/50">
+              <div className="mt-auto flex gap-2 pt-3 border-t border-white/50">
                 <button onClick={() => handleEdit(char)} className="flex-1 py-2 text-xs font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors flex items-center justify-center gap-1 mx-1"><Edit3 size={12} /> 编辑</button>
                 <button onClick={() => handleCopy(char)} className="flex-1 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center gap-1 mx-1"><Copy size={12} /> 复制</button>
                 {char.status === 'published' ? (
