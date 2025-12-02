@@ -6,9 +6,10 @@ interface ChatItemProps {
   chat: ChatPreview;
   onClick: () => void;
   onTogglePin: () => void;
+  roundedClass?: string;
 }
 
-export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin }) => {
+export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin, roundedClass }) => {
   // Format time relative to now (simple implementation)
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -22,7 +23,7 @@ export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin }
   return (
     <div 
       onClick={onClick}
-      className="group relative flex items-center gap-4 p-4 mb-3 bg-white rounded-2xl shadow-sm border border-transparent hover:border-primary-100 hover:shadow-md active:scale-[0.98] transition-all duration-200 cursor-pointer w-full max-w-md mx-auto"
+      className={`group relative flex items-center gap-4 p-4 bg-white ${roundedClass || 'rounded-2xl'} shadow-sm border border-transparent hover:border-primary-100 hover:shadow-md active:scale-[0.98] transition-all duration-200 cursor-pointer w-full max-w-md mx-auto`}
     >
       {/* Avatar Container */}
       <div className="relative flex-shrink-0">

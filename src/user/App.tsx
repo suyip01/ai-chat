@@ -10,6 +10,7 @@ import LoginPage from './components/LoginPage.jsx';
 import { ToastProvider } from './components/Toast';
 import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, UserPersona } from './types';
 import { listCharacters } from './services/charactersService';
+import { createChatSession } from './services/chatService';
 
 // Mock Data
 const MOCK_CHATS: ChatPreview[] = [
@@ -77,7 +78,7 @@ const MOCK_STORIES = [
 ];
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<NavTab>(NavTab.CHAT);
+  const [activeTab, setActiveTab] = useState<NavTab>(NavTab.HOME);
   const [chats, setChats] = useState<ChatPreview[]>(MOCK_CHATS);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loadingCharacters, setLoadingCharacters] = useState(false);
@@ -97,7 +98,7 @@ const App: React.FC = () => {
     setUserPersona(undefined);
     setSelectedChat(null);
     setViewingProfile(null);
-    setActiveTab(NavTab.CHAT);
+    setActiveTab(NavTab.HOME);
     setIsLoggedIn(false);
   };
   useEffect(() => {
@@ -125,6 +126,24 @@ const App: React.FC = () => {
           openingLine: it.openingLine || ''
         }));
         setCharacters(mapped);
+        // build chats from localStorage histories
+        try {
+          const previews: ChatPreview[] = []
+          const keys = Object.keys(localStorage).filter(k => k.startsWith('chat_history_'))
+          keys.forEach(k => {
+            const cid = k.replace('chat_history_', '')
+            const char = mapped.find(c => String(c.id) === String(cid))
+            if (!char) return
+            const raw = localStorage.getItem(k)
+            if (!raw) return
+            const arr = JSON.parse(raw) as Array<{ id:string; senderId:string; text:string; ts:number; type:string }>
+            if (!arr.length) return
+            const last = arr[arr.length - 1]
+            const lastMsg: Message = { id: last.id, senderId: last.senderId, text: last.text, timestamp: new Date(last.ts), type: last.type as MessageType }
+            previews.push({ characterId: String(cid), character: char, lastMessage: lastMsg, unreadCount: 0 })
+          })
+          if (previews.length) setChats(previews)
+        } catch {}
       })
       .catch(() => setCharacters([]))
       .finally(() => setLoadingCharacters(false));
@@ -132,18 +151,26 @@ const App: React.FC = () => {
 
   if (!isLoggedIn) {
     return (
-      <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden">
-        <div className="h-full w-full max-w-md mx-auto bg-white relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex">
-          <ToastProvider>
-            <LoginPage onLogin={() => setIsLoggedIn(true)} />
-          </ToastProvider>
+      <ToastProvider>
+        <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden">
+          <div className="h-full w-full max-w-md mx-auto bg-white relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex">
+              <LoginPage onLogin={() => setIsLoggedIn(true)} />
+          </div>
         </div>
-      </div>
+      </ToastProvider>
     );
   }
 
   // When opening a chat, we could fetch full history. For now, we mock history based on the last message.
   const getInitialMessages = (chat: ChatPreview): Message[] => {
+    try {
+      const raw = localStorage.getItem(`chat_history_${chat.characterId}`);
+      if (raw) {
+        const arr = JSON.parse(raw) as Array<{ id:string; senderId:string; text:string; ts:number; type:string; quote?:string; read?:boolean }>;
+        const msgs: Message[] = arr.map(m => ({ id: m.id, senderId: m.senderId, text: m.text, timestamp: new Date(m.ts), type: m.type as MessageType, quote: m.quote, read: m.read }));
+        if (msgs.length) return msgs;
+      }
+    } catch {}
     // Specific conversation for 祁云 based on the request
     if (chat.characterId === 'c1') {
       const baseTime = new Date();
@@ -235,7 +262,7 @@ const App: React.FC = () => {
     }));
   };
 
-  const startChatFromProfile = (character: Character) => {
+  const startChatFromProfile = async (character: Character) => {
     const existingChat = chats.find(c => c.characterId === character.id);
     if (existingChat) {
       setViewingProfile(null);
@@ -243,22 +270,44 @@ const App: React.FC = () => {
       setActiveTab(NavTab.CHAT);
       return;
     }
-    const newChat: ChatPreview = {
-      characterId: character.id,
-      character,
-      lastMessage: {
+    try {
+      const sid = await createChatSession(character.id);
+      localStorage.setItem(`chat_session_${character.id}`, sid);
+      const last: Message = {
         id: `msg_${Date.now()}`,
         senderId: character.id,
         text: character.openingLine ? character.openingLine.replace(/^['"“]|['"”]$/g, '') : '你好...',
         timestamp: new Date(),
         type: MessageType.TEXT
-      },
-      unreadCount: 0
-    };
-    setChats(prev => [newChat, ...prev]);
-    setViewingProfile(null);
-    setSelectedChat(newChat);
-    setActiveTab(NavTab.CHAT);
+      };
+      const newChat: ChatPreview = {
+        characterId: character.id,
+        character,
+        lastMessage: last,
+        unreadCount: 0
+      };
+      setChats(prev => [newChat, ...prev]);
+      setViewingProfile(null);
+      setSelectedChat(newChat);
+      setActiveTab(NavTab.CHAT);
+    } catch {
+      const fallback: ChatPreview = {
+        characterId: character.id,
+        character,
+        lastMessage: {
+          id: `msg_${Date.now()}`,
+          senderId: character.id,
+          text: character.openingLine ? character.openingLine.replace(/^['"“]|['"”]$/g, '') : '你好...',
+          timestamp: new Date(),
+          type: MessageType.TEXT
+        },
+        unreadCount: 0
+      };
+      setChats(prev => [fallback, ...prev]);
+      setViewingProfile(null);
+      setSelectedChat(fallback);
+      setActiveTab(NavTab.CHAT);
+    }
   };
 
   const handleCreateCharacter = (newCharacter: Character) => {
@@ -419,6 +468,12 @@ const App: React.FC = () => {
               chats={chats}
               onChatClick={(chat) => setSelectedChat(chat)}
               onTogglePin={handleTogglePin}
+              onDeleteChat={(characterId) => {
+                setChats(prev => prev.filter(c => c.characterId !== characterId));
+                localStorage.removeItem(`chat_session_${characterId}`);
+                localStorage.removeItem(`chat_history_${characterId}`);
+                if (selectedChat?.characterId === characterId) setSelectedChat(null);
+              }}
             />
           </>
         );
@@ -426,8 +481,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden">
-      <div className="h-full w-full max-w-md mx-auto bg-white relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex flex-col">
+    <ToastProvider>
+      <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden">
+        <div className="h-full w-full max-w-md mx-auto bg-white relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex flex-col">
 
         {/* 0. Create Character Overlay */}
         {isCreating && (
@@ -470,6 +526,7 @@ const App: React.FC = () => {
             onBack={() => setViewingProfile(null)}
             onStartChat={() => startChatFromProfile(viewingProfile)}
             isFromChat={isProfileFromChat}
+            isExistingChat={!!chats.find(c => c.characterId === viewingProfile.id)}
           />
         )}
 
@@ -491,8 +548,9 @@ const App: React.FC = () => {
             <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
           </>
         )}
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 };
 

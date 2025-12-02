@@ -1,0 +1,130 @@
+import { BASE_URL } from '../api'
+import { authFetch } from './http'
+import { Message, MessageType, UserPersona } from '../types'
+
+const token = () => localStorage.getItem('user_access_token') || ''
+
+const genderMap = (g?: 'male'|'female'|'secret') => {
+  if (g === 'male') return '男'
+  if (g === 'female') return '女'
+  return '未透露'
+}
+
+export const ensureUserChatRole = async (persona?: UserPersona) => {
+  const body = {
+    name: persona?.name || '未命名',
+    age: parseInt(persona?.age || '0') || null,
+    gender: genderMap(persona?.gender),
+    profession: persona?.profession || null,
+    basic_info: persona?.basicInfo || null,
+    personality: persona?.personality || null,
+    avatar: persona?.avatar || null,
+  }
+  const res = await authFetch(`/user/chat-role`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!res.ok) throw new Error('create_role_failed')
+  const data = await res.json()
+  return data.id as number
+}
+
+export const upsertUserChatRole = async (persona?: UserPersona) => {
+  const existing = localStorage.getItem('user_chat_role_id')
+  const body = {
+    name: persona?.name || '未命名',
+    age: parseInt(persona?.age || '0') || null,
+    gender: genderMap(persona?.gender),
+    profession: persona?.profession || null,
+    basic_info: persona?.basicInfo || null,
+    personality: persona?.personality || null,
+    avatar: persona?.avatar || null,
+  }
+  if (existing) {
+    const id = parseInt(existing)
+    const res = await fetch(`${BASE_URL}/user/chat-role/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+      body: JSON.stringify(body)
+    })
+    if (!res.ok) throw new Error('update_role_failed')
+    return id
+  }
+  const id = await ensureUserChatRole(persona)
+  localStorage.setItem('user_chat_role_id', String(id))
+  return id
+}
+
+export const createChatSession = async (characterId: string|number, userChatRoleId?: number) => {
+  const payload: any = { character_id: Number(characterId) }
+  if (typeof userChatRoleId === 'number') payload.user_chat_role_id = userChatRoleId
+  const res = await authFetch(`/chat/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+  if (!res.ok) throw new Error('create_session_failed')
+  const data = await res.json()
+  return data.sessionId as string
+}
+
+export const fetchHistory = async (_sessionId: string, _limit = 100): Promise<Message[]> => {
+  return []
+}
+
+export const connectChatWs = (sessionId: string, onAssistantMessage: (text: string, quote?: string) => void) => {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+  const wsOrigin = (import.meta as any).env?.VITE_SERVER_ORIGIN || `${proto}://${location.hostname}:3001`
+  const url = `${wsOrigin}/ws/chat`
+  console.log('[ws] connecting', url)
+  let ws: WebSocket | null = null
+  let manualClose = false
+  let backoff = 1000
+  const maxBackoff = 10000
+  const queue: any[] = []
+
+  const open = () => {
+    ws = new WebSocket(url)
+    ws.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(String(ev.data))
+        if (data && data.type === 'assistant_message' && typeof data.content === 'string') onAssistantMessage(data.content, data.quote)
+      } catch {}
+    }
+    ws.onerror = (e) => { console.error('[ws] error', e) }
+    ws.onopen = () => {
+      console.log('[ws] open')
+      backoff = 1000
+      while (queue.length) {
+        const p = queue.shift()
+        try { ws?.send(JSON.stringify(p)) } catch {}
+      }
+      const typingFalse = { type: 'typing', sessionId, typing: false }
+      try { ws?.send(JSON.stringify(typingFalse)) } catch {}
+    }
+    ws.onclose = () => {
+      console.log('[ws] closed')
+      if (!manualClose) {
+        setTimeout(open, backoff)
+        backoff = Math.min(backoff * 2, maxBackoff)
+      }
+    }
+  }
+  open()
+  const sendText = (text: string, chatMode?: 'daily'|'scene', userRole?: UserPersona) => {
+    const payload: any = { sessionId, text, chatMode }
+    if (userRole) {
+      payload.userRole = {
+        name: userRole.name,
+        gender: genderMap(userRole.gender),
+        age: userRole.age || '',
+        profession: userRole.profession || '',
+        basic_info: userRole.basicInfo || '',
+        personality: userRole.personality || '',
+        avatar: userRole.avatar || ''
+      }
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload))
+    else queue.push(payload)
+  }
+  const sendTyping = (typing: boolean) => {
+    const payload = { type: 'typing', sessionId, typing }
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload))
+    else queue.push(payload)
+  }
+  const close = () => { manualClose = true; try { ws?.close() } catch {} }
+  return { ws, sendText, sendTyping, close }
+}

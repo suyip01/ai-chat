@@ -66,6 +66,8 @@ export interface Message {
   text: string;
   timestamp: Date;
   type: MessageType;
+  quote?: string;
+  read?: boolean;
 }
 
 export interface ChatPreview {

@@ -6,6 +6,7 @@ import clientAuthRoutes from './client-routes/auth.js';
 import clientCharactersRoutes from './client-routes/characters.js';
 import clientUploadsRoutes from './client-routes/uploads.js';
 import userChatRoleRoutes from './client-routes/userChatRole.js';
+import clientChatRoutes from './client-routes/chat.js';
 import templatesRoutes from './admin-routes/templates.js';
 import charactersRoutes from './admin-routes/characters.js';
 import modelsRoutes from './admin-routes/models.js';
@@ -15,6 +16,8 @@ import uploadsRoutes from './admin-routes/uploads.js';
 import usersRoutes from './admin-routes/users.js';
 import adminsRoutes from './admin-routes/admins.js';
 import path from 'path';
+import http from 'http';
+import { startChatWs } from './client-services/chatWs.js';
 import { authRequired } from './middleware/auth.js';
 
 if (!process.env.JWT_SECRET) {
@@ -29,6 +32,7 @@ app.use('/api', clientAuthRoutes);
 app.use('/api/characters', clientCharactersRoutes);
 app.use('/api/uploads', clientUploadsRoutes);
 app.use('/api/user/chat-role', userChatRoleRoutes);
+app.use('/api/chat', clientChatRoutes);
 app.use('/api/admin', authRoutes);
 app.use('/api/admin/templates', templatesRoutes);
 app.use('/api/admin/characters', charactersRoutes);
@@ -45,8 +49,10 @@ app.get('/api/admin/profile', authRequired, (req, res) => {
 
 const port = process.env.PORT || 3001;
 const start = async () => {
-  app.listen(port, () => {
-    process.stdout.write(`admin server ${port}\n`);
+  const server = http.createServer(app);
+  startChatWs(server);
+  server.listen(port, () => {
+    process.stdout.write(`server start ${port}\n`);
   });
 };
 start();

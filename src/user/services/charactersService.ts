@@ -40,10 +40,8 @@ export const listCharacters = async (params?: { tag?: string; limit?: number }) 
   const qs = new URLSearchParams();
   if (params?.tag) qs.set('tag', params.tag);
   if (params?.limit) qs.set('limit', String(params.limit));
-  const token = localStorage.getItem('user_access_token');
-  const res = await fetch(`/api/characters/?${qs.toString()}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
+  const { authFetch } = await import('./http')
+  const res = await authFetch(`/characters/?${qs.toString()}`)
   if (!res.ok) throw new Error('failed');
   const data = await res.json();
   const items = Array.isArray(data?.items) ? data.items : [];
@@ -51,10 +49,8 @@ export const listCharacters = async (params?: { tag?: string; limit?: number }) 
 };
 
 export const getCharacter = async (id: string | number) => {
-  const token = localStorage.getItem('user_access_token');
-  const res = await fetch(`/api/characters/${id}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
+  const { authFetch } = await import('./http')
+  const res = await authFetch(`/characters/${id}`)
   if (!res.ok) throw new Error('failed');
   const data = await res.json();
   return toCharacter(data);

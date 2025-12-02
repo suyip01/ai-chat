@@ -182,6 +182,16 @@ export const updateCharacter = async (id, payload) => {
     const values = styleExamples.map((content, idx) => [id, idx + 1, content || '']);
     await pool.query('INSERT INTO character_style_examples (character_id, idx, content) VALUES ?', [values]);
   }
+  try {
+    const { getRedis, keyCharacter } = await import('../client-services/redis.js')
+    const rds = await getRedis()
+    await rds.hSet(keyCharacter(id), {
+      id: String(id),
+      system_prompt: systemPrompt || '',
+      system_prompt_scene: systemPromptScene || '',
+      updated_at: String(Date.now())
+    })
+  } catch {}
 };
 
 export const deleteCharacter = async (id) => {

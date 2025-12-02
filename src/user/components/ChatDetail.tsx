@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Send, MoreVertical, X, ChevronRight, User as UserIcon, MessageSquare } from 'lucide-react';
 import { UserCharacterSettings } from './UserCharacterSettings';
 import { Character, Message, MessageType, UserPersona } from '../types';
-import { generateCharacterResponse } from '../services/geminiService';
+import { createChatSession, connectChatWs } from '../services/chatService';
 
 interface ChatDetailProps {
   character: Character;
@@ -26,7 +26,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   onShowProfile,
   onUpdateUserPersona
 }) => {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   // Default to Scene mode with brackets pre-filled
   const [chatMode, setChatMode] = useState<'daily' | 'scene'>('scene');
   const [input, setInput] = useState('（）'); 
@@ -36,6 +36,32 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const updatePersona = onUpdateUserPersona ?? ((_: UserPersona) => {});
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const wsRef = useRef<{ sendText: (t: string, chatMode?: 'daily'|'scene', userRole?: UserPersona) => void; sendTyping: (typing: boolean) => void; close: () => void } | null>(null);
+  const [lastAssistantAt, setLastAssistantAt] = useState<number | null>(null);
+  const histKey = `chat_history_${character.id}`;
+
+  const appendAssistantWithRead = (text: string, quote?: string) => {
+    setMessages(prev => {
+      const next = [...prev];
+      for (let i = next.length - 1; i >= 0; i--) {
+        if (next[i].senderId === 'user') { next[i] = { ...next[i], read: true }; break; }
+      }
+      const msg: Message = { id: (Date.now()+1).toString(), senderId: character.id, text, quote, timestamp: new Date(), type: MessageType.TEXT };
+      next.push(msg);
+      onUpdateLastMessage(msg);
+      return next;
+    });
+    const ts = Date.now();
+    setLastAssistantAt(ts);
+    setIsTyping(true);
+    setTimeout(() => {
+      setIsTyping(prev => {
+        if (lastAssistantAt && Date.now() - lastAssistantAt < 1800) return prev;
+        return false;
+      });
+    }, 1800);
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -44,6 +70,51 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(histKey);
+      if (raw) {
+        const arr = JSON.parse(raw) as Array<{ id:string; senderId:string; text:string; ts:number; type:string; quote?:string; read?:boolean }>;
+        const msgs: Message[] = arr.map(m => ({ id: m.id, senderId: m.senderId, text: m.text, timestamp: new Date(m.ts), type: m.type as MessageType, quote: m.quote, read: m.read }));
+        if (msgs.length) setMessages(msgs);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character.id]);
+
+  useEffect(() => {
+    try {
+      const arr = messages.map(m => ({ id: m.id, senderId: m.senderId, text: m.text, ts: m.timestamp?.getTime?.() ? m.timestamp.getTime() : Date.now(), type: m.type, quote: m.quote, read: (m as any).read }));
+      localStorage.setItem(histKey, JSON.stringify(arr));
+    } catch {}
+  }, [messages]);
+
+  useEffect(() => {
+    const key = `chat_session_${character.id}`;
+    const sid = localStorage.getItem(key);
+    const setup = async () => {
+      if (sid) {
+        setSessionId(sid);
+        const conn = connectChatWs(sid, (text, quote) => {
+          appendAssistantWithRead(text, quote);
+        });
+        wsRef.current = conn;
+        return;
+      }
+      try {
+        const newSid = await createChatSession(character.id);
+        localStorage.setItem(key, newSid);
+        setSessionId(newSid);
+        const conn = connectChatWs(newSid, (text, quote) => {
+          appendAssistantWithRead(text, quote);
+        });
+        wsRef.current = conn;
+      } catch {}
+    };
+    setup();
+    return () => { wsRef.current?.close(); wsRef.current = null };
+  }, [character.id]);
 
   const handleModeSwitch = (mode: 'daily' | 'scene') => {
     setChatMode(mode);
@@ -72,31 +143,33 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       senderId: 'user',
       text: input,
       timestamp: new Date(),
-      type: MessageType.TEXT
+      type: MessageType.TEXT,
+      read: false
     };
 
     setMessages(prev => [...prev, userMsg]);
     onUpdateLastMessage(userMsg);
     // Reset input based on mode
     setInput(chatMode === 'scene' ? '（）' : ''); 
-    setIsTyping(true);
+      setIsTyping(true);
 
     try {
-      const responseText = await generateCharacterResponse(character, messages, userMsg.text, userPersona);
-      
-      const charMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        senderId: character.id,
-        text: responseText,
-        timestamp: new Date(),
-        type: MessageType.TEXT
-      };
-
-      setMessages(prev => [...prev, charMsg]);
-      onUpdateLastMessage(charMsg);
+      if (!sessionId) {
+        const sid = await createChatSession(character.id);
+        localStorage.setItem(`chat_session_${character.id}`, sid);
+        setSessionId(sid);
+        const conn = connectChatWs(sid, (text) => {
+          const charMsg: Message = { id: (Date.now()+1).toString(), senderId: character.id, text, timestamp: new Date(), type: MessageType.TEXT };
+          setMessages(prev => [...prev, charMsg]);
+          onUpdateLastMessage(charMsg);
+          setIsTyping(false);
+        });
+        wsRef.current = conn;
+      }
+      wsRef.current?.sendText(userMsg.text, chatMode, userPersona);
+      wsRef.current?.sendTyping(false);
     } catch (e) {
       console.error(e);
-    } finally {
       setIsTyping(false);
     }
   };
@@ -108,8 +181,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   return (
     <div className="fixed inset-0 bg-primary-50 z-50">
       <div className="mx-auto w-full max-w-md h-full flex flex-col relative bg-white shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden">
-      <div className="bg-primary-50/95 backdrop-blur-md px-4 py-3 shadow-none flex items-center justify-between z-10 border-b border-white/50">
-        <div className="flex items-center gap-2">
+            <div className="bg-primary-50/95 backdrop-blur-md px-4 py-3 shadow-none flex items-center justify-between z-10 border-b border-white/50">
+              <div className="flex items中心 gap-2">
           <button onClick={onBack} className="p-2 -ml-2 text-slate-800 hover:bg-black/5 rounded-full transition-colors">
             <ArrowLeft size={24} />
           </button>
@@ -119,11 +192,11 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
              className="flex items-center cursor-pointer active:opacity-70 transition-opacity"
              onClick={onShowProfile}
           >
-             <h2 className="font-bold text-slate-800 text-lg">
-               {character.name}
+            <h2 className="font-bold text-slate-800 text-lg">
+               {isTyping ? '正在输入中...' : character.name}
              </h2>
-          </div>
-        </div>
+             </div>
+            </div>
         <button 
             onClick={() => setIsSettingsOpen(true)}
             className="p-2 text-slate-800 hover:text-primary-600 rounded-full hover:bg-black/5 transition-all"
@@ -172,10 +245,20 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                   >
                     {msg.text}
                   </div>
+                  {!isMe && msg.quote && (
+                    <div className="mt-2 max-w-full">
+                      <div className="inline-block bg-slate-100 text-slate-500 text-xs rounded-[12px] px-3 py-2 border border-slate-200">
+                        {msg.quote}
+                      </div>
+                    </div>
+                  )}
                   {/* Timestamp */}
-                  <span className={`text-[10px] text-slate-400 mt-1 ${isMe ? 'mr-1' : 'ml-1'}`}>
-                      {formatTime(msg.timestamp)}
-                  </span>
+                  <div className={`flex items-center gap-2 mt-1 ${isMe ? 'mr-1' : 'ml-1'}`}>
+                    {isMe && msg.read && (
+                      <span className="text-[10px] text-slate-400">已读</span>
+                    )}
+                    <span className="text-[10px] text-slate-400">{formatTime(msg.timestamp)}</span>
+                  </div>
               </div>
               
                {/* User Avatar */}
@@ -195,18 +278,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           );
         })}
         
-        {isTyping && (
-           <div className="flex justify-start mb-4">
-              <div className="w-10 h-10 rounded-full mr-3 bg-blue-100 flex items-center justify-center border border-white">
-                 <img src={character.avatar} alt={character.name} className="w-full h-full object-cover rounded-full" />
-              </div>
-              <div className="bg-white px-4 py-3 rounded-[20px] rounded-tl-sm border border-slate-100 shadow-sm flex gap-1 items-center h-[46px]">
-                 <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                 <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                 <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-              </div>
-           </div>
-        )}
+        {/* 顶部状态显示替代下方打字提示，不再渲染会话内loading气泡 */}
         <div ref={messagesEndRef} />
       </div>
 
@@ -217,13 +289,14 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                 <textarea
                     ref={textareaRef}
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={(e) => { setInput(e.target.value); wsRef.current?.sendTyping(true); }}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             handleSend();
                         }
                     }}
+                    onBlur={() => wsRef.current?.sendTyping(false)}
                     placeholder=""
                     className="w-full bg-transparent border-none outline-none focus:ring-0 text-slate-700 text-sm p-0 resize-none max-h-24 overflow-y-auto leading-5 placeholder:text-slate-400"
                     rows={1}
@@ -309,6 +382,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           onSave={(persona) => {
             setIsUserSettingsOpenLocal(false);
             updatePersona(persona);
+            upsertUserChatRole(persona).catch(() => {});
           }}
           withinContainer
         />
