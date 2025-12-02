@@ -26,7 +26,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   onShowProfile,
   onUpdateUserPersona
 }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   // Default to Scene mode with brackets pre-filled
   const [chatMode, setChatMode] = useState<'daily' | 'scene'>('scene');
   const [input, setInput] = useState('（）'); 
@@ -382,7 +382,6 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           onSave={(persona) => {
             setIsUserSettingsOpenLocal(false);
             updatePersona(persona);
-            upsertUserChatRole(persona).catch(() => {});
           }}
           withinContainer
         />
