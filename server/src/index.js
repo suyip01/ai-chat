@@ -4,6 +4,8 @@ import cors from 'cors';
 import authRoutes from './admin-routes/auth.js';
 import clientAuthRoutes from './client-routes/auth.js';
 import clientCharactersRoutes from './client-routes/characters.js';
+import clientUploadsRoutes from './client-routes/uploads.js';
+import userChatRoleRoutes from './client-routes/userChatRole.js';
 import templatesRoutes from './admin-routes/templates.js';
 import charactersRoutes from './admin-routes/characters.js';
 import modelsRoutes from './admin-routes/models.js';
@@ -25,6 +27,8 @@ app.use(express.json());
 
 app.use('/api', clientAuthRoutes);
 app.use('/api/characters', clientCharactersRoutes);
+app.use('/api/uploads', clientUploadsRoutes);
+app.use('/api/user/chat-role', userChatRoleRoutes);
 app.use('/api/admin', authRoutes);
 app.use('/api/admin/templates', templatesRoutes);
 app.use('/api/admin/characters', charactersRoutes);

@@ -7,7 +7,7 @@ import { getPublicKeyPem } from '../crypto.js';
 
 const router = Router();
 
-router.post('/login', async (req, res) => {
+router.post('/auth/login', async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'missing_credentials' });
   try {

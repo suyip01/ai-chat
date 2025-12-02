@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { listPublishedCharacters, getPublishedCharacter } from '../client-services/characters.js';
+import { userAuthRequired } from '../middleware/userAuth.js';
 
 const router = Router();
+router.use(userAuthRequired);
 
 router.get('/', async (req, res) => {
   try {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BASE_URL, userAuthAPI } from '../api.js';
 import { Heart, LogIn, Eye, EyeOff, Check } from 'lucide-react';
-import { useToast } from './Toast.jsx';
+import { useToast } from './Toast';
 
 const LoginPage = ({ onLogin }) => {
     const [username, setUsername] = useState('');
@@ -48,7 +48,7 @@ const LoginPage = ({ onLogin }) => {
             </div>
 
             {/* Main Container */}
-            <div className="relative z-10 w-full max-w-md bg-transparent sm:bg-white/70 sm:backdrop-blur-xl sm:border sm:border-white/90 sm:shadow-[0_8px_30px_rgba(139,92,246,0.08)] sm:rounded-3xl p-6 sm:p-12 transition-all duration-300 ease-in-out flex flex-col justify-center min-h-[80vh] sm:min-h-0">
+            <div className="relative z-10 w-full max-w-md p-6 sm:p-12 flex flex-col justify-center">
 
                 {/* Header Section */}
                 <div className="text-center mb-10 sm:mb-12 space-y-3">

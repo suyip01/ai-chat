@@ -8,6 +8,7 @@ DROP TABLE IF EXISTS admins;
 DROP TABLE IF EXISTS character_style_examples;
 DROP TABLE IF EXISTS character_tags;
 DROP TABLE IF EXISTS characters;
+DROP TABLE IF EXISTS user_chat_role;
 DROP TABLE IF EXISTS template_tags;
 DROP TABLE IF EXISTS templates;
 DROP TABLE IF EXISTS users;
@@ -20,6 +21,23 @@ CREATE TABLE users (
   chat_limit INT NOT NULL DEFAULT 0,
   used INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 用户自定义聊天角色表
+CREATE TABLE user_chat_role (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  name VARCHAR(128) NOT NULL,
+  age INT,
+  gender ENUM('男','女','未透露') NOT NULL DEFAULT '未透露',
+  profession VARCHAR(128),
+  basic_info TEXT,
+  personality TEXT,
+  avatar VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_chat_role_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE admins (
@@ -56,7 +74,6 @@ CREATE TABLE characters (
   gender VARCHAR(16) NOT NULL,
   avatar VARCHAR(64),
   creator VARCHAR(64) NOT NULL,
-  template_id BIGINT,
   scene_template_id BIGINT,
   identity TEXT,
   tagline VARCHAR(255),

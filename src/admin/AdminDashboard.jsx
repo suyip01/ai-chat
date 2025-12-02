@@ -71,7 +71,7 @@ const AdminDashboard = () => {
         }}
         username={username}
       />
-      <main className="flex-1 ml-16 xl:ml-56 p-8 relative z-10 transition-all duration-300">
+      <main className="flex-1 ml-16 xl:ml-56 p-8 relative z-10 transition-all duration-300 h-screen overflow-y-auto">
         <div className="absolute top-0 right-0 p-4 pointer-events-none opacity-20">
           <Sparkles size={120} className="text-purple-300" />
         </div>

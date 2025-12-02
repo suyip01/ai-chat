@@ -11,3 +11,115 @@
     scrollbar-width: none;
   }
 }
+.root,
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100vh;
+  width: 100%;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+body {
+  -webkit-tap-highlight-color: transparent;
+  font-family: 'Varela Round','PingFang SC','Microsoft YaHei UI',sans-serif;
+}
+.ambient-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -2;
+  background: radial-gradient(at 0% 0%, hsla(270,60%,96%,1) 0, transparent 50%), radial-gradient(at 50% 100%, hsla(260,60%,90%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(290,60%,94%,1) 0, transparent 50%);
+  background-size: 200% 200%;
+  animation: gradientMove 10s ease infinite;
+}
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+.star {
+  position: absolute;
+  background: #ffd700;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255,215,0,0.8);
+  opacity: 0;
+  animation: floatStar 5s infinite ease-in-out;
+}
+@keyframes floatStar {
+  0% {
+    transform: translateY(20px) scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-20px) scale(0);
+    opacity: 0;
+  }
+}
+.glass-card {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: 0 8px 30px rgba(139,92,246,0.08);
+  border-radius: 24px;
+}
+.dream-input {
+  background: rgba(255,255,255,0.6);
+  border: 2px solid #f0e6fa;
+  transition: all 0.3s;
+  color: #5d5476;
+  border-radius: 16px;
+}
+.dream-input:focus {
+  background: #fff;
+  border-color: #c084fc;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(192,132,252,0.15);
+}
+.dream-input::placeholder {
+  color: #b3a4c8;
+  font-size: 0.85rem;
+}
+.section-title {
+  font-family: 'ZCOOL KuaiLe', cursive;
+  font-size: 1.25rem;
+  color: #4c1d95;
+  margin-bottom: 0.8rem;
+  display: flex;
+  align-items: center;
+}
+.section-title::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 18px;
+  background: #fbbf24;
+  margin-right: 8px;
+  border-radius: 4px;
+}
+.tag-pill {
+  background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
+  color: #5b21b6;
+  font-weight: 700;
+  font-size: 0.75rem;
+  border-radius: 8px;
+  padding: 4px 10px;
+}
