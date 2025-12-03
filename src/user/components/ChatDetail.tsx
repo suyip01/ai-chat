@@ -44,6 +44,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const wsRef = useRef<{ sendText: (t: string, chatMode?: 'daily' | 'scene', userRole?: UserPersona) => void; sendTyping: (typing: boolean) => void; close: () => void } | null>(null);
   const histKey = `chat_history_${character.id}`;
+  const configKey = `chat_config_${character.id}`;
 
   const appendAssistantWithRead = (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => {
     setMessages(prev => {
@@ -111,6 +112,18 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   }, [messages]);
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem(configKey);
+      if (raw) {
+        const cfg = JSON.parse(raw) as { chatMode?: 'daily'|'scene'; persona?: UserPersona };
+        if (cfg?.chatMode === 'daily' || cfg?.chatMode === 'scene') setChatMode(cfg.chatMode);
+        if (cfg?.persona) updatePersona(cfg.persona);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character.id]);
+
+  useEffect(() => {
     const key = `chat_session_${character.id}`;
     const sid = localStorage.getItem(key);
     const setup = async () => {
@@ -153,6 +166,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         setInput('');
       }
     }
+    try { localStorage.setItem(configKey, JSON.stringify({ chatMode: mode, persona: userPersona || undefined })); } catch {}
   };
 
   const handleSend = async () => {
@@ -417,7 +431,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           currentPersona={userPersona}
           onClose={() => setIsRoleSheetOpen(false)}
           onAdd={() => { setIsRoleSheetOpen(false); setIsUserSettingsOpenLocal(true); }}
-          onSelect={(persona) => { updatePersona(persona); }}
+          onSelect={(persona) => { updatePersona(persona); try { localStorage.setItem(configKey, JSON.stringify({ chatMode, persona })); } catch {} }}
         />
 
       </div>

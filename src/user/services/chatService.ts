@@ -74,7 +74,7 @@ export const fetchHistory = async (_sessionId: string, _limit = 100): Promise<Me
 
 export const connectChatWs = (sessionId: string, onAssistantMessage: (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => void) => {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  const wsOrigin = (import.meta as any).env?.VITE_SERVER_ORIGIN || `${proto}://${location.hostname}:3001`
+  const wsOrigin = `${proto}://${location.host}`
   const url = `${wsOrigin}/ws/chat`
   console.log('[ws] connecting', url)
   let ws: WebSocket | null = null

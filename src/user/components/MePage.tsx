@@ -240,12 +240,12 @@ export const MePage: React.FC<MePageProps> = ({
          <div className="bg-white rounded-3xl shadow-sm p-2">
             <button 
                 onClick={() => setShowLogoutModal(true)}
-                className="w-full flex items-center gap-3 p-4 hover:bg-red-50 rounded-2xl transition-colors group"
+                className="w-full flex items-center justify-center gap-3 p-2 hover:bg-red-50 rounded-2xl transition-colors group"
             >
                  <div className="w-8 h-8 rounded-full bg-red-50 text-red-400 flex items-center justify-center group-hover:bg-red-100 group-hover:text-red-500 transition-colors">
                     <LogOut size={16} />
                  </div>
-                 <span className="flex-1 text-left font-bold text-slate-700 text-sm group-hover:text-red-500">退出登录</span>
+                 <span className="text-center font-bold text-slate-700 text-sm group-hover:text-red-500">退出登录</span>
             </button>
          </div>
 
