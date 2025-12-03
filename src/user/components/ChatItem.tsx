@@ -38,7 +38,7 @@ export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin, 
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-baseline mb-1">
+        <div className="flex justify-between items-center mb-1">
           <div className="flex items-center gap-2">
             <h3 className="font-bold text-slate-800 text-lg truncate">
               {chat.character.name}

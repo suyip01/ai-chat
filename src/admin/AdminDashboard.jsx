@@ -54,7 +54,7 @@ const AdminDashboard = () => {
     );
   }
   return (
-    <div className="flex min-h-screen bg-[#F3E5F5]">
+    <div className="flex min-h-screen bg-white">
       <StyleInjector />
       <Sidebar
         activeTab={activeTab}
@@ -73,7 +73,7 @@ const AdminDashboard = () => {
       />
       <main className="flex-1 ml-16 xl:ml-56 p-8 relative z-10 transition-all duration-300 h-screen overflow-y-auto">
         <div className="absolute top-0 right-0 p-4 pointer-events-none opacity-20">
-          <Sparkles size={120} className="text-purple-300" />
+          <Sparkles size={120} className="text-pink-300" />
         </div>
         {activeTab === 'templates' && <TemplatesView />}
         {(activeTab === 'characters' || activeTab === 'official_characters') && <CharacterManagement creatorRole="admin_role" />}

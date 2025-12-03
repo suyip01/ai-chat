@@ -86,7 +86,7 @@ export const startChatWs = (server) => {
         for (let i = 0; i < chunks.length; i++) {
           const piece = chunks[i]
           await appendAssistantMessage(sid, piece)
-          const payloadOut = includeQuote ? { type: 'assistant_message', content: piece, quote } : { type: 'assistant_message', content: piece }
+          const payloadOut = includeQuote ? { type: 'assistant_message', content: piece, quote, chunkIndex: i + 1, chunkTotal: chunks.length } : { type: 'assistant_message', content: piece, chunkIndex: i + 1, chunkTotal: chunks.length }
           ws.send(JSON.stringify(payloadOut))
           if (i < chunks.length - 1) {
             await new Promise(res => setTimeout(res, 2000))

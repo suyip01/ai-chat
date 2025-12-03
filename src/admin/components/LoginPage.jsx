@@ -32,22 +32,22 @@ const LoginPage = ({ onLogin }) => {
       <div className="ambient-bg"></div>
       <div className="glass-card p-10 rounded-3xl w-full max-w-md shadow-2xl transform transition-all hover:scale-[1.01]">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-100 text-purple-600 mb-4 shadow-inner">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-pink-100 text-pink-600 mb-4 shadow-inner">
             <Sparkles size={32} />
           </div>
-          <h1 className="text-3xl font-cute text-purple-900 mb-2">Linkusrge</h1>
-          <p className="text-purple-400 text-sm">运营管理平台</p>
+          <h1 className="text-3xl font-cute text-pink-900 mb-2">Linkusrge</h1>
+          <p className="text-pink-400 text-sm">运营管理平台</p>
         </div>
         <div className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-purple-800 mb-2 ml-1">管理员账号</label>
+            <label className="block text-sm font-bold text-pink-800 mb-2 ml-1">管理员账号</label>
             <input type="text" placeholder="admin" value={username} onChange={e => setUsername(e.target.value)} className="dream-input w-full px-4 py-3 rounded-2xl" />
           </div>
           <div>
-            <label className="block text-sm font-bold text-purple-800 mb-2 ml-1">密码</label>
+            <label className="block text-sm font-bold text-pink-800 mb-2 ml-1">密码</label>
             <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="dream-input w-full px-4 py-3 rounded-2xl" />
           </div>
-          <button onClick={handleLogin} className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-purple-200 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+          <button onClick={handleLogin} className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-pink-200 transition-all transform active:scale-95 flex items-center justify-center gap-2">
             <LogOut size={18} className="rotate-180" /> 登录后台
           </button>
         </div>

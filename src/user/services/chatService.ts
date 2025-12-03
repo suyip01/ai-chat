@@ -65,7 +65,7 @@ export const fetchHistory = async (_sessionId: string, _limit = 100): Promise<Me
   return []
 }
 
-export const connectChatWs = (sessionId: string, onAssistantMessage: (text: string, quote?: string) => void) => {
+export const connectChatWs = (sessionId: string, onAssistantMessage: (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => void) => {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
   const wsOrigin = (import.meta as any).env?.VITE_SERVER_ORIGIN || `${proto}://${location.hostname}:3001`
   const url = `${wsOrigin}/ws/chat`
@@ -81,7 +81,7 @@ export const connectChatWs = (sessionId: string, onAssistantMessage: (text: stri
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(String(ev.data))
-        if (data && data.type === 'assistant_message' && typeof data.content === 'string') onAssistantMessage(data.content, data.quote)
+        if (data && data.type === 'assistant_message' && typeof data.content === 'string') onAssistantMessage(data.content, data.quote, { chunkIndex: data.chunkIndex, chunkTotal: data.chunkTotal })
       } catch {}
     }
     ws.onerror = (e) => { console.error('[ws] error', e) }

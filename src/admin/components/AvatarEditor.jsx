@@ -101,7 +101,7 @@ function Header({ step, onBack, onClose }) {
                 {step !== 'main' && step !== 'upload' && ( // Simplified navigation logic
                     <button
                         onClick={onBack}
-                        className="p-2 -ml-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-purple-600 transition-colors"
+                        className="p-2 -ml-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-pink-600 transition-colors"
                     >
                         <ChevronLeft size={20} />
                     </button>
@@ -112,7 +112,7 @@ function Header({ step, onBack, onClose }) {
                     // For simplicity, let's just show back if step is 'edit'.
                     null
                 )}
-                <h2 className="text-lg font-cute text-purple-900">{title}</h2>
+                <h2 className="text-lg font-cute text-pink-900">{title}</h2>
             </div>
             <button
                 onClick={onClose}
@@ -152,7 +152,7 @@ function MainView({ avatarUrl, onChangeClick, onRemoveClick }) {
             <div className="flex items-stretch border-t border-gray-100 bg-white divide-x divide-gray-100">
                 <button
                     onClick={onChangeClick}
-                    className="flex-1 py-4 flex items-center justify-center gap-2 text-purple-600 hover:bg-purple-50 transition-colors font-bold text-sm"
+                    className="flex-1 py-4 flex items-center justify-center gap-2 text-pink-600 hover:bg-pink-50 transition-colors font-bold text-sm"
                 >
                     <Pencil size={16} />
                     更换头像
@@ -201,11 +201,11 @@ function UploadView({ onFileChange }) {
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current.click()}
                     className={`w-full max-w-xs aspect-square rounded-3xl flex flex-col items-center justify-center transition-all duration-300 cursor-pointer border-2 border-dashed ${isDragging
-                        ? 'bg-purple-50 border-purple-400 scale-105'
-                        : 'bg-gray-50 border-gray-200 hover:border-purple-300 hover:bg-purple-50/30'
+                        ? 'bg-pink-50 border-pink-400 scale-105'
+                        : 'bg-gray-50 border-gray-200 hover:border-pink-300 hover:bg-pink-50/30'
                         }`}
                 >
-                    <div className="w-20 h-20 rounded-full bg-white shadow-sm flex items-center justify-center mb-4 text-purple-500">
+                    <div className="w-20 h-20 rounded-full bg-white shadow-sm flex items-center justify-center mb-4 text-pink-500">
                         <UploadCloud size={32} />
                     </div>
                     <p className="text-gray-600 font-bold mb-1">点击或拖拽上传</p>
@@ -425,7 +425,7 @@ function EditView({ imageSrc, onSave, onCancel }) {
             <div className="p-4 bg-white flex items-center justify-between border-t border-gray-100 gap-4">
                 <button
                     onClick={handleRotate}
-                    className="flex flex-col items-center gap-1 text-purple-600 hover:text-purple-700 transition text-xs font-bold px-2 py-2 rounded-xl hover:bg-purple-50 shrink-0"
+                    className="flex flex-col itemscenter gap-1 text-pink-600 hover:text-pink-700 transition text-xs font-bold px-2 py-2 rounded-xl hover:bg-pink-50 shrink-0"
                 >
                     <RotateCw size={20} />
                     旋转
@@ -440,7 +440,7 @@ function EditView({ imageSrc, onSave, onCancel }) {
                         step="0.1"
                         value={zoom}
                         onChange={(e) => setZoom(parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-pink-500"
                     />
                     <ZoomIn size={16} className="text-gray-400 shrink-0" />
                 </div>
@@ -455,7 +455,7 @@ function EditView({ imageSrc, onSave, onCancel }) {
                     <button
                         onClick={handleFinalSave}
                         disabled={saving}
-                        className={`px-5 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold text-sm shadow-lg shadow-purple-200 transition-all ${saving ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90'}`}
+                        className={`px-5 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-pink-600 text-white font-bold text-sm shadow-lg shadow-pink-200 transition-all ${saving ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90'}`}
                     >
                         {saving ? '上传中...' : '完成'}
                     </button>

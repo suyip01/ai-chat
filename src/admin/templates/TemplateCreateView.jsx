@@ -65,16 +65,16 @@ const TemplateCreateView = ({ onCancel, initialData, onSave, notify }) => {
   return (
     <div className="animate-fade-in pb-20">
       <div className="flex items-center gap-4 mb-6">
-        <button onClick={onCancel} className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-500 hover:text-purple-600 transition-colors">
+        <button onClick={onCancel} className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-500 hover:text-pink-600 transition-colors">
           <ChevronLeft size={20} />
         </button>
         <div>
-          <h2 className="text-2xl font-cute text-purple-900">{initialData ? '编辑提示词模版' : '新建提示词模版'}</h2>
+          <h2 className="text-2xl font-cute text-pink-900">{initialData ? '编辑提示词模版' : '新建提示词模版'}</h2>
           <p className="text-gray-400 text-xs">定义基础 Prompt 框架</p>
         </div>
         <div className="ml-auto flex gap-3">
           <button onClick={onCancel} className="px-6 py-2.5 rounded-xl bg-white text-gray-500 font-bold text-sm shadow-sm hover:bg-gray-50">取消</button>
-          <button onClick={handleSave} className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold text-sm shadow-lg shadow-purple-200 flex items-center gap-2">
+          <button onClick={handleSave} className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-pink-600 text白 font-bold text-sm shadow-lg shadow-pink-200 flex items-center gap-2">
             <Save size={16} /> 保存模版
           </button>
         </div>
@@ -82,20 +82,20 @@ const TemplateCreateView = ({ onCancel, initialData, onSave, notify }) => {
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8 space-y-6">
           <div className="solid-card p-8 rounded-3xl space-y-6">
-            <h3 className="font-cute text-lg text-purple-900 flex items-center gap-2 mb-2">
+            <h3 className="font-cute text-lg text-pink-900 flex items-center gap-2 mb-2">
               <span className="w-1.5 h-4 bg-yellow-400 rounded-full"></span> 模版基础信息
             </h3>
             <div>
-              <label className="block text-xs font-bold text-purple-800 mb-2">模版名称</label>
+              <label className="block text-xs font-bold text-pink-800 mb-2">模版名称</label>
               <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="dream-input w-full px-4 py-3 rounded-xl text-sm font-bold text-gray-700 bg-gray-50/50 focus:bg-white" placeholder="例如：病娇反派通用模版" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-purple-800 mb-2">模版类型</label>
+              <label className="block text-xs font-bold text-pink-800 mb-2">模版类型</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {PRESET_TYPES.map((type) => (
-                  <button key={type} onClick={() => handleTypeSelect(type)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cute-font tracking-wide border ${!isCustomType && formData.type === type ? 'bg-purple-500 text-white border-purple-500 shadow-md shadow-purple-200' : 'bg-white text-gray-500 border-gray-100 hover:border-purple-200'}`}>{type}</button>
+                  <button key={type} onClick={() => handleTypeSelect(type)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cute-font tracking-wide border ${!isCustomType && formData.type === type ? 'bg-pink-500 text白 border-pink-500 shadow-md shadow-pink-200' : 'bg白 text灰-500 border-gray-100 hover:border-pink-200'}`}>{type}</button>
                 ))}
-                <button onClick={() => setIsCustomType(true)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cute-font tracking-wide border ${isCustomType ? 'bg-purple-500 text-white border-purple-500 shadow-md shadow-purple-200' : 'bg-white text-gray-500 border-gray-100 hover:border-purple-200'}`}>自定义...</button>
+                <button onClick={() => setIsCustomType(true)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cute-font tracking-wide border ${isCustomType ? 'bg-pink-500 text白 border-pink-500 shadow-md shadow-pink-200' : 'bg白 text灰-500 border-gray-100 hover:border-pink-200'}`}>自定义...</button>
               </div>
               {isCustomType && (
                 <div className="animate-fade-in mt-2">
@@ -104,7 +104,7 @@ const TemplateCreateView = ({ onCancel, initialData, onSave, notify }) => {
               )}
             </div>
             <div>
-              <label className="block text-xs font-bold text-purple-800 mb-2">模版标签 (回车生成)</label>
+              <label className="block text-xs font-bold text-pink-800 mb-2">模版标签 (回车生成)</label>
               <div className="dream-input w-full px-4 py-3 rounded-xl min-h-[50px] flex flex-wrap gap-2 items-center bg-gray-50/50 focus-within:bg-white">
                 {formData.tags.map((tag, i) => (
                   <span key={i} className="tag-pill px-3 py-1 flex items-center shadow-sm gap-1">
@@ -116,7 +116,7 @@ const TemplateCreateView = ({ onCancel, initialData, onSave, notify }) => {
             </div>
           </div>
           <div className="solid-card p-8 rounded-3xl space-y-4">
-            <h3 className="font-cute text-lg text-purple-900 flex items-center gap-2 mb-2">
+            <h3 className="font-cute text-lg text-pink-900 flex items-center gap-2 mb-2">
               <span className="w-1.5 h-4 bg-yellow-400 rounded-full"></span> Prompt 内容配置
             </h3>
             <div className="relative">
@@ -125,7 +125,7 @@ const TemplateCreateView = ({ onCancel, initialData, onSave, notify }) => {
           </div>
         </div>
         <div className="col-span-12 lg:col-span-4 space-y-6">
-          <div className="solid-card p-6 rounded-3xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-xl shadow-purple-200/50">
+          <div className="solid-card p-6 rounded-3xl bg-gradient-to-br from-pink-500 to-pink-600 text白 shadow-xl shadow-pink-200/50">
             <h4 className="font-bold mb-3 flex items-center gap-2 text-lg font-cute"><Sparkles size={18} className="text-yellow-300" /> 编写指南</h4>
             <ul className="space-y-3 text-sm opacity-90 leading-relaxed list-disc list-inside">
               <li>使用 <b>{'{{name}}'}</b> 代表角色姓名。</li>

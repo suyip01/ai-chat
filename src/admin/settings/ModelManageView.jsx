@@ -50,15 +50,15 @@ const Content = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-cute text-purple-900 flex items-center gap-2"><span className="w-1.5 h-6 bg-yellow-400 rounded-full inline-block"></span>模型管理</h2>
+          <h2 className="text-2xl font-cute text-pink-900 flex items-center gap-2"><span className="w-1.5 h-6 bg-yellow-400 rounded-full inline-block"></span>模型管理</h2>
           <p className="text-gray-400 text-xs mt-1 ml-4">维护可用的模型列表</p>
         </div>
-        <button onClick={() => setIsModelModalOpen(true)} className="bg-purple-500 text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-purple-200 hover:bg-purple-600 transition-colors flex items-center gap-2 text-xs"><Plus size={14} /> 添加模型</button>
+        <button onClick={() => setIsModelModalOpen(true)} className="bg-pink-500 text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition-colors flex items-center gap-2 text-xs"><Plus size={14} /> 添加模型</button>
       </div>
 
-      <div className="glass-card rounded-2xl overflow-hidden border border-purple-100">
+      <div className="glass-card rounded-2xl overflow-hidden border border-pink-100">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-purple-100 text-purple-900 font-cute text-sm">
+          <thead className="bg-pink-100 text-pink-900 font-cute text-sm">
             <tr>
               <th className="p-3 pl-6 w-16">序号</th>
               <th className="p-3">模型名称</th>
@@ -68,11 +68,11 @@ const Content = () => {
               <th className="p-3 text-right pr-6">操作</th>
             </tr>
           </thead>
-          <tbody className="text-sm divide-y divide-purple-100">
+          <tbody className="text-sm divide-y divide-pink-100">
             {modelPageItems.map((model, index) => (
-              <tr key={model.id} className="hover:bg-purple-50/30 transition-colors">
+              <tr key={model.id} className="hover:bg-pink-50/30 transition-colors">
                 <td className="p-3 pl-6 text-gray-500 font-mono">{modelStartIdx + index + 1}</td>
-                <td className="p-3 font-bold text-purple-700">{model.model_name}</td>
+                <td className="p-3 font-bold text-pink-700">{model.model_name}</td>
                 <td className="p-3 font-mono text-gray-600">{model.model_id}</td>
                 <td className="p-3 text-gray-600">{model.model_nickname || '-'}</td>
                 <td className="p-3 text-gray-500">{formatDate(model.created_at)}</td>
@@ -91,11 +91,11 @@ const Content = () => {
         <div className="flex items-center justify-between p-3">
           <div className="text-xs text-gray-500">第 {modelPage} / {totalModelPages} 页</div>
           <div className="flex items-center gap-2">
-            <button disabled={modelPage===1} onClick={() => setModelPage((p)=>Math.max(1,p-1))} className={`px-3 py-1 rounded-lg text-xs font-bold ${modelPage===1 ? 'bg-gray-100 text-gray-400' : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50'}`}>上一页</button>
+            <button disabled={modelPage===1} onClick={() => setModelPage((p)=>Math.max(1,p-1))} className={`px-3 py-1 rounded-lg text-xs font-bold ${modelPage===1 ? 'bg-gray-100 text-gray-400' : 'bg-white border border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50'}`}>上一页</button>
             {Array.from({ length: totalModelPages }).map((_, i) => (
-              <button key={i} onClick={() => setModelPage(i+1)} className={`w-8 h-8 rounded-lg text-xs font-bold ${modelPage===i+1 ? 'bg-purple-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50'}`}>{i+1}</button>
+              <button key={i} onClick={() => setModelPage(i+1)} className={`w-8 h-8 rounded-lg text-xs font-bold ${modelPage===i+1 ? 'bg-pink-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50'}`}>{i+1}</button>
             ))}
-            <button disabled={modelPage===totalModelPages} onClick={() => setModelPage((p)=>Math.min(totalModelPages,p+1))} className={`px-3 py-1 rounded-lg text-xs font-bold ${modelPage===totalModelPages ? 'bg-gray-100 text-gray-400' : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50'}`}>下一页</button>
+            <button disabled={modelPage===totalModelPages} onClick={() => setModelPage((p)=>Math.min(totalModelPages,p+1))} className={`px-3 py-1 rounded-lg text-xs font-bold ${modelPage===totalModelPages ? 'bg-gray-100 text-gray-400' : 'bg-white border border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50'}`}>下一页</button>
           </div>
         </div>
       </div>
@@ -104,8 +104,8 @@ const Content = () => {
         <>
           <div className="fixed inset-0 bg-black/30 z-50" onClick={() => setDeleteTarget(null)}></div>
           <div className="fixed top-0 right-0 bottom-0 left-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl border border-purple-100 p-6 w-full max-w-md shadow-2xl">
-              <h3 className="font-cute text-lg text-purple-900 mb-2">删除模型</h3>
+            <div className="bg白 rounded-3xl border border-pink-100 p-6 w-full max-w-md shadow-2xl">
+              <h3 className="font-cute text-lg text-pink-900 mb-2">删除模型</h3>
               <p className="text-sm text-gray-500 mb-4">确定删除“{deleteTarget.model_name}”吗？此操作不可撤回。</p>
               <div className="flex justify-end gap-3">
                 <button onClick={() => setDeleteTarget(null)} className="px-5 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50">取消</button>
@@ -120,28 +120,28 @@ const Content = () => {
         <>
           <div className="fixed top-0 right-0 bottom-0 left-64 bg-black/30 z-50 backdrop-blur-sm" onClick={() => setIsModelModalOpen(false)}></div>
           <div className="fixed top-0 right-0 bottom-0 left-64 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl border border-purple-100 shadow-2xl p-6 animate-fade-in w-full max-w-md">
+            <div className="bg白 rounded-3xl border border-pink-100 shadow-2xl p-6 animate-fade-in w-full max-w-md">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-cute text-xl text-purple-900">添加新模型</h3>
+                <h3 className="font-cute text-xl text-pink-900">添加新模型</h3>
                 <button onClick={() => setIsModelModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={20} /></button>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-purple-800 mb-1.5">模型ID <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-bold text-pink-800 mb-1.5">模型ID <span className="text-red-400">*</span></label>
                   <input type="text" value={newModel.model_id} onChange={(e) => setNewModel({ ...newModel, model_id: e.target.value })} placeholder="例如: gpt-4-turbo" className="dream-input w-full px-4 py-2.5 rounded-xl text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-purple-800 mb-1.5">模型名称 <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-bold text-pink-800 mb-1.5">模型名称 <span className="text-red-400">*</span></label>
                   <input type="text" value={newModel.model_name} onChange={(e) => setNewModel({ ...newModel, model_name: e.target.value })} placeholder="例如: GPT-4 Turbo" className="dream-input w-full px-4 py-2.5 rounded-xl text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-purple-800 mb-1.5">盲测模型昵称</label>
+                  <label className="block text-xs font-bold text-pink-800 mb-1.5">盲测模型昵称</label>
                   <input type="text" value={newModel.model_nickname} onChange={(e) => setNewModel({ ...newModel, model_nickname: e.target.value })} placeholder="例如: 智慧之星" className="dream-input w-full px-4 py-2.5 rounded-xl text-sm" />
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-8">
                 <button onClick={() => setIsModelModalOpen(false)} className="px-5 py-2.5 rounded-xl bg-gray-50 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-colors">取消</button>
-                <button onClick={handleSaveModel} className="px-6 py-2.5 rounded-xl bg-purple-500 text-white font-bold text-sm shadow-lg shadow-purple-200 hover:bg-purple-600 transition-all">保存模型</button>
+                <button onClick={handleSaveModel} className="px-6 py-2.5 rounded-xl bg-pink-500 text白 font-bold text-sm shadow-lg shadow-pink-200 hover:bg-pink-600 transition-all">保存模型</button>
               </div>
             </div>
           </div>

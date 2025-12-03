@@ -39,10 +39,9 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const updatePersona = onUpdateUserPersona ?? ((_: UserPersona) => { });
   const [sessionId, setSessionId] = useState<string | null>(null);
   const wsRef = useRef<{ sendText: (t: string, chatMode?: 'daily' | 'scene', userRole?: UserPersona) => void; sendTyping: (typing: boolean) => void; close: () => void } | null>(null);
-  const [lastAssistantAt, setLastAssistantAt] = useState<number | null>(null);
   const histKey = `chat_history_${character.id}`;
 
-  const appendAssistantWithRead = (text: string, quote?: string) => {
+  const appendAssistantWithRead = (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => {
     setMessages(prev => {
       const next = [...prev];
       for (let i = next.length - 1; i >= 0; i--) {
@@ -53,15 +52,11 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       onUpdateLastMessage(msg);
       return next;
     });
-    const ts = Date.now();
-    setLastAssistantAt(ts);
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(prev => {
-        if (lastAssistantAt && Date.now() - lastAssistantAt < 1800) return prev;
-        return false;
-      });
-    }, 1800);
+    if (meta && typeof meta.chunkIndex === 'number' && typeof meta.chunkTotal === 'number') {
+      setIsTyping(meta.chunkIndex < meta.chunkTotal);
+    } else {
+      setIsTyping(false);
+    }
   }
 
   const scrollToBottom = () => {
@@ -117,8 +112,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     const setup = async () => {
       if (sid) {
         setSessionId(sid);
-        const conn = connectChatWs(sid, (text, quote) => {
-          appendAssistantWithRead(text, quote);
+        const conn = connectChatWs(sid, (text, quote, meta) => {
+          appendAssistantWithRead(text, quote, meta);
         });
         wsRef.current = conn;
         return;
@@ -127,8 +122,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         const newSid = await createChatSession(character.id);
         localStorage.setItem(key, newSid);
         setSessionId(newSid);
-        const conn = connectChatWs(newSid, (text, quote) => {
-          appendAssistantWithRead(text, quote);
+        const conn = connectChatWs(newSid, (text, quote, meta) => {
+          appendAssistantWithRead(text, quote, meta);
         });
         wsRef.current = conn;
       } catch { }
@@ -179,11 +174,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         const sid = await createChatSession(character.id);
         localStorage.setItem(`chat_session_${character.id}`, sid);
         setSessionId(sid);
-        const conn = connectChatWs(sid, (text) => {
-          const charMsg: Message = { id: (Date.now() + 1).toString(), senderId: character.id, text, timestamp: new Date(), type: MessageType.TEXT };
-          setMessages(prev => [...prev, charMsg]);
-          onUpdateLastMessage(charMsg);
-          setIsTyping(false);
+        const conn = connectChatWs(sid, (text, quote, meta) => {
+          appendAssistantWithRead(text, quote, meta);
         });
         wsRef.current = conn;
       }
@@ -202,8 +194,9 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   return (
     <div className="fixed inset-0 bg-primary-50 z-50" style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}>
       <div className="mx-auto w-full max-w-md h-full flex flex-col relative bg白 shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden">
-        <div className="bg-primary-50/95 backdrop-blur-md px-4 pb-3 pt-[env(safe-area-inset-top)] shadow-none flex items-center justify-between z-10 border-b border白/50 flex-shrink-0">
-          <div className="flex items中心 gap-2">
+        <div className="bg-primary-50/95 backdrop-blur-md pt-[env(safe-area-inset-top)] shadow-none z-10 border-b border白/50 flex-shrink-0">
+          <div className="px-4 h-12 flex items-center justify-between">
+            <div className="flex items-center gap-2">
             <button onClick={onBack} className="p-2 -ml-2 text-slate-800 hover:bg-black/5 rounded-full transition-colors">
               <ArrowLeft size={24} />
             </button>
@@ -218,12 +211,13 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
               </h2>
             </div>
           </div>
-          <button
+            <button
             onClick={() => setIsSettingsOpen(true)}
             className="p-2 text-slate-800 hover:text-primary-600 rounded-full hover:bg-black/5 transition-all"
           >
             <MoreVertical size={24} />
           </button>
+          </div>
         </div>
 
         <div ref={contentRef} className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-primary-50" style={{ overflowAnchor: 'none' }}>
@@ -267,8 +261,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                     {msg.text}
                   </div>
                   {!isMe && msg.quote && (
-                    <div className="mt-2 max-w-full">
-                      <div className="inline-block bg-slate-100 text-slate-500 text-xs rounded-[12px] px-3 py-2 border border-slate-200">
+                    <div className="mt-1 max-w-full">
+                      <div className="inline-block bg-slate-100 text-slate-500 text-xs leading-tight rounded-[12px] px-2 py-1 border border-slate-200">
                         {msg.quote}
                       </div>
                     </div>

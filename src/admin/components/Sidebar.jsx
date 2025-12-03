@@ -87,10 +87,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, username }) => {
   return (
     <div className="w-16 xl:w-56 glass-nav h-screen fixed left-0 top-0 flex flex-col z-20 transition-all duration-300">
       <div className="p-4 xl:p-8 flex items-center justify-center xl:justify-start gap-3">
-        <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+        <div className="w-8 h-8 bg-pink-500 rounded-lg flex items-center justify-center text-white flex-shrink-0">
           <Sparkles size={18} />
         </div>
-        <span className="text-xl font-cute text-purple-900 tracking-wide hidden xl:block">Linksurge Admin</span>
+        <span className="text-xl font-cute text-pink-900 tracking-wide hidden xl:block">Linksurge Admin</span>
       </div>
       <nav className="flex-1 px-4 space-y-2">
         {menuItems.map((item) => (
@@ -102,8 +102,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, username }) => {
             <button
               onClick={() => handleItemClick(item)}
               className={`w-full flex items-center justify-center xl:justify-start gap-3 px-2 xl:px-4 py-3.5 rounded-2xl transition-all duration-300 font-bold text-sm ${(activeTab === item.id || (item.subItems && item.subItems.some(sub => sub.id === activeTab)))
-                ? 'bg-purple-100 text-purple-700 shadow-sm'
-                : 'text-gray-500 hover:bg-white/50 hover:text-purple-600'
+                ? 'bg-pink-100 text-pink-700 shadow-sm'
+                : 'text-gray-500 hover:bg-white/50 hover:text-pink-600'
                 }`}
             >
               <item.icon size={18} className="flex-shrink-0" />
@@ -133,8 +133,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, username }) => {
                           setActiveTab(sub.id);
                         }}
                         className={`w-full flex items-center justify-center xl:justify-start gap-2 px-2 xl:px-4 py-2.5 rounded-xl transition-all duration-300 text-xs font-bold ${activeTab === sub.id
-                          ? 'bg-purple-200/50 text-purple-800'
-                          : 'text-gray-400 hover:text-purple-600 hover:bg-white/30'
+                          ? 'bg-pink-200/50 text-pink-800'
+                          : 'text-gray-400 hover:text-pink-600 hover:bg-white/30'
                           }`}
                       >
                         {sub.icon ? (
@@ -156,11 +156,11 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, username }) => {
           </div>
         ))}
       </nav>
-      <div className="p-4 border-t border-purple-100">
+      <div className="p-4 border-t border-pink-100">
         <div className="w-full flex xl:flex-row flex-col items-center xl:justify-start justify-center gap-3">
-          <div className="group relative w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center">
+          <div className="group relative w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center">
             <User size={16} />
-            <div className="absolute left-1/2 -translate-x-1/2 -translate-y-full -top-2 bg-purple-700 text-white text-xs px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+            <div className="absolute left-1/2 -translate-x-1/2 -translate-y-full -top-2 bg-pink-700 text-white text-xs px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
               {username}
             </div>
           </div>

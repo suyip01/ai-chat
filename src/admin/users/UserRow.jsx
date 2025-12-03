@@ -6,13 +6,13 @@ const UserRow = ({ user, onSaveLimit, onDelete, onChangePwd }) => {
   const isDirty = currentLimit !== user.chatLimit;
   const handleSave = () => { onSaveLimit(user.id, currentLimit); };
   return (
-    <tr className="hover:bg-purple-50/30 transition-colors">
+    <tr className="hover:bg-pink-50/30 transition-colors">
       <td className="p-5 pl-8 font-mono text-gray-500">{user.id.toString().padStart(4, '0')}</td>
       <td className="p-5">
         <div className="font-bold text-gray-700">{user.username}</div>
         <div className="text-xs text-gray-400">{user.email}</div>
       </td>
-      <td className="p-5"><span className="font-mono text-purple-600 font-bold">{user.used}</span> 次</td>
+      <td className="p-5"><span className="font-mono text-pink-600 font-bold">{user.used}</span> 次</td>
       <td className="p-5">
         <div className="flex items-center gap-2">
           <input type="number" value={currentLimit} onChange={(e) => setCurrentLimit(parseInt(e.target.value) || 0)} className="dream-input w-24 px-4 py-2 rounded-2xl text-sm text-center" min="0" />
@@ -34,7 +34,7 @@ const UserRow = ({ user, onSaveLimit, onDelete, onChangePwd }) => {
           <span className="relative inline-flex group">
             <button
               onClick={onChangePwd}
-              className="p-1 rounded text-purple-400 hover:text-purple-600"
+              className="p-1 rounded text-pink-400 hover:text-pink-600"
               aria-label="修改密码"
             >
               <Edit3 size={16} />

@@ -57,7 +57,7 @@ const UsersViewContent = () => {
         </div>
         <div className="flex gap-2 justify-end mt-5">
           <button className="px-4 py-2 rounded-xl bg-gray-100 text-gray-600" onClick={() => { setPwdUser(null); setPwd1(''); setPwd2(''); }}>取消</button>
-          <button className="px-4 py-2 rounded-xl bg-purple-500 text-white" onClick={async () => {
+          <button className="px-4 py-2 rounded-xl bg-pink-500 text-white" onClick={async () => {
             if (!pwd1 || pwd1 !== pwd2) { showToast('两次输入密码不一致', 'error'); return; }
             try { await usersAPI.changePassword(pwdUser.id, pwd1); showToast('密码已更新'); } catch { showToast('更新失败', 'error'); }
             setPwdUser(null); setPwd1(''); setPwd2('');
@@ -74,20 +74,20 @@ const UsersViewContent = () => {
       {changePwdModal}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-cute text-purple-900 flex items-center gap-2"><span className="w-1.5 h-6 bg-yellow-400 rounded-full inline-block"></span> 用户管理</h2>
+          <h2 className="text-2xl font-cute text-pink-900 flex items-center gap-2"><span className="w-1.5 h-6 bg-yellow-400 rounded-full inline-block"></span> 用户管理</h2>
           <p className="text-gray-400 text-xs mt-1 ml-4">监控用户使用情况与限额</p>
         </div>
         <div className="flex gap-3">
           <div className="relative">
             <input type="text" placeholder="搜索用户名/邮箱..." className="dream-input pl-10 pr-4 py-2 rounded-xl text-sm w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-300" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-300" />
           </div>
-          <button onClick={() => setView('create')} className="bg-purple-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-purple-200 hover:bg-purple-600 transition-colors flex items-center gap-2 text-sm"><Plus size={16} /> 添加用户</button>
+          <button onClick={() => setView('create')} className="bg-pink-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition-colors flex items-center gap-2 text-sm"><Plus size={16} /> 添加用户</button>
         </div>
       </div>
       <div className="glass-card rounded-3xl overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-purple-50/50 text-purple-900 font-cute text-sm">
+          <thead className="bg-pink-50/50 text-pink-900 font-cute text-sm">
             <tr>
               <th className="p-5 pl-8">用户 ID</th>
               <th className="p-5">用户名 / 邮箱</th>
@@ -96,7 +96,7 @@ const UsersViewContent = () => {
               <th className="p-5 text-right pr-8">操作</th>
             </tr>
           </thead>
-          <tbody className="text-sm divide-y divide-purple-50">
+          <tbody className="text-sm divide-y divide-pink-50">
             {filteredUsers.length > 0 ? filteredUsers.map((user) => (
               <UserRow key={user.id} user={user} onSaveLimit={handleLimitSave} onDelete={() => setDeleteUser(user)} onChangePwd={() => setPwdUser(user)} />
             )) : (

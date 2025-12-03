@@ -82,21 +82,21 @@ const TemplatesViewContent = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-cute text-purple-900 flex items-center gap-2">
+          <h2 className="text-2xl font-cute text-pink-900 flex items-center gap-2">
             <span className="w-1.5 h-6 bg-yellow-400 rounded-full inline-block"></span>
             提示词模版库
           </h2>
           <p className="text-gray-400 text-xs mt-1 ml-4">管理用于生成角色的基础 Prompt</p>
         </div>
-        <button onClick={() => { setEditingTpl(null); setView('create'); }} className="bg-purple-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-purple-200 hover:bg-purple-600 transition-colors flex items-center gap-2 text-sm"><Plus size={16} /> 新建模版</button>
+        <button onClick={() => { setEditingTpl(null); setView('create'); }} className="bg-pink-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition-colors flex items-center gap-2 text-sm"><Plus size={16} /> 新建模版</button>
       </div>
-      <div className="flex items-center gap-2 bg-purple-50 p-4 rounded-2xl border border-purple-100 text-sm text-purple-700">
-        <Info size={18} className="flex-shrink-0 text-purple-500" />
+      <div className="flex items-center gap-2 bg-pink-50 p-4 rounded-2xl border border-pink-100 text-sm text-pink-700">
+        <Info size={18} className="flex-shrink-0 text-pink-500" />
         <span>提示：用户创建角色时，默认使用当前<span className="font-bold">“默认”</span>提示词模板作为参考生成角色提示词。</span>
       </div>
       <div className="glass-card rounded-3xl overflow-hidden">
         <table className="w-full text-left rounded-2xl overflow-hidden border-collapse">
-          <thead className="bg-purple-100 text-purple-900 font-cute text-sm">
+          <thead className="bg-pink-100 text-pink-900 font-cute text-sm">
             <tr>
               <th className="p-3 pl-6 w-16">序号</th>
               <th className="p-3 pl-7">模版名称</th>
@@ -108,13 +108,13 @@ const TemplatesViewContent = () => {
               <th className="p-3 text-right pr-8">操作</th>
             </tr>
           </thead>
-          <tbody className="text-sm divide-y divide-purple-100">
+          <tbody className="text-sm divide-y divide-pink-100">
             {pageItems.map((tpl, i) => (
-              <tr key={tpl.id} className="hover:bg-purple-50/30 transition-colors">
+              <tr key={tpl.id} className="hover:bg-pink-50/30 transition-colors">
                 <td className="p-3 pl-6 text-gray-500 font-mono">{startIdx + i + 1}</td>
                 <td className="p-3 pl-8 font-bold text-gray-700">{tpl.name}</td>
-                <td className="p-3"><span className="bg-purple-100 text-purple-600 px-2.5 py-1 rounded-lg text-xs font-bold">{tpl.type}</span></td>
-                <td className="p-3"><div className="flex gap-1">{tpl.tags?.map((t) => <span key={t} className="text-[10px] bg-white border border-purple-100 text-purple-400 px-1.5 py-0.5 rounded">{t}</span>)}</div></td>
+                <td className="p-3"><span className="bg-pink-100 text-pink-600 px-2.5 py-1 rounded-lg text-xs font-bold">{tpl.type}</span></td>
+                <td className="p-3"><div className="flex gap-1">{tpl.tags?.map((t) => <span key={t} className="text-[10px] bg-white border border-pink-100 text-pink-400 px-1.5 py-0.5 rounded">{t}</span>)}</div></td>
                 <td className="p-3 text-gray-500">{formatDate(tpl.createdAt)}</td>
                 <td className="p-3 text-gray-500 font-mono">{typeof tpl.refCount === 'number' ? tpl.refCount : 0}</td>
                 <td className="p-3">
@@ -124,19 +124,19 @@ const TemplatesViewContent = () => {
                       当前默认
                     </span>
                   ) : (
-                    <button onClick={() => handleSetDefault(tpl.id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 text-xs font-bold hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50 transition-all group">
-                      <Star size={14} className="group-hover:fill-purple-200" />
+                    <button onClick={() => handleSetDefault(tpl.id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 text-xs font-bold hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50 transition-all group">
+                      <Star size={14} className="group-hover:fill-pink-200" />
                       设为默认
                     </button>
                   )}
                 </td>
                 <td className="p-3 text-right pr-8 space-x-2">
                   <span className="relative inline-flex group">
-                    <button onClick={() => handleEdit(tpl)} aria-label="编辑" className="text-purple-400 hover:text-purple-600 p-1"><Edit3 size={16} /></button>
+                    <button onClick={() => handleEdit(tpl)} aria-label="编辑" className="text-pink-400 hover:text-pink-600 p-1"><Edit3 size={16} /></button>
                     <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md text-xs bg-gray-800 text-white whitespace-nowrap opacity-0 group-hover:opacity-100">编辑</span>
                   </span>
                   <span className="relative inline-flex group">
-                    <button onClick={() => handleCopy(tpl)} aria-label="复制" className="text-purple-400 hover:text-purple-600 p-1"><Copy size={16} /></button>
+                    <button onClick={() => handleCopy(tpl)} aria-label="复制" className="text-pink-400 hover:text-pink-600 p-1"><Copy size={16} /></button>
                     <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md text-xs bg-gray-800 text-white whitespace-nowrap opacity-0 group-hover:opacity-100">复制</span>
                   </span>
                   <span className="relative inline-flex group">
@@ -148,14 +148,14 @@ const TemplatesViewContent = () => {
             ))}
           </tbody>
         </table>
-        <div className="flex items-center justify-between p-3 border-t border-purple-100">
+        <div className="flex items-center justify-between p-3 border-t border-pink-100">
           <div className="text-xs text-gray-500">第 {page} / {totalPages} 页</div>
           <div className="flex items-center gap-2">
-            <button disabled={page===1} onClick={() => setPage((p)=>Math.max(1,p-1))} className={`px-3 py-1 rounded-lg text-xs font-bold ${page===1 ? 'bg-gray-100 text-gray-400' : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50'}`}>上一页</button>
+            <button disabled={page===1} onClick={() => setPage((p)=>Math.max(1,p-1))} className={`px-3 py-1 rounded-lg text-xs font-bold ${page===1 ? 'bg-gray-100 text-gray-400' : 'bg-white border border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50'}`}>上一页</button>
             {Array.from({ length: totalPages }).map((_, i) => (
-              <button key={i} onClick={() => setPage(i+1)} className={`w-8 h-8 rounded-lg text-xs font-bold ${page===i+1 ? 'bg-purple-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50'}`}>{i+1}</button>
+              <button key={i} onClick={() => setPage(i+1)} className={`w-8 h-8 rounded-lg text-xs font-bold ${page===i+1 ? 'bg-pink-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50'}`}>{i+1}</button>
             ))}
-            <button disabled={page===totalPages} onClick={() => setPage((p)=>Math.min(totalPages,p+1))} className={`px-3 py-1 rounded-lg text-xs font-bold ${page===totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50'}`}>下一页</button>
+            <button disabled={page===totalPages} onClick={() => setPage((p)=>Math.min(totalPages,p+1))} className={`px-3 py-1 rounded-lg text-xs font-bold ${page===totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white border border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50'}`}>下一页</button>
           </div>
         </div>
       </div>
@@ -163,8 +163,8 @@ const TemplatesViewContent = () => {
         <>
           <div className="fixed top-0 right-0 bottom-0 left-64 bg-black/30 z-50" onClick={closeDelete}></div>
           <div className="fixed top-0 right-0 bottom-0 left-64 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl border border-purple-50 p-6 w-full max-w-md shadow-2xl">
-              <h3 className="font-cute text-lg text-purple-900 mb-2">删除提示词模版</h3>
+            <div className="bg-white rounded-3xl border border-pink-50 p-6 w-full max-w-md shadow-2xl">
+              <h3 className="font-cute text-lg text-pink-900 mb-2">删除提示词模版</h3>
               <p className="text-sm text-gray-500 mb-4">确定删除“{deleteTarget.name}”吗？此操作不可撤回。</p>
               <div className="flex justify-end gap-3">
                 <button onClick={closeDelete} className="px-5 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50">取消</button>
