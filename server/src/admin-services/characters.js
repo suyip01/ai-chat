@@ -15,6 +15,7 @@ export const ensureCharacterSchema = async () => {
   if (!names.has('character_type')) alters.push('ADD COLUMN character_type ENUM("原创角色","二次创作","其他") NOT NULL DEFAULT "原创角色"');
   if (!names.has('age')) alters.push('ADD COLUMN age INT NULL');
   if (!names.has('occupation')) alters.push('ADD COLUMN occupation VARCHAR(128) NULL');
+  if (!names.has('user_id')) alters.push('ADD COLUMN user_id BIGINT NULL');
   if (alters.length) {
     await pool.query(`ALTER TABLE characters ${alters.join(', ')}`);
   }

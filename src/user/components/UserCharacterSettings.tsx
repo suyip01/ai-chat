@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { ChevronLeft, Pencil, User as UserIcon } from 'lucide-react';
+import { createUserCharacter } from '../services/userCharactersService'
 import { UserPersona } from '../types';
 import { ImageCropper } from './ImageCropper';
 
@@ -53,22 +54,25 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
       }
       const mappedGender = gender === 'male' ? '男' : gender === 'female' ? '女' : '未透露';
       const ageNum = age ? parseInt(age, 10) : null;
-      await fetch('/api/user/chat-role', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
-        body: JSON.stringify({
-          name,
-          age: ageNum,
-          gender: mappedGender,
-          profession,
-          basic_info: basicInfo,
-          personality,
-          avatar: avatarUrl || null,
-        }),
-      });
+      await createUserCharacter({
+        name,
+        gender: mappedGender,
+        age: ageNum,
+        occupation: profession,
+        identity: null,
+        tagline: '',
+        personality,
+        relationship: '',
+        plotTheme: null,
+        plotSummary: null,
+        openingLine: null,
+        hobbies: null,
+        experiences: null,
+        avatar: avatarUrl || null,
+        basicInfo,
+        tags: [],
+        styleExamples: []
+      })
     } catch {}
 
     onSave({

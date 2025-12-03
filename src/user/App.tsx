@@ -149,11 +149,48 @@ const App: React.FC = () => {
       .finally(() => setLoadingCharacters(false));
   }, [isLoggedIn]);
 
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null
+    const original = meta?.getAttribute('content') || ''
+    const newContent = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
+    if (meta) meta.setAttribute('content', newContent)
+    let lastTouch = 0
+    const onTouchEnd = (e: TouchEvent) => {
+      const now = Date.now()
+      if (now - lastTouch <= 300) {
+        e.preventDefault()
+      }
+      lastTouch = now
+    }
+    document.addEventListener('touchend', onTouchEnd, { passive: false })
+    document.body.style.touchAction = 'manipulation'
+    return () => {
+      if (meta) meta.setAttribute('content', original)
+      document.removeEventListener('touchend', onTouchEnd as any)
+      document.body.style.touchAction = ''
+    }
+  }, [])
+
+  useEffect(() => {
+    const setVh = () => {
+      const h = (window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : window.innerHeight
+      document.documentElement.style.setProperty('--vh', `${h * 0.01}px`)
+    }
+    setVh()
+    const onResize = () => setVh()
+    window.addEventListener('resize', onResize)
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize as any)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      if (window.visualViewport) window.visualViewport.removeEventListener('resize', onResize as any)
+    }
+  }, [])
+
   if (!isLoggedIn) {
     return (
       <ToastProvider>
-        <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden">
-          <div className="h-full w-full max-w-md mx-auto bg-white relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex">
+        <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden" style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}>
+          <div className="h-full w-full max-w-md mx-auto bg白 relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex">
               <LoginPage onLogin={() => setIsLoggedIn(true)} />
           </div>
         </div>
@@ -482,8 +519,8 @@ const App: React.FC = () => {
 
   return (
     <ToastProvider>
-      <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden">
-        <div className="h-full w-full max-w-md mx-auto bg-white relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex flex-col">
+      <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden" style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}>
+        <div className="h-full w-full max-w-md mx-auto bg白 relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex flex-col">
 
         {/* 0. Create Character Overlay */}
         {isCreating && (
