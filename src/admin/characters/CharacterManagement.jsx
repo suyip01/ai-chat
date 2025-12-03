@@ -49,7 +49,7 @@ const CharacterManagementInner = ({ creatorRole }) => {
           </button>
         )}
       </div>
-      <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
+      <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 360px))' }}>
         {characterList.map((char) => (
           <div key={char.id} className="relative w-full">
             <div className="glass-card p-4 rounded-3xl hover:shadow-xl transition-all group relative overflow-hidden h-[220px] flex flex-col">

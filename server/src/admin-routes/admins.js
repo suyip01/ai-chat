@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
-import { listAdmins, createAdmin, updateAdmin, deleteAdmin, changeAdminPassword } from '../admin-services/admins.js';
+import { listAdmins, createAdmin, updateAdmin, deleteAdmin, changeAdminPassword, getAdminAvatar, updateAdminSelf } from '../admin-services/admins.js';
 
 const router = Router();
 router.use(authRequired);
@@ -15,11 +15,35 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/me/avatar', async (req, res) => {
+  try {
+    const id = req.admin?.id;
+    if (!id) return res.status(401).json({ error: 'unauthorized' });
+    const avatar = await getAdminAvatar(id);
+    res.json({ avatar });
+  } catch {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+router.put('/me', async (req, res) => {
+  try {
+    const id = req.admin?.id;
+    if (!id) return res.status(401).json({ error: 'unauthorized' });
+    const { nickname, password } = req.body || {};
+    const ok = await updateAdminSelf(id, { nickname, password });
+    if (!ok) return res.status(400).json({ error: 'no_fields' });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 router.post('/', async (req, res) => {
   try {
-    const { username, email = null, password } = req.body || {};
+    const { username, nickname = null, avatar = null, email = null, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'missing_fields' });
-    const id = await createAdmin({ username, email, password });
+    const id = await createAdmin({ username, nickname, avatar, email, password });
     res.json({ id });
   } catch {
     res.status(500).json({ error: 'server_error' });
@@ -29,8 +53,8 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { email, isActive } = req.body || {};
-    const ok = await updateAdmin(id, { email, isActive });
+    const { nickname, avatar, email, isActive } = req.body || {};
+    const ok = await updateAdmin(id, { nickname, avatar, email, isActive });
     if (!ok) return res.status(400).json({ error: 'no_fields' });
     res.json({ ok: true });
   } catch {
@@ -61,4 +85,3 @@ router.post('/:id/password', async (req, res) => {
 });
 
 export default router;
-

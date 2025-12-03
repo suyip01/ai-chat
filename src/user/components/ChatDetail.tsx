@@ -402,11 +402,11 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
         {isUserSettingsOpenLocal && (
           <UserCharacterSettings
-            currentPersona={userPersona}
+            currentPersona={undefined}
             onBack={() => setIsUserSettingsOpenLocal(false)}
-            onSave={(persona) => {
+            onSave={(_) => {
               setIsUserSettingsOpenLocal(false);
-              updatePersona(persona);
+              setIsRoleSheetOpen(true);
             }}
             withinContainer
           />

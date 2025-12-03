@@ -4,7 +4,7 @@ export const listUserCharacters = async (userId) => {
   const [rows] = await pool.query(
     `SELECT c.id, c.name, c.gender, c.avatar, c.identity, c.tagline, c.personality, c.relationship,
             c.plot_theme, c.plot_summary, c.opening_line, c.hobbies, c.experiences,
-            c.age, c.occupation, c.created_at
+            c.age, c.occupation, c.visibility, c.created_at
      FROM characters c
      WHERE c.creator_role = 'user_role' AND c.user_id = ?
      ORDER BY c.created_at ASC`,
@@ -15,10 +15,20 @@ export const listUserCharacters = async (userId) => {
 
 export const getUserCharacter = async (userId, id) => {
   const [[row]] = await pool.query(
-    `SELECT * FROM characters WHERE id = ? AND creator_role = 'user_role' AND user_id = ? LIMIT 1`,
+    `SELECT id, name, gender, avatar, identity, tagline, personality, relationship,
+            plot_theme, plot_summary, opening_line, hobbies, experiences,
+            age, occupation, visibility, status, created_at
+     FROM characters WHERE id = ? AND creator_role = 'user_role' AND user_id = ? LIMIT 1`,
     [id, userId]
   )
-  return row || null
+  if (!row) return null
+  const [tagRows] = await pool.query('SELECT tag FROM character_tags WHERE character_id=?', [id])
+  const [exRows] = await pool.query('SELECT idx, content FROM character_style_examples WHERE character_id=? ORDER BY idx ASC', [id])
+  return {
+    ...row,
+    tags: Array.isArray(tagRows) ? tagRows.map(r => r.tag).filter(Boolean) : [],
+    styleExamples: Array.isArray(exRows) ? exRows.map(r => r.content).filter(Boolean) : []
+  }
 }
 
 export const createUserCharacter = async (userId, creator, payload) => {
@@ -29,16 +39,19 @@ export const createUserCharacter = async (userId, creator, payload) => {
     plotTheme = null, plotSummary = null, openingLine = null,
     hobbies = null, experiences = null,
     age = null, occupation = null,
-    tags = [], styleExamples = []
+    tags = [], styleExamples = [],
+    character_type = null, type = null,
+    visibility = 'public'
   } = payload || {}
+  const ctype = character_type || type || '原创角色'
   await pool.query(
     `INSERT INTO characters (id, name, gender, avatar, creator, creator_role, user_id, identity, tagline, personality,
       relationship, plot_theme, plot_summary, opening_line,
-      hobbies, experiences, status, character_type, age, occupation)
-     VALUES (?,?,?,?,?,'user_role',?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      hobbies, experiences, status, character_type, age, occupation, visibility)
+     VALUES (?,?,?,?,?,'user_role',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [id, name, gender, avatar, creator, userId, identity, tagline, personality,
      relationship, plotTheme, plotSummary, openingLine,
-     hobbies, experiences, 'draft', '原创角色', age, occupation]
+     hobbies, experiences, 'draft', ctype, age, occupation, visibility === 'private' ? 'private' : 'public']
   )
   if (tags && tags.length) {
     const values = tags.map(tag => [id, tag])
@@ -57,14 +70,14 @@ export const updateUserCharacter = async (userId, id, payload) => {
   const {
     name, gender, avatar = null, identity = null, tagline = null, personality = null, relationship = null,
     plotTheme = null, plotSummary = null, openingLine = null, hobbies = null, experiences = null,
-    age = null, occupation = null, tags = [], styleExamples = []
+    age = null, occupation = null, tags = [], styleExamples = [], character_type = null, type = null, visibility = null
   } = payload || {}
   await pool.query(
     `UPDATE characters SET name=?, gender=?, avatar=?, identity=?, tagline=?, personality=?, relationship=?,
-      plot_theme=?, plot_summary=?, opening_line=?, hobbies=?, experiences=?, age=?, occupation=?
+      plot_theme=?, plot_summary=?, opening_line=?, hobbies=?, experiences=?, age=?, occupation=?, character_type=?, visibility=?
      WHERE id=? AND user_id=? AND creator_role='user_role'`,
     [name, gender, avatar, identity, tagline, personality, relationship,
-     plotTheme, plotSummary, openingLine, hobbies, experiences, age, occupation, id, userId]
+     plotTheme, plotSummary, openingLine, hobbies, experiences, age, occupation, (character_type || type || exists.character_type), (visibility || exists.visibility), id, userId]
   )
   await pool.query('DELETE FROM character_tags WHERE character_id=?', [id])
   await pool.query('DELETE FROM character_style_examples WHERE character_id=?', [id])
@@ -83,4 +96,3 @@ export const deleteUserCharacter = async (userId, id) => {
   const [res] = await pool.query('DELETE FROM characters WHERE id=? AND user_id=? AND creator_role="user_role"', [id, userId])
   return !!res.affectedRows
 }
-

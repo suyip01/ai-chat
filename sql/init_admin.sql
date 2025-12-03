@@ -45,6 +45,8 @@ CREATE TABLE user_chat_role (
 CREATE TABLE admins (
   id BIGINT PRIMARY KEY,
   username VARCHAR(64) NOT NULL UNIQUE,
+  nickname VARCHAR(64),
+  avatar VARCHAR(255) NOT NULL DEFAULT '/uploads/avatars/default_admin.jpg',
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255),
   is_active TINYINT(1) NOT NULL DEFAULT 1,

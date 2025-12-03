@@ -1,4 +1,5 @@
 import { WebSocketServer } from 'ws'
+import pool from '../db.js'
 import { getSession } from './chatSessions.js'
 import { appendUserMessage, appendAssistantMessage, getMessages } from './chatMessages.js'
 import { getRedis, keySummary, keyRole } from './redis.js'
@@ -94,6 +95,19 @@ export const startChatWs = (server) => {
           }
         }
         await maybeSummarizeSession(sid)
+        try {
+          console.log('[ws] increment usage for userId=', sess.userId)
+          const [[urow]] = await pool.query('SELECT id FROM users WHERE id=?', [sess.userId])
+          console.log('[ws] users row exists=', !!urow)
+          const [res] = await pool.query('UPDATE users SET used_count = COALESCE(used_count,0) + 1 WHERE id=?', [sess.userId])
+          console.log('[ws] usage increment', { userId: sess.userId, column: 'used_count', affectedRows: res?.affectedRows })
+          if (!res || !res.affectedRows) {
+            const [res2] = await pool.query('UPDATE users SET used = COALESCE(used,0) + 1 WHERE id=?', [sess.userId])
+            console.log('[ws] usage increment (legacy)', { userId: sess.userId, column: 'used', affectedRows: res2?.affectedRows })
+          }
+        } catch (e) {
+          console.error('[ws] increment usage failed', e?.message || e)
+        }
         llmCounts.set(sid, count + 1)
       }
       scheduleGenerate(sid, job)

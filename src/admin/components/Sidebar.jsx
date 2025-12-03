@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { adminsAPI } from '../api.js';
 import { Sparkles, LogOut, FileText, Users, UserCog, Settings, ChevronDown, ChevronRight, Bot, User, Cpu, Database, Shield } from 'lucide-react';
 
-const Sidebar = ({ activeTab, setActiveTab, onLogout, username }) => {
+const Sidebar = ({ activeTab, setActiveTab, onLogout, username, onEditProfile }) => {
   const [expandedMenus, setExpandedMenus] = useState(['characters', 'settings']);
 
   const menuItems = [
@@ -84,8 +85,21 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, username }) => {
     }
   };
 
+  const [showEdit, setShowEdit] = useState(false);
+  const [newNickname, setNewNickname] = useState('');
+  const [pwd1, setPwd1] = useState('');
+  const [pwd2, setPwd2] = useState('');
+  const submitEdit = async () => {
+    const payload = {};
+    if (newNickname && newNickname.trim()) payload.nickname = newNickname.trim();
+    if (pwd1) {
+      if (pwd1 !== pwd2) return;
+      payload.password = pwd1;
+    }
+    try { await adminsAPI.updateMe(payload); setShowEdit(false); setNewNickname(''); setPwd1(''); setPwd2(''); } catch {}
+  };
   return (
-    <div className="w-16 xl:w-56 glass-nav h-screen fixed left-0 top-0 flex flex-col z-20 transition-all duration-300">
+    <div className="w-16 xl:w-56 glass-nav h-screen fixed left-0 top-0 flex flex-col z-20 transition-all duration-300" style={{ backgroundColor: '#f4f6fb' }}>
       <div className="p-4 xl:p-8 flex items-center justify-center xl:justify-start gap-3">
         <div className="w-8 h-8 bg-pink-500 rounded-lg flex items-center justify-center text-white flex-shrink-0">
           <Sparkles size={18} />
@@ -158,8 +172,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, username }) => {
       </nav>
       <div className="p-4 border-t border-pink-100">
         <div className="w-full flex xl:flex-row flex-col items-center xl:justify-start justify-center gap-3">
-          <div className="group relative w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center">
-            <User size={16} />
+          <div className="group relative" onClick={() => onEditProfile && onEditProfile()}>
+            <SidebarAvatar username={username} />
             <div className="absolute left-1/2 -translate-x-1/2 -translate-y-full -top-2 bg-pink-700 text-white text-xs px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
               {username}
             </div>
@@ -170,8 +184,45 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, username }) => {
           </button>
         </div>
       </div>
+      {showEdit && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl p-6 w-96 shadow-2xl">
+            <div className="font-bold mb-4 text-pink-900">修改资料</div>
+            <div className="space-y-3">
+              <div>
+                <input type="text" placeholder={`昵称（当前：${username}）`} value={newNickname} onChange={e => setNewNickname(e.target.value)} className="dream-input w-full px-4 py-3 rounded-2xl text-sm font-bold text-gray-700" />
+              </div>
+              <div>
+                <input type="password" placeholder="新密码" value={pwd1} onChange={e => setPwd1(e.target.value)} className="dream-input w-full px-4 py-3 rounded-2xl text-sm font-bold text-gray-700" />
+              </div>
+              <div>
+                <input type="password" placeholder="再次输入新密码" value={pwd2} onChange={e => setPwd2(e.target.value)} className="dream-input w-full px-4 py-3 rounded-2xl text-sm font-bold text-gray-700" />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end mt-5">
+              <button className="px-4 py-2 rounded-xl bg-gray-100 text-gray-600" onClick={() => { setShowEdit(false); setNewNickname(''); setPwd1(''); setPwd2(''); }}>取消</button>
+              <button className="px-4 py-2 rounded-xl bg-pink-500 text-white" onClick={submitEdit} disabled={!newNickname.trim() && !pwd1}>保存</button>
+        </div>
+      </div>
+      <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-slate-300"></div>
+    </div>
+      )}
     </div>
   );
 };
 
 export default Sidebar;
+
+const SidebarAvatar = ({ username }) => {
+  const [avatar, setAvatar] = useState('');
+  useEffect(() => {
+    let mounted = true;
+    adminsAPI.getMyAvatar().then(r => { if (mounted) setAvatar(r?.avatar || '/uploads/avatars/default_admin.jpg'); }).catch(() => { if (mounted) setAvatar('/uploads/avatars/default_admin.jpg'); });
+    return () => { mounted = false; };
+  }, [username]);
+  return (
+    <div className="group relative w-8 h-8 rounded-full overflow-hidden border border-pink-200 bg-white flex items-center justify-center">
+      {avatar ? (<img src={avatar} alt={username} className="w-full h-full object-cover" />) : (<User size={16} className="text-pink-500" />)}
+    </div>
+  );
+};

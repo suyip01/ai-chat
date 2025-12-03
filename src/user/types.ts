@@ -57,6 +57,7 @@ export interface Character {
   styleExamples?: string[];
   hobbies?: string;
   experiences?: string;
+  visibility?: 'public' | 'private';
   isPublic?: boolean;
 }
 
@@ -86,4 +87,11 @@ export enum NavTab {
   HOME = 'home',
   CHAT = 'chat',
   ME = 'me'
+}
+
+export interface UserProfile {
+  nickname: string;
+  avatar: string;
+  email: string;
+  usedCount?: number;
 }

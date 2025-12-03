@@ -3,13 +3,18 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, Camera, Plus, ChevronRight, X, ChevronDown, ChevronUp, Globe, Lock, Info, AlertCircle } from 'lucide-react';
 import { Character, CharacterStatus } from '../types';
 import { ImageCropper } from './ImageCropper';
+import { createCharacter, createUserCharacterDraft, updateUserCharacter, updateUserCharacterDraft, getUserCharacter } from '../services/userCharactersService'
 
 interface CreateCharacterProps {
   onBack: () => void;
   onCreate: (character: Character) => void;
+  isEdit?: boolean;
+  characterId?: number | string;
+  initial?: Partial<Character>;
+  onUpdated?: (character: Character) => void;
 }
 
-export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCreate }) => {
+export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCreate, isEdit = false, characterId, initial, onUpdated }) => {
   const [form, setForm] = useState({
     type: '原创角色',
     avatar: '',
@@ -46,10 +51,43 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const dataUrlToBlob = (dataUrl: string) => {
+    const parts = dataUrl.split(',');
+    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8 = new Uint8Array(n);
+    while (n--) u8[n] = bstr.charCodeAt(n);
+    return new Blob([u8], { type: mime });
+  };
+
   // Load draft on mount
   useEffect(() => {
+    if (initial) {
+      setForm(prev => ({
+        ...prev,
+        type: initial.roleType || prev.type,
+        avatar: initial.avatar || prev.avatar,
+        profileImage: initial.profileImage || prev.profileImage,
+        name: initial.name || prev.name,
+        gender: (initial.gender as any) || prev.gender,
+        age: (initial.age as any) || prev.age,
+        profession: initial.profession || prev.profession,
+        tagline: initial.oneLinePersona || prev.tagline,
+        personality: initial.personality || prev.personality,
+        relationship: initial.currentRelationship || prev.relationship,
+        plotTheme: initial.plotTheme || prev.plotTheme,
+        plotSummary: initial.plotDescription || prev.plotSummary,
+        openingLine: initial.openingLine || prev.openingLine,
+        styleExamples: Array.isArray(initial.styleExamples) && initial.styleExamples.length ? initial.styleExamples : prev.styleExamples,
+        hobbies: initial.hobbies || prev.hobbies,
+        experiences: initial.experiences || prev.experiences,
+        searchTags: Array.isArray(initial.tags) ? initial.tags : prev.searchTags,
+        isPublic: typeof initial.isPublic === 'boolean' ? initial.isPublic : prev.isPublic
+      }))
+    }
     const savedDraft = localStorage.getItem('create_character_draft');
-    if (savedDraft) {
+    if (savedDraft && !isEdit) {
       try {
         const parsed = JSON.parse(savedDraft);
         setForm(prev => ({ ...prev, ...parsed }));
@@ -57,7 +95,40 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
         console.error("Failed to load draft", e);
       }
     }
-  }, []);
+  }, [initial, isEdit]);
+
+  useEffect(() => {
+    if (!isEdit || !characterId) return;
+    const needTags = !(initial && Array.isArray(initial.tags) && initial.tags.length);
+    const needStyles = !(initial && Array.isArray(initial.styleExamples) && initial.styleExamples.length);
+    if (!needTags && !needStyles) return;
+    (async () => {
+      try {
+        const data: any = await getUserCharacter(characterId);
+        const se: string[] = Array.isArray(data?.styleExamples) ? data.styleExamples.slice(0, 3) : [];
+        while (se.length < 3) se.push('');
+        setForm(prev => ({
+          ...prev,
+          name: data?.name ?? prev.name,
+          gender: data?.gender ?? prev.gender,
+          avatar: data?.avatar ?? prev.avatar,
+          tagline: data?.tagline ?? prev.tagline,
+          personality: data?.personality ?? prev.personality,
+          relationship: data?.relationship ?? prev.relationship,
+          plotTheme: data?.plot_theme ?? prev.plotTheme,
+          plotSummary: data?.plot_summary ?? prev.plotSummary,
+          openingLine: data?.opening_line ?? prev.openingLine,
+          hobbies: data?.hobbies ?? prev.hobbies,
+          experiences: data?.experiences ?? prev.experiences,
+          age: (data?.age != null ? String(data.age) : prev.age),
+          profession: data?.occupation ?? prev.profession,
+          searchTags: Array.isArray(data?.tags) ? data.tags : prev.searchTags,
+          styleExamples: se,
+          isPublic: data?.visibility ? data.visibility === 'public' : prev.isPublic
+        }))
+      } catch {}
+    })();
+  }, [isEdit, characterId, initial]);
 
   const roleTypes = ['原创角色', '二次创作', '其他'];
   const relationships = ['陌生人', '暧昧', '恋爱中', '冷战', '分手'];
@@ -105,8 +176,47 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
     }
   };
 
-  const handleDraftAction = (save: boolean) => {
+  const handleDraftAction = async (save: boolean) => {
       if (save) {
+          try {
+            const token = localStorage.getItem('user_access_token');
+            let avatarUrl = form.avatar || null as string | null;
+            if (avatarUrl && avatarUrl.startsWith('data:image')) {
+              const blob = dataUrlToBlob(avatarUrl);
+              const fd = new FormData();
+              const fname = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.jpg`;
+              fd.append('avatar', blob, 'avatar.jpg');
+              fd.append('filename', fname);
+              avatarUrl = `/uploads/users/avatars/${fname}`;
+              try { await fetch('/api/uploads/avatar', { method: 'POST', headers: { Authorization: token ? `Bearer ${token}` : '' }, body: fd }); } catch {}
+            }
+            const payload: any = {
+              name: form.name || '未命名',
+              gender: form.gender,
+              avatar: avatarUrl,
+              identity: null,
+              tagline: form.tagline,
+              personality: form.personality,
+              relationship: form.relationship,
+              plotTheme: form.plotTheme,
+              plotSummary: form.plotSummary,
+              openingLine: form.openingLine,
+              hobbies: form.hobbies,
+              experiences: form.experiences,
+              age: form.age ? parseInt(form.age, 10) || null : null,
+              occupation: form.profession,
+              character_type: form.type,
+              visibility: form.isPublic ? 'public' : 'private',
+              tags: form.searchTags,
+              styleExamples: form.styleExamples.filter(Boolean)
+            }
+            if (isEdit && characterId) {
+              await updateUserCharacterDraft(characterId, payload)
+            } else {
+              await createUserCharacterDraft(payload)
+            }
+          } catch {}
+          // Optional local backup
           localStorage.setItem('create_character_draft', JSON.stringify(form));
       } else {
           localStorage.removeItem('create_character_draft');
@@ -151,15 +261,57 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) {
         setShowErrorModal(true);
         return;
     }
 
-    // Create new Character Object
+    // Create on server
+    let backendId: number | null = null
+    try {
+      const token = localStorage.getItem('user_access_token');
+      let avatarUrl = form.avatar || null as string | null;
+      if (avatarUrl && avatarUrl.startsWith('data:image')) {
+        const blob = dataUrlToBlob(avatarUrl);
+        const fd = new FormData();
+        const fname = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.jpg`;
+        fd.append('avatar', blob, 'avatar.jpg');
+        fd.append('filename', fname);
+        avatarUrl = `/uploads/users/avatars/${fname}`;
+        try { await fetch('/api/uploads/avatar', { method: 'POST', headers: { Authorization: token ? `Bearer ${token}` : '' }, body: fd }); } catch {}
+      }
+      const payload: any = {
+        name: form.name,
+        gender: form.gender,
+        avatar: avatarUrl,
+        identity: null,
+        tagline: form.tagline,
+        personality: form.personality,
+        relationship: form.relationship,
+        plotTheme: form.plotTheme,
+        plotSummary: form.plotSummary,
+        openingLine: form.openingLine,
+        hobbies: form.hobbies,
+        experiences: form.experiences,
+        age: form.age ? parseInt(form.age, 10) || null : null,
+        occupation: form.profession,
+        character_type: form.type,
+        visibility: form.isPublic ? 'public' : 'private',
+        tags: form.searchTags,
+        styleExamples: form.styleExamples.filter(Boolean)
+      }
+      if (isEdit && characterId) {
+        await updateUserCharacter(characterId, payload)
+        backendId = typeof characterId === 'number' ? characterId : parseInt(String(characterId)) || null
+      } else {
+        backendId = await createCharacter(payload)
+      }
+    } catch {}
+
+    // Create new Character Object (for local UI)
     const newCharacter: Character = {
-        id: `c_${Date.now()}`,
+        id: backendId ? String(backendId) : `c_${Date.now()}`,
         name: form.name,
         // Use cropped avatar for thumbnail
         avatar: form.avatar || 'https://image.pollinations.ai/prompt/anime%20silhouette%20purple?width=400&height=400&nologo=true', 
@@ -194,7 +346,11 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
 
     // Remove draft on successful creation
     localStorage.removeItem('create_character_draft');
-    onCreate(newCharacter);
+    if (isEdit) {
+      onUpdated ? onUpdated(newCharacter) : onCreate(newCharacter)
+    } else {
+      onCreate(newCharacter);
+    }
   };
 
   const getStylePlaceholder = (idx: number) => {
@@ -244,8 +400,8 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
             <button onClick={onBack} className="w-8 h-8 flex items-center justify-center text-purple-800 hover:bg-purple-100 rounded-full transition">
                 <ChevronLeft size={20} />
             </button>
-            <h1 className="text-xl font-bold text-purple-900 font-kosugi">创建角色</h1>
-            <button onClick={() => setShowDraftModal(true)} className="text-sm font-bold text-purple-600 font-kosugi">存草稿</button>
+            <h1 className="text-xl font-bold text-purple-900 font-kosugi">{isEdit ? '编辑角色' : '创建角色'}</h1>
+            <button onClick={() => setShowDraftModal(true)} className="text-sm font-bold text-purple-600 font-kosugi">{isEdit ? '更新' : '存草稿'}</button>
         </div>
 
         <div className="flex-1 overflow-y-auto no-scrollbar pb-28 px-4 space-y-6">
@@ -593,7 +749,7 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
                 onClick={handleSubmit}
                 className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-purple-300 active:scale-95 transition-transform flex items-center justify-center tracking-widest text-lg font-kosugi"
             >
-                唤醒角色
+                {isEdit ? '更新角色卡' : '生成角色卡'}
             </button>
         </div>
 
@@ -669,19 +825,19 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
         {showDraftModal && (
             <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="bg-white rounded-3xl p-6 w-[80%] max-w-xs shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-                    <h3 className="text-lg font-bold text-slate-800 text-center mb-4 font-kosugi">是否保存草稿？</h3>
+                    <h3 className="text-lg font-bold text-slate-800 text-center mb-4 font-kosugi">{isEdit ? '是否只更新内容？' : '是否保存草稿？'}</h3>
                     <div className="flex gap-3">
                         <button 
                             onClick={() => handleDraftAction(false)}
                             className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors font-kosugi"
                         >
-                            否
+                            {isEdit ? '取消' : '否'}
                         </button>
                         <button 
                             onClick={() => handleDraftAction(true)}
                             className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white font-bold shadow-lg shadow-purple-200 hover:bg-purple-600 transition-colors font-kosugi"
                         >
-                            是
+                            {isEdit ? '确认更新' : '是'}
                         </button>
                     </div>
                 </div>

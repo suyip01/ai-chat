@@ -4,53 +4,20 @@ import { BottomNav } from './components/BottomNav';
 import { ChatList } from './components/ChatList';
 import { ChatDetail } from './components/ChatDetail';
 import { CharacterProfile } from './components/CharacterProfile';
+import { CharacterProfileAwait } from './components/CharacterProfileAwait';
 import { UserCharacterSettings } from './components/UserCharacterSettings';
 import { CreateCharacter } from './components/CreateCharacter';
 import LoginPage from './components/LoginPage.jsx';
 import { ToastProvider } from './components/Toast';
-import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, UserPersona } from './types';
+import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, UserPersona, UserProfile } from './types';
+import { MePage } from './components/MePage';
 import { listCharacters } from './services/charactersService';
+import { listUserCharacters as listMine } from './services/userCharactersService';
+import { authFetch } from './services/http';
 import { createChatSession } from './services/chatService';
 
 // Mock Data
-const MOCK_CHATS: ChatPreview[] = [
-  {
-    characterId: 'c1',
-    character: {
-      id: 'c1',
-      name: '祁云',
-      // Using a generated image that matches the description of the user provided image
-      avatar: 'https://image.pollinations.ai/prompt/handsome%20anime%20doctor%20man%20black%20hair%20gold%20glasses%20blue%20shirt%20white%20coat%20gentle%20look%20otome%20style%20digital%20art?width=400&height=400&seed=88&nologo=true',
-      status: CharacterStatus.ONLINE,
-      isPinned: true,
-      relationshipLevel: 85,
-      bio: "表面温柔克己，实则腹黑",
-      tags: ['温和', '腹黑', '占有欲强', '医生', '人夫', 'BG', '体贴', '反差'],
-      creator: '一只阿猫',
-      playCount: '13.9万',
-
-      // Profile Data
-      age: '28岁',
-      profession: '骨科医生',
-      isOriginal: true,
-      roleType: '原创角色',
-      oneLinePersona: '表面温柔克己实则腹黑',
-      personality: '温和待人，但占有欲强，容易吃醋',
-      currentRelationship: '婚后',
-      plotTheme: '当温柔人夫终于爆发腹黑属性',
-      plotDescription: '在一起这么久了，他还是一如既往的温柔体贴，从来不干涉你的个人生活。今天晚上你去酒吧玩，故意装作喝醉和他打电话，却在他应了一声后开始软声叫着别人的名字......',
-      openingLine: '“出来，我在酒吧门口”'
-    },
-    lastMessage: {
-      id: 'm_last',
-      senderId: 'c1',
-      text: "外面下雨了，我带了伞。",
-      timestamp: new Date(new Date().setHours(22, 32)),
-      type: MessageType.TEXT
-    },
-    unreadCount: 0
-  }
-];
+const MOCK_CHATS: ChatPreview[] = [];
 
 // Mock Stories Data
 const MOCK_STORIES = [
@@ -88,13 +55,26 @@ const App: React.FC = () => {
   const [isUserSettingsOpen, setIsUserSettingsOpen] = useState(false);
   const [userPersona, setUserPersona] = useState<UserPersona | undefined>(undefined);
   const [isCreating, setIsCreating] = useState(false);
+  const [createInitial, setCreateInitial] = useState<{ initial?: Character; id?: string | number; isEdit?: boolean } | null>(null)
+  const [awaitProfile, setAwaitProfile] = useState<{ character: Character; id: string } | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!localStorage.getItem('user_access_token'));
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    const nick = localStorage.getItem('user_nickname') || '我';
+    const email = localStorage.getItem('user_email') || 'me@example.com';
+    const avatar = localStorage.getItem('user_avatar') || '';
+    return { nickname: nick, email, avatar };
+  });
 
   // Track where the profile was opened from to adjust the button text/behavior
   const [isProfileFromChat, setIsProfileFromChat] = useState(false);
+  const [isProfileFromMe, setIsProfileFromMe] = useState(false);
+  const [myUserCharacters, setMyUserCharacters] = useState<Character[]>([]);
   const handleLogout = () => {
     localStorage.removeItem('user_access_token');
     localStorage.removeItem('user_refresh_token');
+    localStorage.removeItem('user_nickname');
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('user_avatar');
     setUserPersona(undefined);
     setSelectedChat(null);
     setViewingProfile(null);
@@ -103,6 +83,24 @@ const App: React.FC = () => {
   };
   useEffect(() => {
     if (!isLoggedIn) return;
+    (async () => {
+      try {
+        const res = await authFetch('/user/profile')
+        if (res && res.ok) {
+          const data = await res.json()
+          const nick = data?.nickname || '我'
+          const email = data?.email || 'me@example.com'
+          const avatar = data?.avatar || ''
+          const usedCount = typeof data?.used_count === 'number' ? data.used_count : 0
+          setUserProfile({ nickname: nick, email, avatar, usedCount })
+          try {
+            localStorage.setItem('user_nickname', nick)
+            localStorage.setItem('user_email', email)
+            if (avatar) localStorage.setItem('user_avatar', avatar)
+          } catch {}
+        }
+      } catch {}
+    })()
     setLoadingCharacters(true);
     listCharacters({ limit: 24 })
       .then(items => {
@@ -147,7 +145,116 @@ const App: React.FC = () => {
       })
       .catch(() => setCharacters([]))
       .finally(() => setLoadingCharacters(false));
+
+    (async () => {
+      try {
+        const items = await listMine()
+        const mapped: Character[] = items.map((it: any) => ({
+          id: String(it.id),
+          name: it.name || '未知',
+          avatar: it.avatar || '',
+          profileImage: '',
+          status: CharacterStatus.ONLINE,
+          bio: it.plot_summary || '',
+          tags: Array.isArray(it.tags) ? it.tags : [],
+          creator: userProfile.nickname || '我',
+          oneLinePersona: it.tagline || '',
+          personality: it.personality || '',
+          profession: it.occupation || '',
+          age: it.age ? String(it.age) : '',
+          roleType: '',
+          gender: it.gender || '',
+          currentRelationship: it.relationship || '',
+          plotTheme: it.plot_theme || '',
+          plotDescription: '',
+          openingLine: it.opening_line || '',
+          styleExamples: Array.isArray(it.styleExamples) ? it.styleExamples : [],
+          hobbies: it.hobbies || '',
+          experiences: it.experiences || '',
+          visibility: it.visibility,
+          isPublic: it.visibility ? it.visibility === 'public' : false
+        }))
+        setMyUserCharacters(mapped)
+      } catch {
+        setMyUserCharacters([])
+      }
+    })()
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    if (activeTab !== NavTab.ME) return;
+    (async () => {
+      try {
+        const items = await listMine();
+        const mapped: Character[] = items.map((it: any) => ({
+          id: String(it.id),
+          name: it.name || '未知',
+          avatar: it.avatar || '',
+          profileImage: '',
+          status: CharacterStatus.ONLINE,
+          bio: it.plot_summary || '',
+          tags: Array.isArray(it.tags) ? it.tags : [],
+          creator: userProfile.nickname || '我',
+          oneLinePersona: it.tagline || '',
+          personality: it.personality || '',
+          profession: it.occupation || '',
+          age: it.age ? String(it.age) : '',
+          roleType: '',
+          gender: it.gender || '',
+          currentRelationship: it.relationship || '',
+          plotTheme: it.plot_theme || '',
+          plotDescription: '',
+          openingLine: it.opening_line || '',
+          styleExamples: Array.isArray(it.styleExamples) ? it.styleExamples : [],
+          hobbies: it.hobbies || '',
+          experiences: it.experiences || '',
+          visibility: it.visibility,
+          isPublic: it.visibility ? it.visibility === 'public' : false
+        }));
+        setMyUserCharacters(mapped);
+      } catch {
+        setMyUserCharacters([]);
+      }
+    })();
+  }, [activeTab, isLoggedIn, userProfile.nickname]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    if (!myUserCharacters.length) return;
+    if (!myUserCharacters.some(c => c.visibility === undefined)) return;
+    (async () => {
+      try {
+        const items = await listMine();
+        const mapped: Character[] = items.map((it: any) => ({
+          id: String(it.id),
+          name: it.name || '未知',
+          avatar: it.avatar || '',
+          profileImage: '',
+          status: CharacterStatus.ONLINE,
+          bio: it.plot_summary || '',
+          tags: Array.isArray(it.tags) ? it.tags : [],
+          creator: userProfile.nickname || '我',
+          oneLinePersona: it.tagline || '',
+          personality: it.personality || '',
+          profession: it.occupation || '',
+          age: it.age ? String(it.age) : '',
+          roleType: '',
+          gender: it.gender || '',
+          currentRelationship: it.relationship || '',
+          plotTheme: it.plot_theme || '',
+          plotDescription: '',
+          openingLine: it.opening_line || '',
+          styleExamples: Array.isArray(it.styleExamples) ? it.styleExamples : [],
+          hobbies: it.hobbies || '',
+          experiences: it.experiences || '',
+          visibility: it.visibility,
+          isPublic: it.visibility ? it.visibility === 'public' : false
+        }));
+        setMyUserCharacters(mapped);
+      } catch {}
+    })();
+  }, [myUserCharacters, isLoggedIn, userProfile.nickname]);
 
   useEffect(() => {
     const isTouch = (navigator as any)?.maxTouchPoints > 0
@@ -210,42 +317,7 @@ const App: React.FC = () => {
         if (msgs.length) return msgs;
       }
     } catch {}
-    // Specific conversation for 祁云 based on the request
-    if (chat.characterId === 'c1') {
-      const baseTime = new Date();
-      baseTime.setHours(22, 30, 0, 0);
-
-      return [
-        {
-          id: 'm1',
-          senderId: 'c1',
-          text: "出来，我在酒吧门口。",
-          timestamp: new Date(baseTime.getTime()),
-          type: MessageType.TEXT
-        },
-        {
-          id: 'm2',
-          senderId: 'user',
-          text: "(惊讶) 你怎么来了？不是说今天值夜班吗？",
-          timestamp: new Date(baseTime.getTime() + 60000), // 22:31
-          type: MessageType.TEXT
-        },
-        {
-          id: 'm3',
-          senderId: 'c1',
-          text: "(冷笑一声) 别让我说第二遍。",
-          timestamp: new Date(baseTime.getTime() + 60000 + 30000), // 22:31:30
-          type: MessageType.TEXT
-        },
-        {
-          id: 'm4',
-          senderId: 'c1',
-          text: "外面下雨了，我带了伞。",
-          timestamp: new Date(baseTime.getTime() + 120000), // 22:32
-          type: MessageType.TEXT
-        }
-      ];
-    }
+    // No special mock conversation
 
     // For newly created characters, use the Opening Line if available
     if (chat.character.openingLine) {
@@ -350,28 +422,8 @@ const App: React.FC = () => {
   };
 
   const handleCreateCharacter = (newCharacter: Character) => {
-    // 1. Add to chats
-    const newChat: ChatPreview = {
-      characterId: newCharacter.id,
-      character: newCharacter,
-      lastMessage: {
-        id: `msg_${Date.now()}`,
-        senderId: newCharacter.id,
-        text: newCharacter.openingLine ? newCharacter.openingLine.replace(/^['"“]|['"”]$/g, '') : "你好...",
-        timestamp: new Date(),
-        type: MessageType.TEXT
-      },
-      unreadCount: 0
-    };
-
-    setChats(prev => [newChat, ...prev]);
-
-    // 2. Close create modal
     setIsCreating(false);
-
-    // 3. Open Profile
-    setIsProfileFromChat(false);
-    setViewingProfile(newCharacter);
+    setAwaitProfile({ character: newCharacter, id: String(newCharacter.id) })
   };
 
   const renderHomeHeader = () => (
@@ -448,6 +500,7 @@ const App: React.FC = () => {
                     className="bg-white rounded-2xl p-4 shadow-sm flex gap-4 hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-primary-100"
                     onClick={() => {
                       setIsProfileFromChat(false);
+                      setIsProfileFromMe(false);
                       setViewingProfile(char);
                     }}
                   >
@@ -491,13 +544,26 @@ const App: React.FC = () => {
         );
       case NavTab.ME:
         return (
-          <div className="flex items-center justify-center h-full text-slate-400 animate-in fade-in duration-500">
-            <div className="text-center">
-              <button onClick={handleLogout} className="w-64 md:w-72 px-6 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-red-600 text-white font-bold shadow-lg shadow-red-200 hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-95 mb-6">退出登录</button>
-              <h2 className="text-2xl font-bold mb-2">个人中心</h2>
-              <p>用户设置</p>
-            </div>
-          </div>
+          <MePage
+            userProfile={userProfile}
+            myCharacters={characters}
+            myUserCharacters={myUserCharacters}
+            myStories={[]}
+            onUpdateProfile={(p) => {
+              setUserProfile(p);
+              try {
+                localStorage.setItem('user_nickname', p.nickname || '我');
+                localStorage.setItem('user_email', p.email || 'me@example.com');
+                if (p.avatar) localStorage.setItem('user_avatar', p.avatar);
+              } catch {}
+            }}
+            onCharacterClick={(char) => {
+              setIsProfileFromChat(false);
+              setIsProfileFromMe(true);
+              setViewingProfile(char);
+            }}
+            onLogout={handleLogout}
+          />
         );
       case NavTab.CHAT:
       default:
@@ -527,8 +593,16 @@ const App: React.FC = () => {
         {/* 0. Create Character Overlay */}
         {isCreating && (
           <CreateCharacter
-            onBack={() => setIsCreating(false)}
+            onBack={() => { setIsCreating(false); setCreateInitial(null) }}
             onCreate={handleCreateCharacter}
+            isEdit={!!createInitial?.isEdit}
+            characterId={createInitial?.id}
+            initial={createInitial?.initial}
+            onUpdated={(updated) => {
+              setIsCreating(false)
+              setCreateInitial(null)
+              setViewingProfile(updated)
+            }}
           />
         )}
 
@@ -559,13 +633,35 @@ const App: React.FC = () => {
         )}
 
         {/* 1. Profile View Overlay - Render SECOND so it covers ChatDetail */}
-        {viewingProfile && !isUserSettingsOpen && !isCreating && (
-          <CharacterProfile
-            character={viewingProfile}
-            onBack={() => setViewingProfile(null)}
-            onStartChat={() => startChatFromProfile(viewingProfile)}
-            isFromChat={isProfileFromChat}
-            isExistingChat={!!chats.find(c => c.characterId === viewingProfile.id)}
+        {viewingProfile && !isUserSettingsOpen && !isCreating && !awaitProfile && (
+          isProfileFromMe ? (
+            <CharacterProfileAwait
+              character={viewingProfile}
+              createdId={viewingProfile.id}
+              onBack={() => setViewingProfile(null)}
+              onStartChat={(char) => startChatFromProfile(char)}
+              onEdit={(char) => {
+                setCreateInitial({ initial: char, id: char.id, isEdit: true })
+                setIsCreating(true)
+              }}
+            />
+          ) : (
+            <CharacterProfile
+              character={viewingProfile}
+              onBack={() => setViewingProfile(null)}
+              onStartChat={() => startChatFromProfile(viewingProfile)}
+              isFromChat={isProfileFromChat}
+              isExistingChat={!!chats.find(c => c.characterId === viewingProfile.id)}
+            />
+          )
+        )}
+
+        {awaitProfile && !isUserSettingsOpen && !isCreating && (
+          <CharacterProfileAwait
+            character={awaitProfile.character}
+            createdId={awaitProfile.id}
+            onBack={() => setAwaitProfile(null)}
+            onStartChat={(char) => { setAwaitProfile(null); startChatFromProfile(char) }}
           />
         )}
 

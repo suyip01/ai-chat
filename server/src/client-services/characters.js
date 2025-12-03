@@ -10,7 +10,7 @@ export const listPublishedCharacters = async ({ tag = null, limit = 24 } = {}) =
           c.id,
           c.name,
           c.avatar,
-          c.creator,
+          COALESCE(u.nickname, a.nickname, c.creator) AS creator,
           c.age,
           c.occupation,
           c.tagline,
@@ -21,6 +21,8 @@ export const listPublishedCharacters = async ({ tag = null, limit = 24 } = {}) =
           c.opening_line,
           (SELECT GROUP_CONCAT(ct.tag) FROM character_tags ct WHERE ct.character_id=c.id) AS tags
        FROM characters c
+       LEFT JOIN admins a ON a.username = c.creator
+       LEFT JOIN users u ON u.username = c.creator
        WHERE ${whereBase} ${whereTag}
        ORDER BY c.created_at DESC
        LIMIT ?`,

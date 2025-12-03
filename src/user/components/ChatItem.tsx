@@ -1,9 +1,12 @@
 import React from 'react';
-import { ChatPreview } from '../types';
 import { Pin } from 'lucide-react';
 
 interface ChatItemProps {
-  chat: ChatPreview;
+  chat: {
+    character: { name: string; avatar: string; isPinned?: boolean };
+    lastMessage: { senderId: string; text: string; timestamp: Date };
+    unreadCount: number;
+  };
   onClick: () => void;
   onTogglePin: () => void;
   roundedClass?: string;

@@ -94,8 +94,10 @@ const Content = () => {
         <table className="w-full text-left border-collapse">
           <thead className="bg-pink-100 text-pink-900 font-cute text-sm">
             <tr>
-              <th className="p-3 pl-6 w-20">ID</th>
+              <th className="p-3 pl-6 w-20">头像</th>
+              <th className="p-3 w-20">ID</th>
               <th className="p-3">用户名</th>
+              <th className="p-3">昵称</th>
               <th className="p-3">邮箱</th>
               <th className="p-3">状态</th>
               <th className="p-3 text-right pr-6">操作</th>
@@ -104,8 +106,10 @@ const Content = () => {
           <tbody className="text-sm divide-y divide-pink-100">
             {admins.map(a => (
               <tr key={a.id} className="hover:bg-pink-50/30 transition-colors">
-                <td className="p-3 pl-6 text-gray-500 font-mono">{a.id.toString().padStart(4, '0')}</td>
+                <td className="p-3 pl-6"><img src={a.avatar || '/uploads/avatars/default_admin.jpg'} alt={a.username} className="w-8 h-8 rounded-full object-cover shadow-sm" /></td>
+                <td className="p-3 text-gray-500 font-mono">{a.id.toString().padStart(4, '0')}</td>
                 <td className="p-3 font-bold text-pink-700">{a.username}</td>
+                <td className="p-3 text-gray-700">{a.nickname || '-'}</td>
                 <td className="p-3 text-gray-600">{a.email || '-'}</td>
                 <td className="p-3">{a.isActive === 1 ? '启用' : '禁用'}</td>
                 <td className="p-3 text-right pr-6">

@@ -149,4 +149,10 @@ export const adminsAPI = {
   async changePassword(id, password) {
     return request(`/admins/${id}/password`, { method: 'POST', body: JSON.stringify({ password }) });
   },
+  async getMyAvatar() {
+    return request('/admins/me/avatar');
+  },
+  async updateMe(payload) {
+    return request('/admins/me', { method: 'PUT', body: JSON.stringify(payload) });
+  },
 };

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { ChevronLeft, Pencil, User as UserIcon } from 'lucide-react';
-import { createUserCharacter } from '../services/userCharactersService'
+import { upsertUserChatRole } from '../services/chatService'
 import { UserPersona } from '../types';
 import { ImageCropper } from './ImageCropper';
 import { AnimatePresence, motion } from 'framer-motion'
@@ -54,27 +54,16 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
         });
         uploadReq.catch(() => {});
       }
-      const mappedGender = gender === 'male' ? '男' : gender === 'female' ? '女' : '未透露';
-      const ageNum = age ? parseInt(age, 10) : null;
-      await createUserCharacter({
+      const persona = {
+        gender,
         name,
-        gender: mappedGender,
-        age: ageNum,
-        occupation: profession,
-        identity: null,
-        tagline: '',
-        personality,
-        relationship: '',
-        plotTheme: null,
-        plotSummary: null,
-        openingLine: null,
-        hobbies: null,
-        experiences: null,
-        avatar: avatarUrl || null,
+        age,
+        profession,
         basicInfo,
-        tags: [],
-        styleExamples: []
-      })
+        personality,
+        avatar: avatarUrl || undefined
+      }
+      await upsertUserChatRole(persona)
     } catch {}
 
     onSave({

@@ -51,16 +51,18 @@ const buildMessages = (data, systemTemplate) => {
   const age = data.age ?? '';
   const occupation = data.occupation || '';
   const sys = `你是专家级别角色提示词工程师，需根据用户提供的角色设定参数，生成符合要求的角色扮演提示词，确保模拟角色对话时贴近真人表现。
-
-【模板】
-${systemTemplate || 'content'}
-
 ### 输出要求
+- 按照模版格式输出，不需要添加任何额外的内容
 - 模板的输出格式要求不允许修改
 - 模板禁止透露AI身份的内容不许修改
 - 深刻理解角色的背景和情感，提示词要要贴合用户设定
 - 用户提供了”说话风格示例“，生成## Example需要严格使用用户提供的示例，并补充对话一些对话
-- 跟用户的当前关系阶段需要重点突出`;
+- 跟用户的当前关系阶段需要重点突出
+
+【模板】
+${systemTemplate || 'content'}
+【模版】`;
+
   const styleText = styleExamples.length ? styleExamples.map((s, i) => `0${i + 1}. ${s}`).join('\n') : '';
   const user = [
     `角色名称：${name}`,
@@ -104,6 +106,9 @@ export const generateNoScenePrompt = async (sourcePrompt, overrides = {}) => {
   const chosenModel = await validateModel(overrides.model || s.model);
   const chosenTemp = typeof overrides.temperature === 'number' ? overrides.temperature : s.temperature;
   const sys = `你是专家级别角色提示词工程师，你的任务修改提示词，把提示词里带场景、动作描述类内容去掉，新生成的提示词是不带场景、动作描述内容。请根据下面的要求修改提供的提示词部分内容，修改后按照原格式输出。
+
+### 输入要求
+- 只输出模版格式内容，，不需要添加任何额外的内容
 
 ### 修改要求
 - 把“回复必须带上带括号的场景、心理描述，参考示例”，修改成“回复禁止带上带括号的场景、心理描述，参考示例”。
