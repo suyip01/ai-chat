@@ -5,6 +5,20 @@ import pool from '../db.js';
 const router = Router();
 router.use(userAuthRequired);
 
+router.get('/', async (req, res) => {
+  try {
+    const userId = req.user?.id
+    if (!userId) return res.status(401).json({ error: 'unauthorized' })
+    const [rows] = await pool.query(
+      'SELECT id, name, age, gender, profession, basic_info, personality, avatar FROM user_chat_role WHERE user_id = ? ORDER BY id DESC',
+      [userId]
+    )
+    res.json(rows || [])
+  } catch (e) {
+    res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' })
+  }
+})
+
 router.post('/', async (req, res) => {
   try {
     console.log('[POST /api/user/chat-role] body=', req.body, 'userId=', req.user?.id)

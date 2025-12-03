@@ -66,7 +66,11 @@ const UsersViewContent = () => {
       </div>
     </div>
   );
-  const filteredUsers = users.filter((user) => user.username.toLowerCase().includes(searchTerm.toLowerCase()) || user.email.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredUsers = users.filter((user) => (
+    user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.nickname ? user.nickname.toLowerCase().includes(searchTerm.toLowerCase()) : false) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  ));
   if (view === 'create') return <UserCreateView onCancel={() => setView('list')} onSave={handleAddUser} notify={showToast} />;
   return (
     <div className="space-y-6 animate-fade-in">
@@ -89,8 +93,10 @@ const UsersViewContent = () => {
         <table className="w-full text-left">
           <thead className="bg-pink-50/50 text-pink-900 font-cute text-sm">
             <tr>
-              <th className="p-5 pl-8">用户 ID</th>
+              <th className="p-5 pl-8">头像</th>
+              <th className="p-5">用户 ID</th>
               <th className="p-5">用户名 / 邮箱</th>
+              <th className="p-5">昵称</th>
               <th className="p-5">已用次数</th>
               <th className="p-5">剩余额度</th>
               <th className="p-5 text-right pr-8">操作</th>

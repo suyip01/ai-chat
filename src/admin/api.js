@@ -118,8 +118,8 @@ export const usersAPI = {
     const qs = q ? `?q=${encodeURIComponent(q)}` : '';
     return request(`/users${qs}`);
   },
-  async create({ username, email, password, chatLimit }) {
-    return request('/users', { method: 'POST', body: JSON.stringify({ username, email, password, chatLimit }) });
+  async create({ username, nickname, email, password, chatLimit }) {
+    return request('/users', { method: 'POST', body: JSON.stringify({ username, nickname, email, password, chatLimit }) });
   },
   async update(id, payload) {
     return request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) });

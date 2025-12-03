@@ -4,6 +4,8 @@ import { ChevronLeft, Pencil, User as UserIcon } from 'lucide-react';
 import { createUserCharacter } from '../services/userCharactersService'
 import { UserPersona } from '../types';
 import { ImageCropper } from './ImageCropper';
+import { AnimatePresence, motion } from 'framer-motion'
+import { androidBottomSheet, fade } from '../animations'
 
 interface UserCharacterSettingsProps {
   currentPersona?: UserPersona;
@@ -104,7 +106,9 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
   };
 
   return (
-    <div className={`${withinContainer ? 'absolute' : 'fixed'} inset-0 bg-[#F8F9FA] z-[80] flex flex-col h-full w-full overflow-y-auto no-scrollbar animate-in slide-in-from-right duration-300`}>
+    <div className={`${withinContainer ? 'absolute' : 'fixed'} inset-0 z-[80]`}>
+      <motion.div className="absolute inset-0 bg-[#F8F9FA]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={fade} />
+      <motion.div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.08)] flex flex-col h-[92vh] w-full overflow-y-auto no-scrollbar" initial={{ y: '100%' }} animate={{ y: 0 }} transition={androidBottomSheet}>
       
       {/* Cropper Modal */}
       {tempAvatar && (
@@ -236,7 +240,7 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
         </div>
 
         {/* Personality */}
-        <div className="bg-white rounded-xl p-5 shadow-sm">
+        <div className="bg白 rounded-xl p-5 shadow-sm">
            <label className="block font-bold text-slate-800 text-sm mb-2">性格描述</label>
            <textarea 
              placeholder="请输入性格描述..." 
@@ -246,7 +250,9 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
            />
         </div>
 
-      </div>
+        </div>
+
+      </motion.div>
     </div>
   );
 };

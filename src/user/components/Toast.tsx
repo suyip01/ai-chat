@@ -1,22 +1,37 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useRef, useState } from 'react';
 
 const ToastCtx = createContext<{ showToast: (text: string, type?: 'info' | 'success' | 'error' | 'role') => void; showCenter: (text: string) => void }>({ showToast: () => {}, showCenter: () => {} });
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [toasts, setToasts] = useState<{ id: number; text: string; type: string; position: 'bottom' | 'center' }[]>([]);
+  const [toasts, setToasts] = useState<{ id: number; text: string; type: string; position: 'bottom' | 'center'; duration?: number }[]>([]);
+  const timersRef = useRef<Map<number, number>>(new Map());
+  const scheduleRemoval = (id: number, duration: number) => {
+    const old = timersRef.current.get(id);
+    if (old) clearTimeout(old);
+    const h = window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+      timersRef.current.delete(id);
+    }, duration);
+    timersRef.current.set(id, h);
+  };
   const showToast = (text: string, type: 'info' | 'success' | 'error' | 'role' = 'info') => {
     const id = Date.now();
-    setToasts((prev) => [...prev, { id, text, type, position: 'bottom' }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 2000);
+    const duration = 2000;
+    setToasts((prev) => [...prev, { id, text, type, position: 'bottom', duration }]);
+    scheduleRemoval(id, duration);
   };
   const showCenter = (text: string) => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, text, type: 'center', position: 'center' }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 2000);
+    const extendDuration = 3000;
+    setToasts((prev) => {
+      const existing = prev.find((t) => t.position === 'center' && t.text === text);
+      if (existing) {
+        scheduleRemoval(existing.id, extendDuration);
+        return prev;
+      }
+      const id = Date.now();
+      scheduleRemoval(id, 2000);
+      return [...prev, { id, text, type: 'center', position: 'center', duration: 2000 }];
+    });
   };
   return (
     <ToastCtx.Provider value={{ showToast, showCenter }}>
@@ -44,7 +59,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       <div className="fixed top-[25%] left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
         <div className="space-y-2 flex flex-col items-center">
           {toasts.filter(t => t.position === 'center').map((t) => (
-            <div key={t.id} className="bg-white text-slate-800 px-6 py-3 rounded-2xl shadow-2xl border border-slate-200 whitespace-nowrap animate-[toastFade_2s_ease-in-out]">
+            <div
+              key={t.id}
+              className="bg-white text-slate-800 px-6 py-3 rounded-2xl shadow-2xl border border-slate-200 whitespace-nowrap"
+            >
               {t.text}
             </div>
           ))}

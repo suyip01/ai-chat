@@ -17,9 +17,9 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { username, email = null, password, chatLimit = 0 } = req.body || {};
+    const { username, nickname = null, avatar = null, email = null, password, chatLimit = 0 } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'missing_fields' });
-    const id = await createUser({ username, email, password, chatLimit });
+    const id = await createUser({ username, nickname, avatar, email, password, chatLimit });
     res.json({ id });
   } catch (e) {
     res.status(500).json({ error: 'server_error' });
@@ -29,8 +29,8 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { email, chatLimit, isActive } = req.body || {};
-    const ok = await updateUser(id, { email, chatLimit, isActive });
+    const { nickname, avatar, email, chatLimit, isActive } = req.body || {};
+    const ok = await updateUser(id, { nickname, avatar, email, chatLimit, isActive });
     if (!ok) return res.status(400).json({ error: 'no_fields' });
     res.json({ ok: true });
   } catch (e) {

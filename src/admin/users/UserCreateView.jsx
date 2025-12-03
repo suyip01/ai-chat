@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { ChevronLeft, Plus } from 'lucide-react';
 
 const UserCreateView = ({ onCancel, onSave, notify }) => {
-  const [formData, setFormData] = useState({ username: '', email: '', password: '', chatLimit: 0 });
+  const [formData, setFormData] = useState({ username: '', nickname: '', email: '', password: '', chatLimit: 0 });
   const handleChange = (e) => { const { name, value } = e.target; setFormData((prev) => ({ ...prev, [name]: name === 'chatLimit' ? parseInt(value) || 0 : value })); };
   const handleSave = () => {
     if (!formData.username || !formData.password) { notify && notify('创建失败：请填写用户名和密码', 'error'); return; }
-    const newUser = { username: formData.username, email: formData.email || `${formData.username.toLowerCase()}@example.com`, password: formData.password, chatLimit: formData.chatLimit };
+    const newUser = { username: formData.username, nickname: formData.nickname || null, email: formData.email || `${formData.username.toLowerCase()}@example.com`, password: formData.password, chatLimit: formData.chatLimit };
     onSave(newUser);
   };
   return (
@@ -27,6 +27,10 @@ const UserCreateView = ({ onCancel, onSave, notify }) => {
         <div>
           <label className="block text-xs font-bold text-pink-800 mb-2">用户名</label>
           <input type="text" name="username" value={formData.username} onChange={handleChange} className="dream-input w-full px-4 py-3 rounded-xl text-sm font-bold text-gray-700" placeholder="为新用户设置一个用户名" />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-pink-800 mb-2">昵称</label>
+          <input type="text" name="nickname" value={formData.nickname} onChange={handleChange} className="dream-input w-full px-4 py-3 rounded-xl text-sm font-bold text-gray-700" placeholder="显示名称（可选）" />
         </div>
         <div>
           <label className="block text-xs font-bold text-pink-800 mb-2">邮箱</label>

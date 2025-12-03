@@ -11,6 +11,8 @@ export const ensureUsersSchema = async () => {
       `CREATE TABLE users (
         id BIGINT PRIMARY KEY,
         username VARCHAR(64) NOT NULL UNIQUE,
+        nickname VARCHAR(64) NULL,
+        avatar VARCHAR(255) DEFAULT '/uploads/avatars/default_avatar.jpg',
         email VARCHAR(255) NULL,
         password_hash VARCHAR(255) NULL,
         used_count INT DEFAULT 0,
@@ -26,6 +28,8 @@ export const ensureUsersSchema = async () => {
     );
     const names = new Set(cols.map(r => r.COLUMN_NAME));
     const alters = [];
+    if (!names.has('nickname')) alters.push('ADD COLUMN nickname VARCHAR(64) NULL');
+    if (!names.has('avatar')) alters.push("ADD COLUMN avatar VARCHAR(255) DEFAULT '/uploads/avatars/default_avatar.jpg'");
     if (!names.has('email')) alters.push('ADD COLUMN email VARCHAR(255) NULL');
     if (!names.has('used_count')) alters.push('ADD COLUMN used_count INT DEFAULT 0');
     if (!names.has('chat_limit')) alters.push('ADD COLUMN chat_limit INT DEFAULT 0');
@@ -39,28 +43,37 @@ export const listUsers = async (q) => {
   const where = q ? 'WHERE username LIKE ? OR email LIKE ?' : '';
   const params = q ? [`%${q}%`, `%${q}%`] : [];
   const [rows] = await pool.query(
-    `SELECT id, username, email, used_count AS used, chat_limit AS chatLimit, is_active, created_at
+    `SELECT id, username, nickname, avatar, email, used_count AS used, chat_limit AS chatLimit, is_active, created_at
      FROM users ${where} ORDER BY created_at ASC`,
     params
   );
   return rows;
 };
 
-export const createUser = async ({ username, email = null, password, chatLimit = 0 }) => {
+export const createUser = async ({ username, nickname = null, avatar = null, email = null, password, chatLimit = 0 }) => {
   await ensureUsersSchema();
   const id = Date.now();
   const hash = password ? bcrypt.hashSync(password, 10) : null;
-  await pool.query(
-    'INSERT INTO users (id, username, email, password_hash, chat_limit, used_count, is_active) VALUES (?,?,?,?,?,0,1)',
-    [id, username, email, hash, chatLimit]
-  );
+  if (typeof avatar === 'string' && avatar.length) {
+    await pool.query(
+      'INSERT INTO users (id, username, nickname, avatar, email, password_hash, chat_limit, used_count, is_active) VALUES (?,?,?,?,?,?,?,0,1)',
+      [id, username, nickname, avatar, email, hash, chatLimit]
+    );
+  } else {
+    await pool.query(
+      'INSERT INTO users (id, username, nickname, email, password_hash, chat_limit, used_count, is_active) VALUES (?,?,?,?,?,?,0,1)',
+      [id, username, nickname, email, hash, chatLimit]
+    );
+  }
   return id;
 };
 
-export const updateUser = async (id, { email, chatLimit, isActive }) => {
+export const updateUser = async (id, { nickname, avatar, email, chatLimit, isActive }) => {
   await ensureUsersSchema();
   const sets = [];
   const params = [];
+  if (typeof nickname === 'string') { sets.push('nickname=?'); params.push(nickname); }
+  if (typeof avatar === 'string') { sets.push('avatar=?'); params.push(avatar); }
   if (typeof email === 'string') { sets.push('email=?'); params.push(email); }
   if (typeof chatLimit === 'number') { sets.push('chat_limit=?'); params.push(chatLimit); }
   if (typeof isActive === 'number') { sets.push('is_active=?'); params.push(isActive); }
@@ -82,4 +95,3 @@ export const changePassword = async (id, password) => {
   const [res] = await pool.query('UPDATE users SET password_hash=? WHERE id=?', [hash, id]);
   return res.affectedRows > 0;
 };
-

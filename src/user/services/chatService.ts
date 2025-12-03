@@ -52,6 +52,13 @@ export const upsertUserChatRole = async (persona?: UserPersona) => {
   return id
 }
 
+export const fetchUserChatRoles = async (): Promise<Array<{ id: number; name: string; age: number | null; gender: string; profession: string | null; basic_info: string | null; personality: string | null; avatar: string | null }>> => {
+  const res = await authFetch(`/user/chat-role`, { method: 'GET' })
+  if (!res.ok) throw new Error('fetch_roles_failed')
+  const data = await res.json()
+  return Array.isArray(data) ? data : []
+}
+
 export const createChatSession = async (characterId: string|number, userChatRoleId?: number) => {
   const payload: any = { character_id: Number(characterId) }
   if (typeof userChatRoleId === 'number') payload.user_chat_role_id = userChatRoleId

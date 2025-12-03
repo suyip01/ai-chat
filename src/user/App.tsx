@@ -150,6 +150,8 @@ const App: React.FC = () => {
   }, [isLoggedIn]);
 
   useEffect(() => {
+    const isTouch = (navigator as any)?.maxTouchPoints > 0
+    if (!isTouch) return
     const meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null
     const original = meta?.getAttribute('content') || ''
     const newContent = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'

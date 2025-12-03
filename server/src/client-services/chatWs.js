@@ -17,6 +17,7 @@ const buildSystem = async (sess, mode, roleOverride) => {
   if (role && Object.keys(role).length) {
     const info = []
     info.push('### 我的角色设定如下：')
+    info.push(`- 名字：${role.name || ''}`)
     info.push(`- 性别：${role.gender || ''}`)
     info.push(`- 年龄：${role.age || ''}`)
     info.push(`- 职业：${role.profession || ''}`)
@@ -24,7 +25,7 @@ const buildSystem = async (sess, mode, roleOverride) => {
     info.push(`- 性格描述：${role.personality || ''}`)
     parts.push(info.join('\n'))
   } else {
-    parts.push('### 我的角色设定如下：\n- 性别：\n- 年龄：\n- 职业：\n- 基本信息：\n- 性格描述：')
+    parts.push('### 我的角色设定如下：\n- 名字：\n- 性别：\n- 年龄：\n- 职业：\n- 基本信息：\n- 性格描述：')
   }
   return parts.join('\n\n')
 }

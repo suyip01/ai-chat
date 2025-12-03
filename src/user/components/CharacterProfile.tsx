@@ -155,6 +155,10 @@ export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, o
           <div className="mx-auto w-full max-w-md bg-white/90 backdrop-blur-md border-t border-slate-100 p-4 pb-[env(safe-area-inset-bottom)]">
             <button
               onClick={() => {
+                if (isFromChat) {
+                  onStartChat();
+                  return;
+                }
                 if (isExistingChat) {
                   showCenter('当前角色已经在会话列表');
                   return;

@@ -7,10 +7,16 @@ const UserRow = ({ user, onSaveLimit, onDelete, onChangePwd }) => {
   const handleSave = () => { onSaveLimit(user.id, currentLimit); };
   return (
     <tr className="hover:bg-pink-50/30 transition-colors">
-      <td className="p-5 pl-8 font-mono text-gray-500">{user.id.toString().padStart(4, '0')}</td>
+      <td className="p-5 pl-8">
+        <img src={user.avatar || '/uploads/avatars/default_avatar.jpg'} alt={user.username} className="w-10 h-10 rounded-full object-cover shadow-sm" />
+      </td>
+      <td className="p-5 font-mono text-gray-500">{user.id.toString().padStart(4, '0')}</td>
       <td className="p-5">
         <div className="font-bold text-gray-700">{user.username}</div>
         <div className="text-xs text-gray-400">{user.email}</div>
+      </td>
+      <td className="p-5">
+        <div className="text-xs text-gray-700">{user.nickname || '-'}</div>
       </td>
       <td className="p-5"><span className="font-mono text-pink-600 font-bold">{user.used}</span> 次</td>
       <td className="p-5">

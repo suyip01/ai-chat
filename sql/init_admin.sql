@@ -16,6 +16,8 @@ DROP TABLE IF EXISTS users;
 CREATE TABLE users (
   id BIGINT PRIMARY KEY,
   username VARCHAR(64) NOT NULL UNIQUE,
+  nickname VARCHAR(64),
+  avatar VARCHAR(255) NOT NULL DEFAULT '/uploads/avatars/default_avatar.jpg',
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255),
   chat_limit INT NOT NULL DEFAULT 0,
@@ -96,6 +98,7 @@ CREATE TABLE characters (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   creator_role ENUM('user_role','admin_role') NOT NULL,
   status ENUM('published','draft') NOT NULL DEFAULT 'draft',
+  visibility ENUM('public','private') NOT NULL DEFAULT 'public',
   FOREIGN KEY (scene_template_id) REFERENCES templates(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

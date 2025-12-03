@@ -1,7 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Send, MoreVertical, X, ChevronRight, User as UserIcon, MessageSquare } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion'
+import { androidSlideRight, fade } from '../animations'
 import { UserCharacterSettings } from './UserCharacterSettings';
+import { UserRoleSelectorSheet } from './UserRoleSelectorSheet';
 import { Character, Message, MessageType, UserPersona } from '../types';
 import { createChatSession, connectChatWs } from '../services/chatService';
 
@@ -33,6 +36,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserSettingsOpenLocal, setIsUserSettingsOpenLocal] = useState(false);
+  const [isRoleSheetOpen, setIsRoleSheetOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -45,7 +49,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     setMessages(prev => {
       const next = [...prev];
       for (let i = next.length - 1; i >= 0; i--) {
-        if (next[i].senderId === 'user') { next[i] = { ...next[i], read: true }; break; }
+        if (next[i].senderId === 'user' && !(next[i] as any).read) { next[i] = { ...next[i], read: true }; break; }
       }
       const msg: Message = { id: (Date.now() + 1).toString(), senderId: character.id, text, quote, timestamp: new Date(), type: MessageType.TEXT };
       next.push(msg);
@@ -119,7 +123,9 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         return;
       }
       try {
-        const newSid = await createChatSession(character.id);
+        const ridRaw = localStorage.getItem('user_chat_role_id');
+        const rid = ridRaw ? parseInt(ridRaw) : undefined;
+        const newSid = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
         localStorage.setItem(key, newSid);
         setSessionId(newSid);
         const conn = connectChatWs(newSid, (text, quote, meta) => {
@@ -171,7 +177,9 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
     try {
       if (!sessionId) {
-        const sid = await createChatSession(character.id);
+        const ridRaw = localStorage.getItem('user_chat_role_id');
+        const rid = ridRaw ? parseInt(ridRaw) : undefined;
+        const sid = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
         localStorage.setItem(`chat_session_${character.id}`, sid);
         setSessionId(sid);
         const conn = connectChatWs(sid, (text, quote, meta) => {
@@ -193,36 +201,36 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
   return (
     <div className="fixed inset-0 bg-primary-50 z-50" style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}>
-      <div className="mx-auto w-full max-w-md h-full flex flex-col relative bg白 shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden">
-        <div className="bg-primary-50/95 backdrop-blur-md pt-[env(safe-area-inset-top)] shadow-none z-10 border-b border白/50 flex-shrink-0">
+      <div className="mx-auto w-full max-w-md h-full flex flex-col relative bg-white shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden">
+        <div className="bg-primary-50/95 backdrop-blur-md pt-[env(safe-area-inset-top)] shadow-none z-10 border-b border-white/50 flex-shrink-0">
           <div className="px-4 h-12 flex items-center justify-between">
             <div className="flex items-center gap-2">
-            <button onClick={onBack} className="p-2 -ml-2 text-slate-800 hover:bg-black/5 rounded-full transition-colors">
-              <ArrowLeft size={24} />
-            </button>
+              <button onClick={onBack} className="p-2 -ml-2 text-slate-800 hover:bg-black/5 rounded-full transition-colors">
+                <ArrowLeft size={24} />
+              </button>
 
-            {/* Header Name - Clickable */}
-            <div
-              className="flex items-center cursor-pointer active:opacity-70 transition-opacity"
-              onClick={onShowProfile}
-            >
-              <h2 className="font-bold text-slate-800 text-lg">
-                {isTyping ? '正在输入中...' : character.name}
-              </h2>
+              {/* Header Name - Clickable */}
+              <div
+                className="flex items-center cursor-pointer active:opacity-70 transition-opacity"
+                onClick={onShowProfile}
+              >
+                <h2 className="font-bold text-slate-800 text-lg">
+                  {isTyping ? '正在输入中...' : character.name}
+                </h2>
+              </div>
             </div>
-          </div>
             <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-2 text-slate-800 hover:text-primary-600 rounded-full hover:bg-black/5 transition-all"
-          >
-            <MoreVertical size={24} />
-          </button>
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 text-slate-800 hover:text-primary-600 rounded-full hover:bg-black/5 transition-all"
+            >
+              <MoreVertical size={24} />
+            </button>
           </div>
         </div>
 
         <div ref={contentRef} className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-primary-50" style={{ overflowAnchor: 'none' }}>
           <div className="flex justify-center my-4">
-            <span className="bg-black/10 text白 text-[10px] px-3 py-1 rounded-full font-medium">今天</span>
+            <span className="bg-black/10 text-white text-[10px] px-3 py-1 rounded-full font-medium">今天</span>
           </div>
 
           {messages.map((msg, index) => {
@@ -329,66 +337,68 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           </div>
         </div>
 
-        {isSettingsOpen && (
-          <>
-            <div className="absolute inset-0 bg-black/20 z-[60]" onClick={() => setIsSettingsOpen(false)}></div>
-            <div className="absolute top-0 right-0 h-full w-3/4 bg-white z-[70] shadow-2xl animate-in slide-in-from-right duration-300">
-              <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-bold text-lg text-slate-800">聊天设置</h3>
-                <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-slate-600">
-                  <X size={24} />
-                </button>
-              </div>
+        <AnimatePresence initial={false}>
+          {isSettingsOpen && (
+            <>
+              <motion.div className="absolute inset-0 bg-black/20 z-[60] will-change-opacity" onClick={() => setIsSettingsOpen(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade} />
+              <motion.div className="absolute top-0 right-0 h-full w-3/4 bg-white z-[70] shadow-2xl will-change-transform transform-gpu" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={androidSlideRight}>
+                <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+                  <h3 className="font-bold text-lg text-slate-800">聊天设置</h3>
+                  <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-slate-600">
+                    <X size={24} />
+                  </button>
+                </div>
 
-              <div className="p-2">
-                {/* My Character Settings */}
-                <button
-                  onClick={() => {
-                    setIsSettingsOpen(false);
-                    setIsUserSettingsOpenLocal(true);
-                  }}
-                  className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
-                >
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                      <UserIcon size={18} />
+                <div className="p-2">
+                  {/* My Character Settings */}
+                  <button
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      setIsRoleSheetOpen(true);
+                    }}
+                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+                  >
+                    <div className="flex items-center gap-3 text-slate-700">
+                      <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                        <UserIcon size={18} />
+                      </div>
+                      <span className="font-bold text-sm">我的角色设置</span>
                     </div>
-                    <span className="font-bold text-sm">我的角色设置</span>
-                  </div>
-                  <ChevronRight size={16} className="text-slate-300" />
-                </button>
+                    <ChevronRight size={16} className="text-slate-300" />
+                  </button>
 
-                <div className="h-[1px] bg-slate-50 mx-4"></div>
+                  <div className="h-[1px] bg-slate-50 mx-4"></div>
 
-                {/* Chat Mode */}
-                <div className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                      <MessageSquare size={18} />
+                  {/* Chat Mode */}
+                  <div className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                    <div className="flex items-center gap-3 text-slate-700">
+                      <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                        <MessageSquare size={18} />
+                      </div>
+                      <span className="font-bold text-sm">聊天模式</span>
                     </div>
-                    <span className="font-bold text-sm">聊天模式</span>
-                  </div>
 
-                  {/* Toggle */}
-                  <div className="flex bg-slate-100 p-1 rounded-lg">
-                    <button
-                      onClick={() => handleModeSwitch('daily')}
-                      className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${chatMode === 'daily' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}
-                    >
-                      日常
-                    </button>
-                    <button
-                      onClick={() => handleModeSwitch('scene')}
-                      className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${chatMode === 'scene' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-400'}`}
-                    >
-                      场景
-                    </button>
+                    {/* Toggle */}
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                      <button
+                        onClick={() => handleModeSwitch('daily')}
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${chatMode === 'daily' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}
+                      >
+                        日常
+                      </button>
+                      <button
+                        onClick={() => handleModeSwitch('scene')}
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${chatMode === 'scene' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-400'}`}
+                      >
+                        场景
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </>
-        )}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {isUserSettingsOpenLocal && (
           <UserCharacterSettings
@@ -401,6 +411,14 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
             withinContainer
           />
         )}
+
+        <UserRoleSelectorSheet
+          isOpen={isRoleSheetOpen}
+          currentPersona={userPersona}
+          onClose={() => setIsRoleSheetOpen(false)}
+          onAdd={() => { setIsRoleSheetOpen(false); setIsUserSettingsOpenLocal(true); }}
+          onSelect={(persona) => { updatePersona(persona); }}
+        />
 
       </div>
     </div>
