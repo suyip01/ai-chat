@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronRight, LogOut, Camera, Edit2, Mail, User as UserIcon, MessageSquare } from 'lucide-react';
 import { Character, UserProfile, UserPersona } from '../types';
 import { ImageCropper } from './ImageCropper';
-import { authFetch } from '../services/http'
 import { UserCharacterSettings } from './UserCharacterSettings';
 import { UserRoleSelectorSheet } from './UserRoleSelectorSheet';
 
@@ -72,6 +71,7 @@ export const MePage: React.FC<MePageProps> = ({
       return;
     }
     try {
+      const { authFetch } = await import('../services/http')
       await authFetch('/user/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: nm }) })
       onUpdateProfile({ ...userProfile, nickname: nm })
     } catch {
@@ -108,7 +108,7 @@ export const MePage: React.FC<MePageProps> = ({
                     await fetch('/api/uploads/avatar', { method: 'POST', headers: { Authorization: token ? `Bearer ${token}` : '' }, body: fd }).catch(() => {});
                   }
                 } catch {}
-                try { await authFetch('/user/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ avatar: avatarUrl }) }) } catch {}
+                try { const { authFetch } = await import('../services/http'); await authFetch('/user/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ avatar: avatarUrl }) }) } catch {}
                 onUpdateProfile({ ...userProfile, avatar: avatarUrl || userProfile.avatar });
                 setTempAvatar(null);
             }}

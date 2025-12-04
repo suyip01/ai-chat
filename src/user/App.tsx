@@ -14,7 +14,6 @@ import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, 
 import { MePage } from './components/MePage';
 import { listCharacters } from './services/charactersService';
 import { listUserCharacters as listMine } from './services/userCharactersService';
-import { authFetch } from './services/http';
 import { createChatSession } from './services/chatService';
 
 // Mock Data
@@ -87,6 +86,7 @@ const App: React.FC = () => {
     if (!isLoggedIn) return;
     (async () => {
       try {
+        const { authFetch } = await import('./services/http')
         const res = await authFetch('/user/profile')
         if (res && res.ok) {
           const data = await res.json()

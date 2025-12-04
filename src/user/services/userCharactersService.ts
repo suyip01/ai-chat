@@ -1,6 +1,7 @@
-import { authFetch } from './http'
+// dynamic import http to allow code-splitting
 
 export const listUserCharacters = async () => {
+  const { authFetch } = await import('./http')
   const res = await authFetch('/user-characters')
   if (!res.ok) throw new Error('failed')
   const data = await res.json()
@@ -8,6 +9,7 @@ export const listUserCharacters = async () => {
 }
 
 export const getUserCharacter = async (id: number | string) => {
+  const { authFetch } = await import('./http')
   const res = await authFetch(`/user-characters/${id}`)
   if (!res.ok) throw new Error('failed')
   return await res.json()
@@ -23,6 +25,7 @@ export const createUserCharacter = async (payload: any) => {
     personality: payload?.personality ?? null,
     avatar: payload?.avatar ?? null,
   }
+  const { authFetch } = await import('./http')
   const res = await authFetch('/user/chat-role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   if (!res.ok) throw new Error('create_failed')
   const data = await res.json()
@@ -30,6 +33,7 @@ export const createUserCharacter = async (payload: any) => {
 }
 
 export const createCharacter = async (payload: any) => {
+  const { authFetch } = await import('./http')
   const res = await authFetch('/user-characters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
   if (!res.ok) throw new Error('create_character_failed')
   const data = await res.json()
@@ -37,6 +41,7 @@ export const createCharacter = async (payload: any) => {
 }
 
 export const createUserCharacterDraft = async (payload: any) => {
+  const { authFetch } = await import('./http')
   const res = await authFetch('/user-characters/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
   if (!res.ok) throw new Error('create_draft_failed')
   const data = await res.json()
@@ -44,18 +49,21 @@ export const createUserCharacterDraft = async (payload: any) => {
 }
 
 export const updateUserCharacterDraft = async (id: number | string, payload: any) => {
+  const { authFetch } = await import('./http')
   const res = await authFetch(`/user-characters/${id}/draft`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
   if (!res.ok) throw new Error('update_draft_failed')
   return true
 }
 
 export const updateUserCharacter = async (id: number | string, payload: any) => {
+  const { authFetch } = await import('./http')
   const res = await authFetch(`/user-characters/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
   if (!res.ok) throw new Error('update_failed')
   return true
 }
 
 export const deleteUserCharacter = async (id: number | string) => {
+  const { authFetch } = await import('./http')
   const res = await authFetch(`/user-characters/${id}`, { method: 'DELETE' })
   if (!res.ok) throw new Error('delete_failed')
   return true
