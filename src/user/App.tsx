@@ -171,7 +171,6 @@ const App: React.FC = () => {
           styleExamples: Array.isArray(it.styleExamples) ? it.styleExamples : [],
           hobbies: it.hobbies || '',
           experiences: it.experiences || '',
-          visibility: it.visibility,
           isPublic: it.visibility ? it.visibility === 'public' : false
         }))
         setMyUserCharacters(mapped)
@@ -181,80 +180,7 @@ const App: React.FC = () => {
     })()
   }, [isLoggedIn]);
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    if (activeTab !== NavTab.ME) return;
-    (async () => {
-      try {
-        const items = await listMine();
-        const mapped: Character[] = items.map((it: any) => ({
-          id: String(it.id),
-          name: it.name || '未知',
-          avatar: it.avatar || '',
-          profileImage: '',
-          status: CharacterStatus.ONLINE,
-          bio: it.plot_summary || '',
-          tags: Array.isArray(it.tags) ? it.tags : [],
-          creator: userProfile.nickname || '我',
-          oneLinePersona: it.tagline || '',
-          personality: it.personality || '',
-          profession: it.occupation || '',
-          age: it.age ? String(it.age) : '',
-          roleType: '',
-          gender: it.gender || '',
-          currentRelationship: it.relationship || '',
-          plotTheme: it.plot_theme || '',
-          plotDescription: '',
-          openingLine: it.opening_line || '',
-          styleExamples: Array.isArray(it.styleExamples) ? it.styleExamples : [],
-          hobbies: it.hobbies || '',
-          experiences: it.experiences || '',
-          visibility: it.visibility,
-          isPublic: it.visibility ? it.visibility === 'public' : false
-        }));
-        setMyUserCharacters(mapped);
-      } catch {
-        setMyUserCharacters([]);
-      }
-    })();
-  }, [activeTab, isLoggedIn, userProfile.nickname]);
-
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    if (!myUserCharacters.length) return;
-    if (!myUserCharacters.some(c => c.visibility === undefined)) return;
-    (async () => {
-      try {
-        const items = await listMine();
-        const mapped: Character[] = items.map((it: any) => ({
-          id: String(it.id),
-          name: it.name || '未知',
-          avatar: it.avatar || '',
-          profileImage: '',
-          status: CharacterStatus.ONLINE,
-          bio: it.plot_summary || '',
-          tags: Array.isArray(it.tags) ? it.tags : [],
-          creator: userProfile.nickname || '我',
-          oneLinePersona: it.tagline || '',
-          personality: it.personality || '',
-          profession: it.occupation || '',
-          age: it.age ? String(it.age) : '',
-          roleType: '',
-          gender: it.gender || '',
-          currentRelationship: it.relationship || '',
-          plotTheme: it.plot_theme || '',
-          plotDescription: '',
-          openingLine: it.opening_line || '',
-          styleExamples: Array.isArray(it.styleExamples) ? it.styleExamples : [],
-          hobbies: it.hobbies || '',
-          experiences: it.experiences || '',
-          visibility: it.visibility,
-          isPublic: it.visibility ? it.visibility === 'public' : false
-        }));
-        setMyUserCharacters(mapped);
-      } catch {}
-    })();
-  }, [myUserCharacters, isLoggedIn, userProfile.nickname]);
+  
 
   useEffect(() => {
     const isTouch = (navigator as any)?.maxTouchPoints > 0
@@ -382,8 +308,13 @@ const App: React.FC = () => {
       return;
     }
     try {
-      const sid = await createChatSession(character.id);
-      localStorage.setItem(`chat_session_${character.id}`, sid);
+      const key = `chat_session_${character.id}`
+      let sid = localStorage.getItem(key) || ''
+      if (!sid) {
+        const created = await createChatSession(character.id);
+        sid = created.sessionId;
+        localStorage.setItem(key, sid);
+      }
       const last: Message = {
         id: `msg_${Date.now()}`,
         senderId: character.id,
@@ -627,6 +558,8 @@ const App: React.FC = () => {
             onUpdateUserPersona={(persona) => setUserPersona(persona)}
             onShowProfile={() => {
               setIsProfileFromChat(true);
+              setIsProfileFromMe(false);
+              setAwaitProfile(null);
               setViewingProfile(selectedChat.character);
             }}
           />

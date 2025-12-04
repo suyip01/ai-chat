@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import pool from '../db.js';
 import { getSettings } from './settings.js';
+import { createLogger } from '../utils/logger.js';
 
 const apiKey = process.env.LLM_API_KEY || '';
 const baseURL = process.env.LLM_BASE_URL || '';
@@ -85,23 +86,22 @@ ${systemTemplate || 'content'}
   ];
 };
 
-export const generateRolePrompt = async (data, overrides = {}) => {
+export const generateRolePrompt = async (data, overrides = {}, log) => {
   const s = await fetchSettings();
   const chosenModel = await validateModel(overrides.model || s.model);
   const chosenTemp = typeof overrides.temperature === 'number' ? overrides.temperature : s.temperature;
   const messages = buildMessages(data, overrides.systemTemplate);
   const sysMsg = messages.find(m => m.role === 'system')?.content || '';
   const userMsg = messages.find(m => m.role === 'user')?.content || '';
-  console.log('[sysprompt.generateRolePrompt] model:', chosenModel, 'temperature:', chosenTemp);
-  console.log('[sysprompt.generateRolePrompt] system_prompt:\n', sysMsg);
-  console.log('[sysprompt.generateRolePrompt] user_prompt:\n', userMsg);
+  const logger = (log || createLogger({ component: 'admin', name: 'sysprompt' }))
+  logger.info('generateRolePrompt.start', { model: chosenModel, temperature: chosenTemp, sys_len: sysMsg.length, user_len: userMsg.length })
   const resp = await client.chat.completions.create({ model: chosenModel, messages, temperature: chosenTemp });
   const out = resp.choices?.[0]?.message?.content || '';
-  console.log('[sysprompt.generateRolePrompt] output:\n', out);
+  logger.info('generateRolePrompt.ok', { out_len: out.length })
   return out;
 };
 
-export const generateNoScenePrompt = async (sourcePrompt, overrides = {}) => {
+export const generateNoScenePrompt = async (sourcePrompt, overrides = {}, log) => {
   const s = await fetchSettings();
   const chosenModel = await validateModel(overrides.model || s.model);
   const chosenTemp = typeof overrides.temperature === 'number' ? overrides.temperature : s.temperature;
@@ -132,10 +132,11 @@ A：无关紧要的人`;
     { role: 'system', content: sys },
     { role: 'user', content: sourcePrompt || '' },
   ];
-  console.log('[sysprompt.generateNoScenePrompt] model:', chosenModel, 'temperature:', chosenTemp);
+  const logger = (log || createLogger({ component: 'admin', name: 'sysprompt' }))
+  logger.info('generateNoScenePrompt.start', { model: chosenModel, temperature: chosenTemp, src_len: (sourcePrompt || '').length })
   const resp = await client.chat.completions.create({ model: chosenModel, messages, temperature: chosenTemp });
   const out = resp.choices?.[0]?.message?.content || '';
-  console.log('[sysprompt.generateNoScenePrompt] output:\n', out);
+  logger.info('generateNoScenePrompt.ok', { out_len: out.length })
   return out;
 };
 

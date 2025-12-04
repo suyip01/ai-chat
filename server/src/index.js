@@ -21,6 +21,7 @@ import path from 'path';
 import http from 'http';
 import { startChatWs } from './client-services/chatWs.js';
 import { authRequired } from './middleware/auth.js';
+import { requestLogger } from './middleware/requestLogger.js';
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET missing');
@@ -29,6 +30,7 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(requestLogger);
 
 app.use('/api', clientAuthRoutes);
 app.use('/api/characters', clientCharactersRoutes);

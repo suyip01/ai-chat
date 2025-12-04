@@ -5,6 +5,7 @@ import { appendUserMessage, appendAssistantMessage, getMessages } from './chatMe
 import { getRedis, keySummary, keyRole } from './redis.js'
 import { maybeSummarizeSession } from './chatSummary.js'
 import TextGenerationService from './textGenerationService.js'
+import { createLogger } from '../utils/logger.js'
 
 const buildSystem = async (sess, mode, roleOverride) => {
   const r = await getRedis()
@@ -33,10 +34,11 @@ const buildSystem = async (sess, mode, roleOverride) => {
 
 export const startChatWs = (server) => {
   const wss = new WebSocketServer({ server, path: '/ws/chat' })
-  console.log('[ws] startChatWs listening on /ws/chat')
+  createLogger({ component: 'ws' }).info('startChatWs', { path: '/ws/chat' })
   const lastTypingAt = new Map()
   const pendingJobs = new Map()
   const llmCounts = new Map()
+  const wsBySid = new Map()
 
   const scheduleGenerate = (sid, job, baseDelay = 2000) => {
     const prev = pendingJobs.get(sid)
@@ -58,15 +60,18 @@ export const startChatWs = (server) => {
   }
   wss.on('connection', (ws) => {
     ws.on('message', async (raw) => {
-      console.log('[ws] message raw=', String(raw))
+      const wlog = createLogger({ component: 'ws' })
+      wlog.debug('message', { rawPreview: String(raw).slice(0, 60) })
       let payload
       try { payload = JSON.parse(String(raw)) } catch { payload = null }
-      if (!payload || !payload.sessionId || !payload.text) return
+      if (!payload || !payload.sessionId) return
       const sid = payload.sessionId
+      wsBySid.set(sid, ws)
       const mode = typeof payload.chatMode === 'string' ? payload.chatMode : 'daily'
       const roleOverride = payload.userRole && typeof payload.userRole === 'object' ? payload.userRole : null
-      console.log('[ws] payload sid=', sid, 'mode=', mode, 'roleOverride=', !!roleOverride)
+      wlog.info('payload', { sid, mode, roleOverride: !!roleOverride })
       if (payload.type === 'typing') { lastTypingAt.set(sid, Date.now()); return }
+      if (!payload.text) return
       const sess = await getSession(sid)
       if (!sess) return
       await appendUserMessage(sid, payload.text)
@@ -77,36 +82,38 @@ export const startChatWs = (server) => {
         const history = await getMessages(sid, 80)
         const lastUser = [...history].reverse().find(m => m && m.role === 'user')
         const quote = lastUser ? String(lastUser.content || '') : ''
-        const model = sess.model || undefined
+        const model = sess.model || sess.model_id || undefined
         const temperature = Number(sess.temperature || 0.2)
         const reply = await svc.generateResponse(history, null, sys, model, temperature)
-        console.log('[ws] reply len=', String(reply||'').length)
-        const chunks = String(reply || '').split('\n').map(s => s.trim()).filter(s => s.length)
+        const content = mode === 'daily' ? String(reply || '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '') : String(reply || '')
+        wlog.info('reply.len', { len: String(content).length })
+        const chunks = content.split('\n').map(s => s.trim()).filter(s => s.length)
         const count = llmCounts.get(sid) || 0
         const includeQuote = count >= 1
-        console.log('[ws] llmCount=', count, 'includeQuote=', includeQuote, 'quotePreview=', quote ? String(quote).slice(0, 30) : '')
+        wlog.info('llm.count', { count, includeQuote, quotePreview: quote ? String(quote).slice(0, 30) : '' })
         for (let i = 0; i < chunks.length; i++) {
           const piece = chunks[i]
           await appendAssistantMessage(sid, piece)
           const payloadOut = includeQuote ? { type: 'assistant_message', content: piece, quote, chunkIndex: i + 1, chunkTotal: chunks.length } : { type: 'assistant_message', content: piece, chunkIndex: i + 1, chunkTotal: chunks.length }
-          ws.send(JSON.stringify(payloadOut))
+          const target = wsBySid.get(sid) || ws
+          try { target.send(JSON.stringify(payloadOut)) } catch {}
           if (i < chunks.length - 1) {
             await new Promise(res => setTimeout(res, 2000))
           }
         }
         await maybeSummarizeSession(sid)
         try {
-          console.log('[ws] increment usage for userId=', sess.userId)
+          wlog.info('usage.increment.start', { userId: sess.userId })
           const [[urow]] = await pool.query('SELECT id FROM users WHERE id=?', [sess.userId])
-          console.log('[ws] users row exists=', !!urow)
+          wlog.debug('usage.user.exists', { exists: !!urow })
           const [res] = await pool.query('UPDATE users SET used_count = COALESCE(used_count,0) + 1 WHERE id=?', [sess.userId])
-          console.log('[ws] usage increment', { userId: sess.userId, column: 'used_count', affectedRows: res?.affectedRows })
+          wlog.info('usage.increment.ok', { userId: sess.userId, column: 'used_count', affectedRows: res?.affectedRows })
           if (!res || !res.affectedRows) {
             const [res2] = await pool.query('UPDATE users SET used = COALESCE(used,0) + 1 WHERE id=?', [sess.userId])
-            console.log('[ws] usage increment (legacy)', { userId: sess.userId, column: 'used', affectedRows: res2?.affectedRows })
+            wlog.info('usage.increment.legacy', { userId: sess.userId, column: 'used', affectedRows: res2?.affectedRows })
           }
         } catch (e) {
-          console.error('[ws] increment usage failed', e?.message || e)
+          wlog.error('usage.increment.error', { error: e?.message || e })
         }
         llmCounts.set(sid, count + 1)
       }

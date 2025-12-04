@@ -81,7 +81,7 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
               transition={androidBottomSheet}
             >
               <div className="sticky top-0 bg-white/95 backdrop-blur-md p-3 border-b border-slate-100 flex justify-between items-center z-10">
-                <button onClick={onClose} className="flex items-center gap-2"><ChevronLeft className="w-6 h-6" /><span className="font-bold text-lg">我的角色</span></button>
+                <button onClick={onClose} className="flex items-center gap-2"><ChevronLeft className="w-6 h-6" /><span className="font-bold text-lg">我的多重个人资料</span></button>
                 <button onClick={onAdd} className="w-9 h-9 rounded-full bg-purple-50 text-[#A855F7] flex items-center justify-center active:scale-90 transition-transform">
                   <Plus className="w-6 h-6" />
                 </button>

@@ -396,12 +396,14 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
         </div>
 
         {/* Header */}
-        <div className="sticky top-0 z-50 bg-white px-4 py-3 flex justify-between items-center border-b border-slate-100 rounded-t-3xl">
+        <div className="sticky top-0 z-50 bg-white px-4 py-3 flex items-center border-b border-slate-100 rounded-t-3xl relative">
             <button onClick={onBack} className="w-8 h-8 flex items-center justify-center text-purple-800 hover:bg-purple-100 rounded-full transition">
                 <ChevronLeft size={20} />
             </button>
-            <h1 className="text-xl font-bold text-purple-900 font-kosugi">{isEdit ? '编辑角色' : '创建角色'}</h1>
-            <button onClick={() => setShowDraftModal(true)} className="text-sm font-bold text-purple-600 font-kosugi">{isEdit ? '更新' : '存草稿'}</button>
+            <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-purple-900 font-kosugi">{isEdit ? '编辑角色' : '创建角色'}</h1>
+            {!isEdit && (
+              <button onClick={() => setShowDraftModal(true)} className="ml-auto text-sm font-bold text-purple-600 font-kosugi">存草稿</button>
+            )}
         </div>
 
         <div className="flex-1 overflow-y-auto no-scrollbar pb-28 px-4 space-y-6">

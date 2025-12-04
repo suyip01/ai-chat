@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Send, MoreVertical, X, ChevronRight, User as UserIcon, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, X, ChevronRight, User as UserIcon, MessageSquare, Cpu } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion'
 import { androidSlideRight, fade } from '../animations'
 import { UserCharacterSettings } from './UserCharacterSettings';
 import { UserRoleSelectorSheet } from './UserRoleSelectorSheet';
+import { ModelSelectorSheet } from './ModelSelectorSheet';
 import { Character, Message, MessageType, UserPersona } from '../types';
-import { createChatSession, connectChatWs } from '../services/chatService';
+import { createChatSession, connectChatWs, updateSessionConfig, getSessionInfo } from '../services/chatService';
 
 interface ChatDetailProps {
   character: Character;
@@ -37,6 +38,10 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserSettingsOpenLocal, setIsUserSettingsOpenLocal] = useState(false);
   const [isRoleSheetOpen, setIsRoleSheetOpen] = useState(false);
+  const [isModelSheetOpen, setIsModelSheetOpen] = useState(false);
+  const [modelId, setModelId] = useState<string | undefined>(undefined)
+  const [modelTemp, setModelTemp] = useState<number>(0.1)
+  const [modelNick, setModelNick] = useState<string | undefined>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -45,6 +50,9 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const wsRef = useRef<{ sendText: (t: string, chatMode?: 'daily' | 'scene', userRole?: UserPersona) => void; sendTyping: (typing: boolean) => void; close: () => void } | null>(null);
   const histKey = `chat_history_${character.id}`;
   const configKey = `chat_config_${character.id}`;
+  const modelKey = `chat_model_${character.id}`;
+  const tempKey = `chat_temp_${character.id}`;
+  const modelNameKey = `chat_model_name_${character.id}`;
 
   const appendAssistantWithRead = (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => {
     setMessages(prev => {
@@ -119,6 +127,13 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         if (cfg?.chatMode === 'daily' || cfg?.chatMode === 'scene') setChatMode(cfg.chatMode);
         if (cfg?.persona) updatePersona(cfg.persona);
       }
+      const mid = localStorage.getItem(modelKey) || undefined
+      const tRaw = localStorage.getItem(tempKey)
+      const t = tRaw ? parseFloat(tRaw) : undefined
+      if (mid) setModelId(mid)
+      if (typeof t === 'number' && !isNaN(t)) setModelTemp(t)
+      const mname = localStorage.getItem(modelNameKey) || undefined
+      if (mname) setModelNick(mname)
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character.id]);
@@ -129,6 +144,11 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     const setup = async () => {
       if (sid) {
         setSessionId(sid);
+        try {
+          const info = await getSessionInfo(sid)
+          if (info?.model?.nickname) { setModelNick(info.model.nickname); try { localStorage.setItem(modelNameKey, info.model.nickname) } catch {} }
+          if (info?.temperature !== undefined) { setModelTemp(info.temperature as number); try { localStorage.setItem(tempKey, String(info.temperature)) } catch {} }
+        } catch {}
         const conn = connectChatWs(sid, (text, quote, meta) => {
           appendAssistantWithRead(text, quote, meta);
         });
@@ -138,10 +158,14 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       try {
         const ridRaw = localStorage.getItem('user_chat_role_id');
         const rid = ridRaw ? parseInt(ridRaw) : undefined;
-        const newSid = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
-        localStorage.setItem(key, newSid);
-        setSessionId(newSid);
-        const conn = connectChatWs(newSid, (text, quote, meta) => {
+        const created = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
+        const sid = created.sessionId;
+        localStorage.setItem(key, sid);
+        setSessionId(sid);
+        if (created.model?.id) { setModelId(created.model.id); try { localStorage.setItem(modelKey, created.model.id) } catch {} }
+        if (created.model?.nickname) { setModelNick(created.model.nickname); try { localStorage.setItem(modelNameKey, created.model.nickname) } catch {} }
+        if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch {} }
+        const conn = connectChatWs(sid, (text, quote, meta) => {
           appendAssistantWithRead(text, quote, meta);
         });
         wsRef.current = conn;
@@ -193,7 +217,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       if (!sessionId) {
         const ridRaw = localStorage.getItem('user_chat_role_id');
         const rid = ridRaw ? parseInt(ridRaw) : undefined;
-        const sid = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
+        const created = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
+        const sid = created.sessionId;
         localStorage.setItem(`chat_session_${character.id}`, sid);
         setSessionId(sid);
         const conn = connectChatWs(sid, (text, quote, meta) => {
@@ -363,34 +388,53 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                   </button>
                 </div>
 
-                <div className="p-2">
-                  {/* My Character Settings */}
-                  <button
-                    onClick={() => {
-                      setIsSettingsOpen(false);
-                      setIsRoleSheetOpen(true);
-                    }}
-                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
-                  >
-                    <div className="flex items-center gap-3 text-slate-700">
-                      <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                        <UserIcon size={18} />
-                      </div>
-                      <span className="font-bold text-sm">我的角色设置</span>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-300" />
-                  </button>
+            <div className="p-2">
+              {/* My Character Settings */}
+              <button
+                onClick={() => {
+                  setIsSettingsOpen(false);
+                  setIsRoleSheetOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+              >
+                <div className="flex items-center gap-3 text-slate-700">
+                  <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                    <UserIcon size={18} />
+                  </div>
+                  <span className="font-bold text-sm">我的角色设置</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-300" />
+              </button>
 
-                  <div className="h-[1px] bg-slate-50 mx-4"></div>
+              <div className="h-[1px] bg-slate-50 mx-4"></div>
 
-                  {/* Chat Mode */}
-                  <div className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
-                    <div className="flex items-center gap-3 text-slate-700">
-                      <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                        <MessageSquare size={18} />
-                      </div>
-                      <span className="font-bold text-sm">聊天模式</span>
-                    </div>
+              {/* Model */}
+              <button
+                onClick={() => { setIsSettingsOpen(false); setIsModelSheetOpen(true) }}
+                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+              >
+                <div className="flex items-center gap-3 text-slate-700">
+                  <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                    <Cpu size={18} />
+                  </div>
+                  <span className="font-bold text-sm">模型</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">{modelNick || '默认'}</span>
+                  <ChevronRight size={16} className="text-slate-300" />
+                </div>
+              </button>
+
+              <div className="h-[1px] bg-slate-50 mx-4"></div>
+
+              {/* Chat Mode */}
+              <div className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                <div className="flex items-center gap-3 text-slate-700">
+                  <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                    <MessageSquare size={18} />
+                  </div>
+                  <span className="font-bold text-sm">聊天模式</span>
+                </div>
 
                     {/* Toggle */}
                     <div className="flex bg-slate-100 p-1 rounded-lg">
@@ -434,7 +478,17 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           onSelect={(persona) => { updatePersona(persona); try { localStorage.setItem(configKey, JSON.stringify({ chatMode, persona })); } catch {} }}
         />
 
+        <ModelSelectorSheet
+          isOpen={isModelSheetOpen}
+          currentModelId={modelId}
+          onClose={() => setIsModelSheetOpen(false)}
+          onSelect={(mid, nickname) => { setModelId(mid); setModelNick(nickname); try { localStorage.setItem(modelKey, mid); if (nickname) localStorage.setItem(modelNameKey, nickname) } catch {}; if (sessionId) updateSessionConfig(sessionId, { modelId: mid }).catch(()=>{}) }}
+          temperature={modelTemp}
+          onTempChange={(t) => { setModelTemp(t); try { localStorage.setItem(tempKey, String(t)) } catch {}; if (sessionId) updateSessionConfig(sessionId, { temperature: t }).catch(()=>{}) }}
+        />
+
       </div>
     </div>
   );
 };
+ 

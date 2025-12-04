@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    console.log('[POST /api/user/chat-role] body=', req.body, 'userId=', req.user?.id)
+    req.log.info('userChatRole.create.start', { body: { ...req.body, password: undefined } })
     const { name, age, gender, profession, basic_info, personality, avatar } = req.body || {};
     if (!name || typeof name !== 'string') return res.status(400).json({ error: 'bad_name' });
     const userId = req.user?.id;
@@ -31,17 +31,17 @@ router.post('/', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [userId, name, age ?? null, gender ?? '未透露', profession ?? null, basic_info ?? null, personality ?? null, avatar ?? null]
     );
-    console.log('[POST /api/user/chat-role] created id=', r.insertId)
+    req.log.info('userChatRole.create.ok', { id: r.insertId })
     res.json({ id: r.insertId });
   } catch (e) {
-    console.error('[POST /api/user/chat-role] error:', e?.message || e)
+    req.log.error('userChatRole.create.error', { error: e?.message || e })
     res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' });
   }
 });
 
 router.put('/:id', async (req, res) => {
   try {
-    console.log('[PUT /api/user/chat-role/:id] id=', req.params.id, 'body=', req.body, 'userId=', req.user?.id)
+    req.log.info('userChatRole.update.start', { id: req.params.id })
     const id = parseInt(req.params.id)
     const { name, age, gender, profession, basic_info, personality, avatar } = req.body || {}
     const userId = req.user?.id
@@ -64,10 +64,10 @@ router.put('/:id', async (req, res) => {
       avatar: avatar || '',
       updated_at: String(Date.now())
     })
-    console.log('[PUT /api/user/chat-role/:id] updated id=', id)
+    req.log.info('userChatRole.update.ok', { id })
     res.json({ id })
   } catch (e) {
-    console.error('[PUT /api/user/chat-role/:id] error:', e?.message || e)
+    req.log.error('userChatRole.update.error', { error: e?.message || e })
     res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' })
   }
 })

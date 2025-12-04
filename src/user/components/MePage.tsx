@@ -33,6 +33,7 @@ export const MePage: React.FC<MePageProps> = ({
   const [isPersonaOpen, setIsPersonaOpen] = useState(false);
   const [isRoleSheetOpen, setIsRoleSheetOpen] = useState(false);
   const [userPersona, setUserPersona] = useState<UserPersona | undefined>(undefined);
+  const [userRoleId, setUserRoleId] = useState<number | undefined>(undefined);
   const [chatCount, setChatCount] = useState<number>(userProfile.usedCount ?? 0);
   
   
@@ -173,13 +174,13 @@ export const MePage: React.FC<MePageProps> = ({
             onClick={() => setIsRoleSheetOpen(true)}
             className="bg-white rounded-3xl shadow-[0_6px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_18px_rgba(0,0,0,0.08)] active:shadow-[0_12px_28px_rgba(0,0,0,0.12)] active:scale-[0.98] transition-all p-5 flex flex-col items-center justify-center gap-2 border border-transparent"
           >
-            <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-purple-50 text-primary-600 flex items-center justify-center">
               <UserIcon size={22} />
             </div>
             <div className="text-slate-800 font-bold text-sm">我的档案</div>
           </button>
           <div className="bg-white rounded-3xl shadow-[0_6px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_18px_rgba(0,0,0,0.08)] active:shadow-[0_12px_28px_rgba(0,0,0,0.12)] p-5 flex flex-col items-center justify-center gap-2 border border-transparent">
-            <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-purple-50 text-primary-600 flex items-center justify-center">
               <MessageSquare size={22} />
             </div>
             <div className="text-slate-800 font-bold text-sm">聊天次数：{chatCount}</div>
@@ -207,8 +208,8 @@ export const MePage: React.FC<MePageProps> = ({
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start">
                                     <h4 className="font-bold text-slate-800">{char.name}</h4>
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${(char.visibility ? char.visibility === 'public' : !!char.isPublic) ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
-                                        {(char.visibility ? char.visibility === 'public' : !!char.isPublic) ? '公开' : '私密'}
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${char.isPublic ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
+                                        {char.isPublic ? '公开' : '私密'}
                                     </span>
                                 </div>
                                 <p className="text-xs text-slate-400 truncate mt-1">{char.oneLinePersona || char.bio}</p>
@@ -282,6 +283,7 @@ export const MePage: React.FC<MePageProps> = ({
       {isPersonaOpen && (
         <UserCharacterSettings
           currentPersona={userPersona}
+          roleId={userRoleId}
           onBack={() => setIsPersonaOpen(false)}
           onSave={(p) => { setUserPersona(p); setIsPersonaOpen(false); }}
           withinContainer
@@ -292,8 +294,8 @@ export const MePage: React.FC<MePageProps> = ({
         isOpen={isRoleSheetOpen}
         currentPersona={userPersona}
         onClose={() => setIsRoleSheetOpen(false)}
-        onAdd={() => { setIsRoleSheetOpen(false); setIsPersonaOpen(true) }}
-        onSelect={(persona) => { setUserPersona(persona); setIsRoleSheetOpen(false); setIsPersonaOpen(true) }}
+        onAdd={() => { setIsRoleSheetOpen(false); setUserRoleId(undefined); setUserPersona(undefined); setIsPersonaOpen(true) }}
+        onSelect={(persona, roleId) => { setUserPersona(persona); setUserRoleId(roleId as number); setIsRoleSheetOpen(false); setIsPersonaOpen(true) }}
       />
 
     </div>

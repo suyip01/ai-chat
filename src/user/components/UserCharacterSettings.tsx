@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { ChevronLeft, Pencil, User as UserIcon } from 'lucide-react';
-import { upsertUserChatRole } from '../services/chatService'
+import { ensureUserChatRole, updateUserChatRole } from '../services/chatService'
 import { UserPersona } from '../types';
 import { ImageCropper } from './ImageCropper';
 import { AnimatePresence, motion } from 'framer-motion'
@@ -9,12 +9,13 @@ import { androidBottomSheet, fade } from '../animations'
 
 interface UserCharacterSettingsProps {
   currentPersona?: UserPersona;
+  roleId?: number;
   onBack: () => void;
   onSave: (persona: UserPersona) => void;
   withinContainer?: boolean;
 }
 
-export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ currentPersona, onBack, onSave, withinContainer = false }) => {
+export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ currentPersona, roleId, onBack, onSave, withinContainer = false }) => {
   const [gender, setGender] = useState<'male' | 'female' | 'secret'>(currentPersona?.gender || 'female');
   const [name, setName] = useState(currentPersona?.name || '');
   const [age, setAge] = useState(currentPersona?.age || '');
@@ -63,7 +64,8 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
         personality,
         avatar: avatarUrl || undefined
       }
-      await upsertUserChatRole(persona)
+      if (typeof roleId === 'number') await updateUserChatRole(roleId, persona)
+      else await ensureUserChatRole(persona)
     } catch {}
 
     onSave({

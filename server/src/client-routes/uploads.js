@@ -14,7 +14,7 @@ router.use(userAuthRequired);
 
 router.post('/avatar', upload.single('avatar'), async (req, res) => {
   try {
-    console.log('[POST /api/uploads/avatar] userId=', req.user?.id, 'filename=', req.body?.filename)
+    req.log.info('uploads.avatar.start', { filename: req.body?.filename })
     const file = req.file;
     if (!file) return res.status(400).json({ error: 'missing_file' });
     const isImage = /^image\/(jpeg|jpg|png)$/.test(file.mimetype);
@@ -31,10 +31,10 @@ router.post('/avatar', upload.single('avatar'), async (req, res) => {
     const filePath = path.join(dir, name);
     await fs.promises.writeFile(filePath, file.buffer);
     const urlPath = `/uploads/users/avatars/${name}`;
-    console.log('[POST /api/uploads/avatar] saved url=', urlPath)
+    req.log.info('uploads.avatar.ok', { url: urlPath })
     res.json({ url: urlPath });
   } catch (e) {
-    console.error('[POST /api/uploads/avatar] error:', e?.message || e)
+    req.log.error('uploads.avatar.error', { error: e?.message || e })
     res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' });
   }
 });

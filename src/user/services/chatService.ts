@@ -26,6 +26,21 @@ export const ensureUserChatRole = async (persona?: UserPersona) => {
   return data.id as number
 }
 
+export const updateUserChatRole = async (id: number, persona?: UserPersona) => {
+  const body = {
+    name: persona?.name || '未命名',
+    age: parseInt(persona?.age || '0') || null,
+    gender: genderMap(persona?.gender),
+    profession: persona?.profession || null,
+    basic_info: persona?.basicInfo || null,
+    personality: persona?.personality || null,
+    avatar: persona?.avatar || null,
+  }
+  const res = await authFetch(`/user/chat-role/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!res.ok) throw new Error('update_role_failed')
+  return true
+}
+
 export const upsertUserChatRole = async (persona?: UserPersona) => {
   const existing = localStorage.getItem('user_chat_role_id')
   const body = {
@@ -59,13 +74,14 @@ export const fetchUserChatRoles = async (): Promise<Array<{ id: number; name: st
   return Array.isArray(data) ? data : []
 }
 
-export const createChatSession = async (characterId: string|number, userChatRoleId?: number) => {
+export const createChatSession = async (characterId: string|number, userChatRoleId?: number): Promise<{ sessionId: string; model?: { id: string; nickname: string }; temperature?: number }> => {
   const payload: any = { character_id: Number(characterId) }
   if (typeof userChatRoleId === 'number') payload.user_chat_role_id = userChatRoleId
   const res = await authFetch(`/chat/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
   if (!res.ok) throw new Error('create_session_failed')
   const data = await res.json()
-  return data.sessionId as string
+  if (typeof data === 'string') return { sessionId: data }
+  return { sessionId: data.sessionId, model: data.model, temperature: data.temperature }
 }
 
 export const fetchHistory = async (_sessionId: string, _limit = 100): Promise<Message[]> => {
@@ -134,4 +150,28 @@ export const connectChatWs = (sessionId: string, onAssistantMessage: (text: stri
   }
   const close = () => { manualClose = true; try { ws?.close() } catch {} }
   return { ws, sendText, sendTyping, close }
+}
+
+export const listModels = async (): Promise<Array<{ id: string; nickname: string }>> => {
+  const res = await authFetch(`/chat/models`, { method: 'GET' })
+  if (!res.ok) throw new Error('list_models_failed')
+  const data = await res.json()
+  return Array.isArray(data.items) ? data.items : []
+}
+
+export const updateSessionConfig = async (sessionId: string, cfg: { modelId?: string; temperature?: number }) => {
+  const body: any = {}
+  if (cfg.modelId) body.model_id = cfg.modelId
+  if (typeof cfg.temperature === 'number') body.temperature = cfg.temperature
+  const res = await authFetch(`/chat/sessions/${sessionId}/config`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!res.ok) throw new Error('update_session_config_failed')
+  return true
+}
+
+export const getSessionInfo = async (sessionId: string): Promise<{ model?: { id: string; nickname: string }; temperature?: number }> => {
+  const res = await authFetch(`/chat/sessions/${sessionId}`, { method: 'GET' })
+  if (!res.ok) throw new Error('get_session_failed')
+  const data = await res.json()
+  const sess = data?.session || {}
+  return { model: sess?.model, temperature: sess?.temperature }
 }

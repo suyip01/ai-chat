@@ -1,6 +1,7 @@
 import pool from '../db.js'
 import crypto from 'crypto'
 import { getRedis, keySess, keyRole, keyCharacter, keyMsgs, keySummary } from './redis.js'
+import { createLogger } from '../utils/logger.js'
 
 const ttlSec = parseInt(process.env.CHAT_SESSION_TTL || '604800')
 
@@ -10,8 +11,9 @@ const pickModelAndTemp = (settings) => {
   return { model, temperature: Number(temperature) }
 }
 
-export const createSession = async ({ userId, characterId, userRoleId, userRoleData = null }) => {
-  console.log('[svc:createSession] userId=', userId, 'characterId=', characterId, 'userRoleId=', userRoleId)
+export const createSession = async ({ userId, characterId, userRoleId, userRoleData = null, log }) => {
+  const logger = (log || createLogger({ component: 'service', name: 'chatSessions', userId })).child({ characterId, userRoleId })
+  logger.info('createSession.start')
   const r = await getRedis()
   const sid = crypto.randomUUID()
   const [[settingsRow]] = await pool.query('SELECT selected_chat_model, chat_temperature FROM settings ORDER BY id DESC LIMIT 1')
@@ -22,14 +24,23 @@ export const createSession = async ({ userId, characterId, userRoleId, userRoleD
     roleRow = dbRole || null
   }
   const { model, temperature } = pickModelAndTemp(settingsRow)
-  console.log('[svc:createSession] settingsRow=', settingsRow)
+  let modelId = null
+  let modelNickname = null
+  try {
+    const [[mrow]] = await pool.query('SELECT model_id, COALESCE(model_nickname, model_name, model_id) AS nick FROM models WHERE model_id=? OR model_name=? OR model_nickname=? LIMIT 1', [model, model, model])
+    modelId = mrow?.model_id || model || null
+    modelNickname = mrow?.nick || model || ''
+  } catch {}
+  logger.info('createSession.model', { model: modelId, nickname: modelNickname, temperature })
   const sessKey = keySess(sid)
   await r.hSet(sessKey, {
     sid,
     userId: String(userId),
     characterId: String(characterId),
     userRoleId: String(userRoleId),
-    model: String(model || ''),
+    model: String(modelId || ''),
+    model_id: String(modelId || ''),
+    model_nickname: String(modelNickname || ''),
     temperature: String(temperature),
     system_prompt: characterRow?.system_prompt || '',
     system_prompt_scene: characterRow?.system_prompt_scene || '',
@@ -68,12 +79,13 @@ export const createSession = async ({ userId, characterId, userRoleId, userRoleD
   }
   await r.expire(keyMsgs(sid), ttlSec)
   await r.expire(keySummary(sid), ttlSec)
-  console.log('[svc:createSession] created sid=', sid, 'model=', model, 'temperature=', temperature)
+  logger.info('createSession.ok', { sid })
   return { sid, model, temperature }
 }
 
 export const getSession = async (sid) => {
-  console.log('[svc:getSession] sid=', sid)
+  const logger = createLogger({ component: 'service', name: 'chatSessions' })
+  logger.info('getSession.start', { sid })
   const r = await getRedis()
   const data = await r.hGetAll(keySess(sid))
   return Object.keys(data).length ? data : null
