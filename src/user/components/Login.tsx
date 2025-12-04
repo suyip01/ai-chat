@@ -65,9 +65,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div ref={containerRef} className={`fixed inset-0 w-full bg-primary-50 flex flex-col items-center ${keyboardOpen ? 'justify-start' : 'justify-center'} px-8 font-sans overflow-hidden animate-in fade-in duration-700`} style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none', paddingTop: keyboardOpen ? '10vh' : undefined }}>
+    <div ref={containerRef} className={`h-full w-full bg-primary-50 flex flex-col items-center ${keyboardOpen ? 'justify-start' : 'justify-center'} px-8 font-sans overflow-hidden animate-in fade-in duration-700`} style={{ paddingTop: keyboardOpen ? '10vh' : undefined }}>
       
-      <div className="w-full max-w-md flex flex-col items-center z-10">
+      <div className="w-full flex flex-col items-center z-10">
         
         {/* Title Group */}
         <div className="text-center mb-12">
