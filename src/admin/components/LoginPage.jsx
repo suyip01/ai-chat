@@ -41,7 +41,7 @@ const LoginPage = ({ onLogin }) => {
         <div className="space-y-5">
           <div>
             <label className="block text-sm font-bold text-pink-800 mb-2 ml-1">管理员账号</label>
-            <input type="text" placeholder="admin" value={username} onChange={e => setUsername(e.target.value)} className="dream-input w-full px-4 py-3 rounded-2xl" />
+            <input type="text" placeholder="请输入管理员账号" value={username} onChange={e => setUsername(e.target.value)} className="dream-input w-full px-4 py-3 rounded-2xl" />
           </div>
           <div>
             <label className="block text-sm font-bold text-pink-800 mb-2 ml-1">密码</label>
