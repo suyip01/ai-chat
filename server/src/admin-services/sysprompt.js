@@ -62,8 +62,7 @@ const buildMessages = (data, systemTemplate) => {
 - 跟用户的当前关系阶段需要重点突出
 
 【模板】
-${systemTemplate || 'content'}
-【模版】`;
+${systemTemplate || 'content'}`;
 
   const styleText = styleExamples.length ? styleExamples.map((s, i) => `0${i + 1}. ${s}`).join('\n') : '';
   const user = [

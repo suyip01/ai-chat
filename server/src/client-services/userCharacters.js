@@ -114,10 +114,10 @@ export const updateUserCharacter = async (userId, id, payload) => {
   } = payload || {}
   await pool.query(
     `UPDATE characters SET name=?, gender=?, avatar=?, identity=?, tagline=?, personality=?, relationship=?,
-      plot_theme=?, plot_summary=?, opening_line=?, hobbies=?, experiences=?, age=?, occupation=?, character_type=?, visibility=?
+      plot_theme=?, plot_summary=?, opening_line=?, hobbies=?, experiences=?, age=?, occupation=?, character_type=?, visibility=?, status=?
      WHERE id=? AND user_id=? AND creator_role='user_role'`,
     [name, gender, avatar, identity, tagline, personality, relationship,
-     plotTheme, plotSummary, openingLine, hobbies, experiences, age, occupation, (character_type || type || exists.character_type), (visibility || exists.visibility), id, userId]
+     plotTheme, plotSummary, openingLine, hobbies, experiences, age, occupation, (character_type || type || exists.character_type), (visibility || exists.visibility), 'publishing', id, userId]
   )
   await pool.query('DELETE FROM character_tags WHERE character_id=?', [id])
   await pool.query('DELETE FROM character_style_examples WHERE character_id=?', [id])

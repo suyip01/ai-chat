@@ -35,6 +35,11 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
           if (iv) clearInterval(iv)
           return
         }
+        if (statusStr === 'publishing' || !hasSP) {
+          setIsDraft(false)
+          setReady(false)
+          return
+        }
         if (data && (statusStr === 'published' || hasSP)) {
           setReady(true)
           setIsDraft(false)
@@ -84,7 +89,14 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
             setReady(false)
             return
           }
-          if (statusStr === 'publishing' && !hasSP) {
+          if (statusStr === 'publishing') {
+            setIsDraft(false)
+            setReady(false)
+            iv = setInterval(tick, 3000)
+            tick()
+            return
+          }
+          if (!hasSP) {
             setIsDraft(false)
             setReady(false)
             iv = setInterval(tick, 3000)
