@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { ChatPreview } from '../types';
 import { ChatItem } from './ChatItem';
 
@@ -7,9 +8,10 @@ interface ChatListProps {
   onChatClick: (chat: ChatPreview) => void;
   onTogglePin: (characterId: string) => void;
   onDeleteChat: (characterId: string) => void;
+  isDetailOpen?: boolean;
 }
 
-export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onTogglePin, onDeleteChat }) => {
+export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onTogglePin, onDeleteChat, isDetailOpen = false }) => {
   const pinnedChats = chats.filter(c => c.character.isPinned);
   const otherChats = chats.filter(c => !c.character.isPinned);
   const [offsets, setOffsets] = useState<Record<string, number>>({});
@@ -37,7 +39,12 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
   const closeSwipe = (id: string) => setOffsets(prev => ({ ...prev, [id]: 0 }));
 
   return (
-    <div className="px-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <motion.div
+      className="px-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700"
+      initial={{ x: 0 }}
+      animate={isDetailOpen ? { x: '-100%' } : { x: 0 }}
+      transition={isDetailOpen ? { duration: 0.3, ease: 'linear' } : { duration: 0 }}
+    >
       
       {pinnedChats.length > 0 && (
         <div className="mb-6">
@@ -138,6 +145,6 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
             <p className="text-slate-400 text-sm mt-1">快去和角色聊天吧！</p>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };

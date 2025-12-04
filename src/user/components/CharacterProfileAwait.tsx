@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { ArrowLeft, ChevronDown, ChevronUp, Heart, MessageCircle, Edit2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { ArrowLeft, ChevronDown, ChevronUp, Heart, MessageCircle, Edit2, Trash2 } from 'lucide-react'
 import { Character } from '../types'
-import { getUserCharacter } from '../services/userCharactersService'
+import { getUserCharacter, deleteUserCharacter } from '../services/userCharactersService'
 
 interface Props {
   character: Character
@@ -9,12 +10,16 @@ interface Props {
   onBack: () => void
   onStartChat: (character: Character) => void
   onEdit?: (character: Character) => void
+  onDeleted?: () => void
 }
 
-export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, onBack, onStartChat, onEdit }) => {
+export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, onBack, onStartChat, onEdit, onDeleted }) => {
   const [showAllTags, setShowAllTags] = useState(false)
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(true)
   const [latest, setLatest] = useState<Character>(character)
+  const [deleting, setDeleting] = useState(false)
+  const [isDraft, setIsDraft] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   useEffect(() => {
     let mounted = true
     let iv: any
@@ -22,7 +27,7 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
       try {
         const data = await getUserCharacter(createdId)
         if (!mounted) return
-        if (data && (data.status === 'published' || data.system_prompt)) {
+        if (data && (data.status === 'published' || data.system_prompt || data.hasSystemPrompt)) {
           setReady(true)
           setLatest(prev => ({
             ...prev,
@@ -43,8 +48,53 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
         }
       } catch {}
     }
-    iv = setInterval(tick, 3000)
-    tick()
+    const init = async () => {
+      try {
+        const data = await getUserCharacter(createdId)
+        if (!mounted) return
+        if (data) {
+          setLatest(prev => ({
+            ...prev,
+            id: String(data.id || prev.id),
+            name: data.name || prev.name,
+            avatar: data.avatar || prev.avatar,
+            oneLinePersona: data.tagline || prev.oneLinePersona,
+            personality: data.personality || prev.personality,
+            profession: String(data.occupation || prev.profession || ''),
+            age: String(data.age || prev.age || ''),
+            currentRelationship: String(data.relationship || prev.currentRelationship || ''),
+            plotTheme: String(data.plot_theme || prev.plotTheme || ''),
+            plotDescription: String(data.plot_summary || prev.plotDescription || ''),
+            openingLine: String(data.opening_line || prev.openingLine || ''),
+          }))
+          const hasSP = !!data.system_prompt || !!data.hasSystemPrompt
+          const statusStr = typeof data.status === 'string' ? data.status.trim() : ''
+          if (statusStr === 'draft') {
+            setIsDraft(true)
+            setReady(false)
+            return
+          }
+          if (statusStr === '' && !hasSP) {
+            setIsDraft(false)
+            setReady(false)
+            iv = setInterval(tick, 3000)
+            tick()
+            return
+          }
+          setIsDraft(false)
+          setReady(true)
+          return
+        }
+        setIsDraft(false)
+        setReady(true)
+        
+      } catch {
+        setIsDraft(false)
+        setReady(true)
+        
+      }
+    }
+    init()
     return () => { mounted = false; clearInterval(iv) }
   }, [createdId])
 
@@ -52,10 +102,17 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
   const hasMoreTags = latest.tags.length > 4
 
   return (
-    <div className="fixed inset-0 z-50 bg-primary-50">
-      <div className="mx-auto w-full max-w-md h-full flex flex-col bg-white shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden relative">
+    <motion.div
+      className="fixed inset-0 z-50 bg-primary-50"
+      initial={{ x: '100%' }}
+      animate={{ x: 0 }}
+      exit={{ x: '100%' }}
+      transition={{ duration: 0.3, ease: 'linear' }}
+    >
+      <div className="mx-auto w-full max-w-md h-full flex flex-col bg白 shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden relative">
         <button onClick={onBack} className="absolute top-4 left-4 z-50 w-10 h-10 bg-black/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/30 transition-all"><ArrowLeft size={24} /></button>
         <button onClick={() => onEdit?.(latest)} className="absolute top-4 right-4 z-50 w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60 transition-all border border-white/30"><Edit2 size={20} /></button>
+        <button disabled={deleting} onClick={() => setConfirmOpen(true)} className={`absolute top-16 right-4 z-50 w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60 transition-all border border-white/30 ${deleting ? 'opacity-60 cursor-not-allowed' : ''}`}><Trash2 size={18} className="text-red-500" /></button>
         <div className="flex-1 overflow-y-auto no-scrollbar relative pb-24">
           <div className="relative w-full h-[55vh]">
             <img src={latest.profileImage || latest.avatar} alt={latest.name} className="w-full h-full object-cover" />
@@ -92,11 +149,31 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
         </div>
         <div className="absolute bottom-3 inset-x-0 z-50">
           <div className="mx-auto w-full max-w-md bg-white/90 backdrop-blur-md border-t border-slate-100 p-4 pb-[env(safe-area-inset-bottom)]">
-            <button disabled={!ready} onClick={() => onStartChat(latest)} className={`w-full font-bold text-lg py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 ${ready ? 'bg-purple-200 text-purple-900 shadow-purple-100 active:scale-[0.98]' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`}>{ready ? (<><MessageCircle size={20} />唤醒角色</>) : '角色创建中，请稍等。'}</button>
+            <button disabled={!ready || isDraft} onClick={() => onStartChat(latest)} className={`w-full font-bold text-lg py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 ${(ready && !isDraft) ? 'bg-purple-200 text-purple-900 shadow-purple-100 active:scale-[0.98]' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`}>{(ready && !isDraft) ? (<><MessageCircle size={20} />唤醒角色</>) : (isDraft ? '请编辑角色和生成角色卡' : '角色创建中，请稍等。')}</button>
           </div>
         </div>
       </div>
-    </div>
+      {confirmOpen && (
+        <>
+          <div className="fixed inset-0 z-[80] bg黑/20 animate-[fadeBg_200ms_ease]"></div>
+          <div className="fixed inset-0 z-[90] flex items-center justify-center" onClick={() => !deleting && setConfirmOpen(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-[85%] max-w-sm animate-[fadeCard_200ms_ease]" onClick={(e) => e.stopPropagation()}>
+              <div className="px-6 py-5 text-center text-slate-800 font-bold">确认删除此角色？</div>
+              <div className="h-[1px] bg-slate-100"></div>
+              <div className="flex">
+                <button disabled={deleting} className="flex-1 py-4 text-slate-600 active:opacity-70" onClick={() => { if (deleting) return; setConfirmOpen(false); }}>取消</button>
+                <div className="w-[1px] bg-slate-100"></div>
+                <button disabled={deleting} className="flex-1 py-4 text-red-600 font-bold active:opacity-70" onClick={async () => { if (deleting) return; try { setDeleting(true); await deleteUserCharacter(createdId); setConfirmOpen(false); if (onDeleted) onDeleted(); else onBack(); } catch { setDeleting(false) } }}>确认删除</button>
+              </div>
+            </div>
+          </div>
+          <style>{`
+            @keyframes fadeCard { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: translateY(0) } }
+            @keyframes fadeBg { from { opacity: 0 } to { opacity: 1 } }
+          `}</style>
+        </>
+      )}
+    </motion.div>
   )
 }
 

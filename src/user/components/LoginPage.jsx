@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { BASE_URL, userAuthAPI } from '../api.js';
 import { Heart, LogIn, Eye, EyeOff, Check } from 'lucide-react';
 import { useToast } from './Toast';
@@ -8,6 +9,7 @@ const LoginPage = ({ onLogin }) => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const { showToast } = useToast();
+    const [slideOut, setSlideOut] = useState(false);
 
     const handleLogin = async () => {
         if (!username || !password) {
@@ -21,8 +23,10 @@ const LoginPage = ({ onLogin }) => {
             if (data?.access_token) localStorage.setItem('user_access_token', data.access_token);
             if (data?.refresh_token) localStorage.setItem('user_refresh_token', data.refresh_token);
 
-            showToast('登录成功', 'success');
-            setTimeout(onLogin, 500);
+            setTimeout(() => {
+                setSlideOut(true);
+                setTimeout(onLogin, 300);
+            }, 200);
         } catch (e) {
             console.error(e);
             showToast('登录失败，请检查账号密码', 'error');
@@ -38,7 +42,12 @@ const LoginPage = ({ onLogin }) => {
     };
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-primary-50 relative overflow-hidden font-sans text-slate-800">
+        <motion.div
+          className="min-h-screen w-full flex items-center justify-center bg-primary-50 relative overflow-hidden font-sans text-slate-800"
+          initial={{ x: 0 }}
+          animate={{ x: slideOut ? '-100%' : 0 }}
+          transition={{ duration: 0.3, ease: 'linear' }}
+        >
 
             {/* Main Container */}
             <div className="relative z-10 w-full max-w-md p-6 sm:p-12 flex flex-col justify-center">
@@ -117,7 +126,7 @@ const LoginPage = ({ onLogin }) => {
                     </p>
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 };
 

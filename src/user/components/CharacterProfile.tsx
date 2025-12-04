@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, ChevronDown, ChevronUp, Heart, MessageCircle } from 'lucide-react';
 import { Character } from '../types';
 import { useToast } from './Toast';
@@ -21,7 +22,13 @@ export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, o
   const hasMoreTags = character.tags.length > 4;
 
   return (
-    <div className="fixed inset-0 z-50 bg-primary-50">
+    <motion.div
+      className="fixed inset-0 z-50 bg-primary-50"
+      initial={{ x: '100%' }}
+      animate={{ x: 0 }}
+      exit={{ x: '100%' }}
+      transition={{ duration: 0.3, ease: 'linear' }}
+    >
       <div className="mx-auto w-full max-w-md h-full flex flex-col bg-white shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden relative">
         {/* Back Button - Fixed Position */}
         <button
@@ -180,6 +187,6 @@ export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, o
         </div>
 
       </div>
-    </div>
+    </motion.div>
   );
 };

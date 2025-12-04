@@ -239,7 +239,14 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-primary-50 z-50" style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}>
+    <motion.div
+      className="fixed inset-0 bg-primary-50 z-50"
+      style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}
+      initial={{ x: '100%' }}
+      animate={{ x: 0 }}
+      exit={{ x: '100%' }}
+      transition={{ duration: 0.3, ease: 'linear' }}
+    >
       <div className="mx-auto w-full max-w-md h-full flex flex-col relative bg-white shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden">
         <div className="bg-primary-50/95 backdrop-blur-md pt-[env(safe-area-inset-top)] shadow-none z-10 border-b border-white/50 flex-shrink-0">
           <div className="px-4 h-12 flex items-center justify-between">
@@ -488,7 +495,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         />
 
       </div>
-    </div>
+    </motion.div>
   );
 };
  

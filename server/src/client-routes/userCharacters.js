@@ -31,7 +31,7 @@ router.post('/', async (req, res) => {
   try {
     const body = req.body || {}
     if (!body.name || !body.gender) return res.status(400).json({ error: 'missing_fields' })
-    const id = await createUserCharacter(req.user.id, req.user.username || 'User', body)
+    const id = await createUserCharacter(req.user.id, body)
     res.json({ id })
     setImmediate(async () => {
       try {
@@ -85,7 +85,7 @@ router.post('/draft', async (req, res) => {
   try {
     const body = req.body || {}
     if (!body.name || !body.gender) return res.status(400).json({ error: 'missing_fields' })
-    const id = await createUserCharacter(req.user.id, req.user.username || 'User', body)
+    const id = await createUserCharacter(req.user.id, body)
     res.json({ id })
   } catch (e) {
     res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' })

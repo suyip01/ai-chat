@@ -8,9 +8,9 @@ export const userAuthRequired = (req, res, next) => {
     const payload = jwt.verify(t, process.env.JWT_SECRET);
     if (payload.type !== 'access') return res.status(401).json({ error: 'invalid_token_type' });
     req.user = { id: payload.id, username: payload.username };
+    if (req.log) req.log = req.log.child({ userId: req.user.id });
     next();
   } catch {
     return res.status(401).json({ error: 'invalid_token' });
   }
 };
-

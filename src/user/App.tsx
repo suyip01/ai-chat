@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { TopBar } from './components/TopBar';
 import { BottomNav } from './components/BottomNav';
 import { ChatList } from './components/ChatList';
@@ -69,6 +70,7 @@ const App: React.FC = () => {
   const [isProfileFromChat, setIsProfileFromChat] = useState(false);
   const [isProfileFromMe, setIsProfileFromMe] = useState(false);
   const [myUserCharacters, setMyUserCharacters] = useState<Character[]>([]);
+  const [chatFromList, setChatFromList] = useState(false);
   const handleLogout = () => {
     localStorage.removeItem('user_access_token');
     localStorage.removeItem('user_refresh_token');
@@ -303,6 +305,7 @@ const App: React.FC = () => {
     const existingChat = chats.find(c => c.characterId === character.id);
     if (existingChat) {
       setViewingProfile(null);
+      setChatFromList(false);
       setSelectedChat(existingChat);
       setActiveTab(NavTab.CHAT);
       return;
@@ -330,6 +333,7 @@ const App: React.FC = () => {
       };
       setChats(prev => [newChat, ...prev]);
       setViewingProfile(null);
+      setChatFromList(false);
       setSelectedChat(newChat);
       setActiveTab(NavTab.CHAT);
     } catch {
@@ -347,6 +351,7 @@ const App: React.FC = () => {
       };
       setChats(prev => [fallback, ...prev]);
       setViewingProfile(null);
+      setChatFromList(false);
       setSelectedChat(fallback);
       setActiveTab(NavTab.CHAT);
     }
@@ -500,17 +505,20 @@ const App: React.FC = () => {
       default:
         return (
           <>
-            <ChatList
-              chats={chats}
-              onChatClick={(chat) => setSelectedChat(chat)}
-              onTogglePin={handleTogglePin}
-              onDeleteChat={(characterId) => {
-                setChats(prev => prev.filter(c => c.characterId !== characterId));
-                localStorage.removeItem(`chat_session_${characterId}`);
-                localStorage.removeItem(`chat_history_${characterId}`);
-                if (selectedChat?.characterId === characterId) setSelectedChat(null);
-              }}
-            />
+            {(!selectedChat || chatFromList) && (
+              <ChatList
+                chats={chats}
+                onChatClick={(chat) => { setChatFromList(true); setSelectedChat(chat) }}
+                onTogglePin={handleTogglePin}
+                onDeleteChat={(characterId) => {
+                  setChats(prev => prev.filter(c => c.characterId !== characterId));
+                  localStorage.removeItem(`chat_session_${characterId}`);
+                  localStorage.removeItem(`chat_history_${characterId}`);
+                  if (selectedChat?.characterId === characterId) setSelectedChat(null);
+                }}
+                isDetailOpen={chatFromList && !!selectedChat}
+              />
+            )}
           </>
         );
     }
@@ -518,7 +526,10 @@ const App: React.FC = () => {
 
   return (
     <ToastProvider>
-      <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden" style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}>
+      <div
+        className="fixed inset-0 w-full bg-primary-50 overflow-hidden"
+        style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}
+      >
         <div className="h-full w-full max-w-md mx-auto bg白 relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex flex-col">
 
         {/* 0. Create Character Overlay */}
@@ -547,47 +558,84 @@ const App: React.FC = () => {
         )}
 
         {/* 2. Chat Detail View Overlay - Render FIRST so it stays mounted behind profile */}
-        {selectedChat && !isUserSettingsOpen && !isCreating && (
-          <ChatDetail
-            character={selectedChat.character}
-            initialMessages={getInitialMessages(selectedChat)}
-            userPersona={userPersona}
-            onBack={() => setSelectedChat(null)}
-            onUpdateLastMessage={handleUpdateLastMessage}
-            onOpenUserSettings={() => setIsUserSettingsOpen(true)}
-            onUpdateUserPersona={(persona) => setUserPersona(persona)}
-            onShowProfile={() => {
-              setIsProfileFromChat(true);
-              setIsProfileFromMe(false);
-              setAwaitProfile(null);
-              setViewingProfile(selectedChat.character);
-            }}
-          />
-        )}
-
-        {/* 1. Profile View Overlay - Render SECOND so it covers ChatDetail */}
-        {viewingProfile && !isUserSettingsOpen && !isCreating && !awaitProfile && (
-          isProfileFromMe ? (
-            <CharacterProfileAwait
-              character={viewingProfile}
-              createdId={viewingProfile.id}
-              onBack={() => setViewingProfile(null)}
-              onStartChat={(char) => startChatFromProfile(char)}
-              onEdit={(char) => {
-                setCreateInitial({ initial: char, id: char.id, isEdit: true })
-                setIsCreating(true)
+        <AnimatePresence initial={false}>
+          {selectedChat && !isUserSettingsOpen && !isCreating && (
+            <ChatDetail
+              character={selectedChat.character}
+              initialMessages={getInitialMessages(selectedChat)}
+              userPersona={userPersona}
+              onBack={() => { setSelectedChat(null); setChatFromList(false); }}
+              onUpdateLastMessage={handleUpdateLastMessage}
+              onOpenUserSettings={() => setIsUserSettingsOpen(true)}
+              onUpdateUserPersona={(persona) => setUserPersona(persona)}
+              onShowProfile={() => {
+                setIsProfileFromChat(true);
+                setIsProfileFromMe(false);
+                setAwaitProfile(null);
+                setViewingProfile(selectedChat.character);
               }}
             />
-          ) : (
-            <CharacterProfile
-              character={viewingProfile}
-              onBack={() => setViewingProfile(null)}
-              onStartChat={() => startChatFromProfile(viewingProfile)}
-              isFromChat={isProfileFromChat}
-              isExistingChat={!!chats.find(c => c.characterId === viewingProfile.id)}
-            />
-          )
-        )}
+          )}
+        </AnimatePresence>
+
+        {/* 1. Profile View Overlay - Render SECOND so it covers ChatDetail */}
+        <AnimatePresence initial={false}>
+          {viewingProfile && !isUserSettingsOpen && !isCreating && !awaitProfile && (
+            isProfileFromMe ? (
+              <CharacterProfileAwait
+                character={viewingProfile}
+                createdId={viewingProfile.id}
+                onBack={() => setViewingProfile(null)}
+                onStartChat={(char) => startChatFromProfile(char)}
+                onEdit={(char) => {
+                  setCreateInitial({ initial: char, id: char.id, isEdit: true })
+                  setIsCreating(true)
+                }}
+                onDeleted={async () => {
+                  setViewingProfile(null)
+                  try {
+                    const items = await listMine()
+                    const mapped: Character[] = items.map((it: any) => ({
+                      id: String(it.id),
+                      name: it.name || '未知',
+                      avatar: it.avatar || '',
+                      profileImage: '',
+                      status: CharacterStatus.ONLINE,
+                      bio: it.plot_summary || '',
+                      tags: Array.isArray(it.tags) ? it.tags : [],
+                      creator: userProfile.nickname || '我',
+                      oneLinePersona: it.tagline || '',
+                      personality: it.personality || '',
+                      profession: it.occupation || '',
+                      age: it.age ? String(it.age) : '',
+                      roleType: '',
+                      gender: it.gender || '',
+                      currentRelationship: it.relationship || '',
+                      plotTheme: it.plot_theme || '',
+                      plotDescription: '',
+                      openingLine: it.opening_line || '',
+                      styleExamples: Array.isArray(it.styleExamples) ? it.styleExamples : [],
+                      hobbies: it.hobbies || '',
+                      experiences: it.experiences || '',
+                      isPublic: it.visibility ? it.visibility === 'public' : false
+                    }))
+                    setMyUserCharacters(mapped)
+                  } catch {
+                    setMyUserCharacters([])
+                  }
+                }}
+              />
+            ) : (
+              <CharacterProfile
+                character={viewingProfile}
+                onBack={() => setViewingProfile(null)}
+                onStartChat={() => startChatFromProfile(viewingProfile)}
+                isFromChat={isProfileFromChat}
+                isExistingChat={!!chats.find(c => c.characterId === viewingProfile.id)}
+              />
+            )
+          )}
+        </AnimatePresence>
 
         {awaitProfile && !isUserSettingsOpen && !isCreating && (
           <CharacterProfileAwait
@@ -599,7 +647,7 @@ const App: React.FC = () => {
         )}
 
         {/* 3. Main Tab Navigation View */}
-        {!viewingProfile && !selectedChat && !isUserSettingsOpen && !isCreating && (
+        {!isUserSettingsOpen && !isCreating && (
           <>
             <TopBar
               title={activeTab === NavTab.HOME ? renderHomeHeader() : (activeTab === NavTab.CHAT ? '聊天' : '我的')}
@@ -610,9 +658,11 @@ const App: React.FC = () => {
               }}
               showAdd={activeTab === NavTab.HOME && homeTab === 'characters'}
             />
-            <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth min-h-0">
-              {renderContent()}
-            </div>
+            <AnimatePresence initial={false}>
+              <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth min-h-0">
+                {renderContent()}
+              </div>
+            </AnimatePresence>
             <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
           </>
         )}

@@ -17,7 +17,7 @@ export const getUserCharacter = async (userId, id) => {
   const [[row]] = await pool.query(
     `SELECT id, name, gender, avatar, identity, tagline, personality, relationship,
             plot_theme, plot_summary, opening_line, hobbies, experiences,
-            age, occupation, visibility, status, created_at
+            age, occupation, visibility, status, created_at, system_prompt
      FROM characters WHERE id = ? AND creator_role = 'user_role' AND user_id = ? LIMIT 1`,
     [id, userId]
   )
@@ -26,12 +26,13 @@ export const getUserCharacter = async (userId, id) => {
   const [exRows] = await pool.query('SELECT idx, content FROM character_style_examples WHERE character_id=? ORDER BY idx ASC', [id])
   return {
     ...row,
+    hasSystemPrompt: !!row.system_prompt,
     tags: Array.isArray(tagRows) ? tagRows.map(r => r.tag).filter(Boolean) : [],
     styleExamples: Array.isArray(exRows) ? exRows.map(r => r.content).filter(Boolean) : []
   }
 }
 
-export const createUserCharacter = async (userId, creator, payload) => {
+export const createUserCharacter = async (userId, payload) => {
   const id = Date.now()
   const {
     name, gender, avatar = null,
@@ -43,6 +44,8 @@ export const createUserCharacter = async (userId, creator, payload) => {
     character_type = null, type = null,
     visibility = 'public'
   } = payload || {}
+  const [[u]] = await pool.query('SELECT nickname, username FROM users WHERE id=? LIMIT 1', [userId])
+  const creator = (u?.nickname || u?.username || 'User')
   const ctype = character_type || type || '原创角色'
   await pool.query(
     `INSERT INTO characters (id, name, gender, avatar, creator, creator_role, user_id, identity, tagline, personality,
