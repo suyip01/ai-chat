@@ -8,7 +8,7 @@ import { CharacterProfile } from './components/CharacterProfile';
 import { CharacterProfileAwait } from './components/CharacterProfileAwait';
 import { UserCharacterSettings } from './components/UserCharacterSettings';
 import { CreateCharacter } from './components/CreateCharacter';
-import LoginPage from './components/LoginPage.jsx';
+import { Login } from './components/Login';
 import { ToastProvider } from './components/Toast';
 import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, UserPersona, UserProfile } from './types';
 import { MePage } from './components/MePage';
@@ -228,7 +228,7 @@ const App: React.FC = () => {
       <ToastProvider>
         <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden" style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}>
           <div className="h-full w-full max-w-md mx-auto bg白 relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex">
-              <LoginPage onLogin={() => setIsLoggedIn(true)} />
+              <Login onLogin={() => setIsLoggedIn(true)} />
           </div>
         </div>
       </ToastProvider>

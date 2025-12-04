@@ -184,9 +184,14 @@ export const MePage: React.FC<MePageProps> = ({
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start">
                                     <h4 className="font-bold text-slate-800">{char.name}</h4>
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${char.isPublic ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
+                                    <div className="flex flex-col items-end gap-0.5">
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${char.isPublic ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
                                         {char.isPublic ? '公开' : '私密'}
-                                    </span>
+                                      </span>
+                                      <span className={`text-[10px] font-bold ${char.isPublic ? 'text-green-600' : 'text-slate-400'}`}>
+                                        {char.isPublic ? '已发布' : '草稿'}
+                                      </span>
+                                    </div>
                                 </div>
                                 <p className="text-xs text-slate-400 truncate mt-1">{char.oneLinePersona || char.bio}</p>
                             </div>
