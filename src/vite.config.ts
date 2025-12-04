@@ -28,6 +28,9 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+      build: {
+        sourcemap: true,
+      },
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
@@ -36,7 +39,9 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
-        }
+          'lucide-react': 'lucide-react/dist/esm/lucide-react.js',
+        },
+        dedupe: ['react', 'react-dom']
       },
       preview: {
         host: '0.0.0.0',
