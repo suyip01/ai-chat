@@ -8,6 +8,8 @@ DROP TABLE IF EXISTS admins;
 DROP TABLE IF EXISTS character_style_examples;
 DROP TABLE IF EXISTS character_tags;
 DROP TABLE IF EXISTS characters;
+DROP TABLE IF EXISTS story_tags;
+DROP TABLE IF EXISTS stories;
 DROP TABLE IF EXISTS user_chat_role;
 DROP TABLE IF EXISTS template_tags;
 DROP TABLE IF EXISTS templates;
@@ -102,6 +104,28 @@ CREATE TABLE characters (
   status ENUM('published','publishing','draft') NOT NULL DEFAULT 'draft',
   visibility ENUM('public','private') NOT NULL DEFAULT 'public',
   FOREIGN KEY (scene_template_id) REFERENCES templates(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 故事表
+CREATE TABLE stories (
+  id BIGINT PRIMARY KEY,
+  user_id BIGINT,
+  title VARCHAR(256) NOT NULL,
+  description VARCHAR(1024),
+  image VARCHAR(255),
+  author VARCHAR(128),
+  likes VARCHAR(64),
+  content TEXT NOT NULL,
+  publish_date TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE story_tags (
+  story_id BIGINT NOT NULL,
+  tag VARCHAR(64) NOT NULL,
+  PRIMARY KEY (story_id, tag),
+  FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE character_tags (

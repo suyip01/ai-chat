@@ -26,7 +26,7 @@ export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin, 
   return (
     <div 
       onClick={onClick}
-      className={`group relative flex items-center gap-4 p-4 bg-white ${roundedClass || 'rounded-2xl'} shadow-[0_6px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_18px_rgba(0,0,0,0.08)] active:shadow-[0_12px_28px_rgba(0,0,0,0.12)] border border-transparent hover:border-primary-100 active:scale-[0.99] transition-all duration-200 cursor-pointer w-full max-w-md mx-auto`}
+      className={`group relative flex items-center gap-4 p-4 mb-3 bg-white ${roundedClass || 'rounded-2xl'} shadow-sm border border-transparent hover:border-primary-100 hover:shadow-md active:scale-[0.98] transition-all duration-200 cursor-pointer`}
     >
       {/* Avatar Container */}
       <div className="relative flex-shrink-0">
@@ -41,7 +41,7 @@ export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin, 
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-center mb-1">
+        <div className="flex justify-between items-baseline mb-1">
           <div className="flex items-center gap-2">
             <h3 className="font-bold text-slate-800 text-lg truncate">
               {chat.character.name}

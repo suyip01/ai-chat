@@ -170,9 +170,9 @@ export const MePage: React.FC<MePageProps> = ({
                 <h3 className="font-bold text-slate-700">我的角色</h3>
             </div>
             
-            {(myUserCharacters.length > 0 ? myUserCharacters : myCharacters).length > 0 ? (
+            {myUserCharacters.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                    {(myUserCharacters.length > 0 ? myUserCharacters : myCharacters).map(char => (
+                    {myUserCharacters.map(char => (
                         <div 
                             key={char.id} 
                             onClick={() => onCharacterClick(char)}
@@ -188,8 +188,8 @@ export const MePage: React.FC<MePageProps> = ({
                                       <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${char.isPublic ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
                                         {char.isPublic ? '公开' : '私密'}
                                       </span>
-                                      <span className={`text-[10px] font-bold ${char.isPublic ? 'text-green-600' : 'text-slate-400'}`}>
-                                        {char.isPublic ? '已发布' : '草稿'}
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${(char as any).isPublished ? 'text-green-600' : 'text-slate-400'}`}>
+                                        {(char as any).isPublished ? '已发布' : '草稿'}
                                       </span>
                                     </div>
                                 </div>

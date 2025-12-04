@@ -6,6 +6,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, username, onEditProfile })
   const [expandedMenus, setExpandedMenus] = useState(['characters', 'settings']);
 
   const menuItems = [
+    { id: 'stories', label: '故事管理', icon: FileText },
     { id: 'templates', label: '提示词模版', icon: FileText },
     {
       id: 'characters',

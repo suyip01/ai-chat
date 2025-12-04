@@ -95,3 +95,24 @@ export interface UserProfile {
   email: string;
   usedCount?: number;
 }
+
+export interface StoryRole {
+  name: string;
+  avatar: string;
+  description: string;
+}
+
+export interface Story {
+  id: number;
+  user_id?: number;
+  title: string;
+  description: string;
+  image: string;
+  tags: string[];
+  author: string;
+  likes: string;
+  content: string; // The actual story text
+  publishDate?: string;
+  publish_date?: string;
+  availableRoles?: StoryRole[];
+}

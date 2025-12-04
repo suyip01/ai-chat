@@ -126,10 +126,10 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
   return (
     <motion.div
       className="fixed inset-0 z-50 bg-primary-50"
-      initial={{ x: '100%' }}
+      initial={{ x: ((navigator as any)?.maxTouchPoints > 0) ? '100%' : 0 }}
       animate={{ x: 0 }}
-      exit={{ x: '100%' }}
-      transition={{ duration: 0.3, ease: 'linear' }}
+      exit={{ x: ((navigator as any)?.maxTouchPoints > 0) ? '100%' : 0 }}
+      transition={{ duration: ((navigator as any)?.maxTouchPoints > 0) ? 0.3 : 0, ease: 'linear' }}
     >
       <div className="mx-auto w-full max-w-md h-full flex flex-col bg白 shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden relative">
         <button onClick={onBack} className="absolute top-4 left-4 z-50 w-10 h-10 bg-black/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/30 transition-all"><ArrowLeft size={24} /></button>

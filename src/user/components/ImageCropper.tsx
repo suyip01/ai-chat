@@ -54,7 +54,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
     if (!ctx) return;
 
     // High resolution output
-    const OUTPUT_SIZE = 200; 
+    const OUTPUT_SIZE = 800; 
     canvas.width = OUTPUT_SIZE;
     canvas.height = OUTPUT_SIZE;
 

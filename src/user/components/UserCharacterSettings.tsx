@@ -24,6 +24,7 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
   const [personality, setPersonality] = useState(currentPersona?.personality || '');
   const [avatar, setAvatar] = useState<string | undefined>(currentPersona?.avatar);
   const [tempAvatar, setTempAvatar] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,6 +39,8 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
   };
 
   const handleSave = async () => {
+    if (saving) return
+    setSaving(true)
     const token = localStorage.getItem('user_access_token');
     let avatarUrl = avatar;
     try {
@@ -77,6 +80,7 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
       personality,
       avatar: avatarUrl,
     });
+    setSaving(false)
     onBack();
   };
 
@@ -120,7 +124,8 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
         </button>
         <button 
             onClick={handleSave}
-            className="bg-purple-50 text-purple-600 px-4 py-1.5 rounded-lg text-sm font-bold active:scale-95 transition-transform"
+            disabled={saving}
+            className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-transform ${saving ? 'bg-purple-200 text-white cursor-not-allowed' : 'bg-purple-50 text-purple-600 active:scale-95'}`}
         >
            完成
         </button>

@@ -236,7 +236,7 @@ function EditView({ imageSrc, onSave, onCancel }) {
     const [baseScale, setBaseScale] = useState(1);
     const [zoom, setZoom] = useState(1);
 
-    const CANVAS_SIZE = 400;
+    const CANVAS_SIZE = 800;
     const VIEWPORT_SIZE = 280;
 
     useEffect(() => {
@@ -310,31 +310,7 @@ function EditView({ imageSrc, onSave, onCancel }) {
         // Square crop hole
         ctx.rect(viewportOffset + VIEWPORT_SIZE, viewportOffset, -VIEWPORT_SIZE, VIEWPORT_SIZE);
         ctx.fill('evenodd');
-
-        // Corners
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 3;
-        const len = 20;
-        ctx.beginPath();
-        ctx.moveTo(viewportOffset, viewportOffset + len);
-        ctx.lineTo(viewportOffset, viewportOffset);
-        ctx.lineTo(viewportOffset + len, viewportOffset);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(viewportOffset + VIEWPORT_SIZE - len, viewportOffset);
-        ctx.lineTo(viewportOffset + VIEWPORT_SIZE, viewportOffset);
-        ctx.lineTo(viewportOffset + VIEWPORT_SIZE, viewportOffset + len);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(viewportOffset, viewportOffset + VIEWPORT_SIZE - len);
-        ctx.lineTo(viewportOffset, viewportOffset + VIEWPORT_SIZE);
-        ctx.lineTo(viewportOffset + len, viewportOffset + VIEWPORT_SIZE);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(viewportOffset + VIEWPORT_SIZE - len, viewportOffset + VIEWPORT_SIZE);
-        ctx.lineTo(viewportOffset + VIEWPORT_SIZE, viewportOffset + VIEWPORT_SIZE);
-        ctx.lineTo(viewportOffset + VIEWPORT_SIZE, viewportOffset + VIEWPORT_SIZE - len);
-        ctx.stroke();
+        // Removed corner frame lines
 
     }, [imageObj, rotation, offset, baseScale, zoom]);
 

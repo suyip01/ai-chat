@@ -2,9 +2,12 @@ import pool from '../db.js'
 
 export const listUserCharacters = async (userId) => {
   const [rows] = await pool.query(
-    `SELECT c.id, c.name, c.gender, c.avatar, c.identity, c.tagline, c.personality, c.relationship,
-            c.plot_theme, c.plot_summary, c.opening_line, c.hobbies, c.experiences,
-            c.age, c.occupation, c.visibility, c.created_at
+    `SELECT c.id AS mypage_id,
+            c.name AS mypage_name,
+            c.tagline AS mypage_tagline,
+            c.visibility AS mypage_visibility,
+            c.avatar AS mypage_avatar,
+            c.status AS mypage_status
      FROM characters c
      WHERE c.creator_role = 'user_role' AND c.user_id = ?
      ORDER BY c.created_at ASC`,

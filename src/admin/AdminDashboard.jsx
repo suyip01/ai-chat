@@ -11,6 +11,7 @@ import UsersView from './users/UsersView.jsx';
 import ModelSettingsView from './settings/ModelSettingsView.jsx';
 import ModelManageView from './settings/ModelManageView.jsx';
 import AdminAccountsView from './settings/AdminAccountsView.jsx';
+import StoryManagement from './story/StoryManagement.jsx';
 
 const AdminDashboard = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -91,6 +92,7 @@ const AdminDashboard = () => {
           <Sparkles size={120} className="text-pink-300" />
         </div>
         {activeTab === 'templates' && <TemplatesView />}
+        {activeTab === 'stories' && <StoryManagement />}
         {(activeTab === 'characters' || activeTab === 'official_characters') && <CharacterManagement creatorRole="admin_role" />}
         {activeTab === 'user_characters' && <CharacterManagement creatorRole="user_role" />}
         {activeTab === 'users' && <UsersView />}

@@ -10,8 +10,10 @@ import { UserCharacterSettings } from './components/UserCharacterSettings';
 import { CreateCharacter } from './components/CreateCharacter';
 import { Login } from './components/Login';
 import { ToastProvider } from './components/Toast';
-import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, UserPersona, UserProfile } from './types';
+import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, UserPersona, UserProfile, Story } from './types';
 import { MePage } from './components/MePage';
+import { listStories as listStoriesClient, StoryPreview, getStory as getStoryClient } from './services/storiesService';
+import { StoryReader } from './components/StoryReader';
 import { listCharacters } from './services/charactersService';
 import { listUserCharacters as listMine } from './services/userCharactersService';
 import { createChatSession } from './services/chatService';
@@ -19,30 +21,6 @@ import { createChatSession } from './services/chatService';
 // Mock Data
 const MOCK_CHATS: ChatPreview[] = [];
 
-// Mock Stories Data
-const MOCK_STORIES = [
-  {
-    id: 1,
-    title: "命运的邂逅",
-    description: "在樱花盛开的坂道上，你撞到了那个改变你一生的人...",
-    image: "https://image.pollinations.ai/prompt/anime%20scenery%20cherry%20blossom%20school%20romantic%20soft%20pastel?width=600&height=300&seed=10",
-    tags: ["浪漫", "校园"]
-  },
-  {
-    id: 2,
-    title: "当你被阴湿男鬼盯上",
-    description: "我搬到了她家对面，每天躲在窗帘后面看着她在阳台上......",
-    image: "https://image.pollinations.ai/prompt/anime%20scenery%20magic%20library%20night%20mysterious%20glowing%20books?width=600&height=300&seed=20",
-    tags: ["阴湿男鬼", "暗恋", "bg", "甜文"]
-  },
-  {
-    id: 3,
-    title: "追到高岭之花后，我跑路了（2）",
-    description: "原来我的每一次自持，都是下意识地相信你不会离开",
-    image: "https://image.pollinations.ai/prompt/anime%20stage%20lights%20concert%20colorful%20sparkles?width=600&height=300&seed=30",
-    tags: ["高岭之花", "高冷", "傲娇", "追妻火葬场", "bg"]
-  }
-];
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>(NavTab.HOME);
@@ -57,6 +35,8 @@ const App: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [createInitial, setCreateInitial] = useState<{ initial?: Character; id?: string | number; isEdit?: boolean } | null>(null)
   const [awaitProfile, setAwaitProfile] = useState<{ character: Character; id: string } | null>(null);
+  const [stories, setStories] = useState<StoryPreview[]>([])
+  const [readingStory, setReadingStory] = useState<Story | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!localStorage.getItem('user_access_token'));
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
     const nick = localStorage.getItem('user_nickname') || '我';
@@ -99,9 +79,18 @@ const App: React.FC = () => {
             localStorage.setItem('user_nickname', nick)
             localStorage.setItem('user_email', email)
             if (avatar) localStorage.setItem('user_avatar', avatar)
+            if (data?.id !== undefined) localStorage.setItem('user_id', String(data.id))
           } catch {}
         }
       } catch {}
+    })()
+    ;(async () => {
+      try {
+        const items = await listStoriesClient({ limit: 12 })
+        setStories(items)
+      } catch {
+        setStories([])
+      }
     })()
     setLoadingCharacters(true);
     listCharacters({ limit: 24 })
@@ -129,9 +118,10 @@ const App: React.FC = () => {
         // build chats from localStorage histories
         try {
           const previews: ChatPreview[] = []
-          const keys = Object.keys(localStorage).filter(k => k.startsWith('chat_history_'))
+          const uid = localStorage.getItem('user_id') || '0'
+          const keys = Object.keys(localStorage).filter(k => k.startsWith(`chat_history_${uid}_`))
           keys.forEach(k => {
-            const cid = k.replace('chat_history_', '')
+            const cid = k.replace(`chat_history_${uid}_`, '')
             const char = mapped.find(c => String(c.id) === String(cid))
             if (!char) return
             const raw = localStorage.getItem(k)
@@ -151,30 +141,37 @@ const App: React.FC = () => {
     (async () => {
       try {
         const items = await listMine()
-        const mapped: Character[] = items.map((it: any) => ({
-          id: String(it.id),
-          name: it.name || '未知',
-          avatar: it.avatar || '',
+        const filtered = Array.isArray(items) ? items.filter((it: any) => (
+          typeof it?.mypage_id !== 'undefined' &&
+          typeof it?.mypage_name === 'string' &&
+          typeof it?.mypage_visibility === 'string' &&
+          typeof it?.mypage_status === 'string'
+        )) : []
+        const mapped: Character[] = filtered.map((it: any) => ({
+          id: String(it.mypage_id),
+          name: it.mypage_name || '未知',
+          avatar: it.mypage_avatar || '',
           profileImage: '',
           status: CharacterStatus.ONLINE,
-          bio: it.plot_summary || '',
-          tags: Array.isArray(it.tags) ? it.tags : [],
+          bio: '',
+          tags: [],
           creator: userProfile.nickname || '我',
-          oneLinePersona: it.tagline || '',
-          personality: it.personality || '',
-          profession: it.occupation || '',
-          age: it.age ? String(it.age) : '',
+          oneLinePersona: it.mypage_tagline || '',
+          personality: '',
+          profession: '',
+          age: '',
           roleType: '',
-          gender: it.gender || '',
-          currentRelationship: it.relationship || '',
-          plotTheme: it.plot_theme || '',
+          gender: '',
+          currentRelationship: '',
+          plotTheme: '',
           plotDescription: '',
-          openingLine: it.opening_line || '',
-          styleExamples: Array.isArray(it.styleExamples) ? it.styleExamples : [],
-          hobbies: it.hobbies || '',
-          experiences: it.experiences || '',
-          isPublic: it.visibility ? it.visibility === 'public' : false
-        }))
+          openingLine: '',
+          styleExamples: [],
+          hobbies: '',
+          experiences: '',
+          isPublic: it.mypage_visibility ? it.mypage_visibility === 'public' : false,
+          isPublished: it.mypage_status === 'published'
+        } as any))
         setMyUserCharacters(mapped)
       } catch {
         setMyUserCharacters([])
@@ -311,7 +308,8 @@ const App: React.FC = () => {
       return;
     }
     try {
-      const key = `chat_session_${character.id}`
+      const uid = localStorage.getItem('user_id') || '0'
+      const key = `chat_session_${uid}_${character.id}`
       let sid = localStorage.getItem(key) || ''
       if (!sid) {
         const created = await createChatSession(character.id);
@@ -399,13 +397,33 @@ const App: React.FC = () => {
           <div className="px-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {homeTab === 'stories' ? (
               <div className="space-y-6 mt-2">
-                {MOCK_STORIES.map(story => (
-                  <div key={story.id} className="group relative bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-lg transition-all cursor-pointer">
+                {stories.map(story => (
+                  <div
+                    key={story.id}
+                    className="group relative bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer border border-transparent hover:border-primary-100 hover:-translate-y-0.5 duration-200"
+                    onClick={async () => {
+                      try {
+                        const full = await getStoryClient(story.id)
+                        const mapped: Story = {
+                          id: Number(full.id),
+                          title: full.title,
+                          description: full.description || '',
+                          image: full.image || '',
+                          tags: Array.isArray(full.tags) ? full.tags : [],
+                          author: full.author || '',
+                          likes: '',
+                          content: full.content || '',
+                          publishDate: full.publish_date || undefined,
+                        }
+                        setReadingStory(mapped)
+                      } catch {}
+                    }}
+                  >
                     <div className="h-40 overflow-hidden relative">
                       <img src={story.image} alt={story.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                      <div className="absolute bottom-4 left-4 text-white">
-                        <h3 className="text-xl font-bold">{story.title}</h3>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent"></div>
+                      <div className="absolute bottom-4 left-4">
+                        <h3 className="text-xl font-bold text-white">{story.title}</h3>
                       </div>
                     </div>
                     <div className="p-5">
@@ -414,7 +432,7 @@ const App: React.FC = () => {
                       </p>
                       <div className="flex justify-between items-center">
                         <div className="flex gap-2 flex-wrap">
-                          {story.tags.map(tag => (
+                          {(story.tags || []).map(tag => (
                             <span key={tag} className="text-[10px] font-bold text-primary-600 bg-primary-50 px-2 py-1 rounded-full">
                               #{tag}
                             </span>
@@ -424,6 +442,9 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                {!stories.length && (
+                  <div className="text-center text-xs text-slate-400">暂无故事</div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-4 mt-2">
@@ -512,8 +533,9 @@ const App: React.FC = () => {
                 onTogglePin={handleTogglePin}
                 onDeleteChat={(characterId) => {
                   setChats(prev => prev.filter(c => c.characterId !== characterId));
-                  localStorage.removeItem(`chat_session_${characterId}`);
-                  localStorage.removeItem(`chat_history_${characterId}`);
+                  const uid = localStorage.getItem('user_id') || '0'
+                  localStorage.removeItem(`chat_session_${uid}_${characterId}`);
+                  localStorage.removeItem(`chat_history_${uid}_${characterId}`);
                   if (selectedChat?.characterId === characterId) setSelectedChat(null);
                 }}
                 isDetailOpen={chatFromList && !!selectedChat}
@@ -643,6 +665,15 @@ const App: React.FC = () => {
             createdId={awaitProfile.id}
             onBack={() => setAwaitProfile(null)}
             onStartChat={(char) => { setAwaitProfile(null); startChatFromProfile(char) }}
+          />
+        )}
+
+        {/* 阅读故事 Overlay */}
+        {readingStory && (
+          <StoryReader
+            story={readingStory}
+            onBack={() => setReadingStory(null)}
+            onStartRoleplay={() => setReadingStory(null)}
           />
         )}
 

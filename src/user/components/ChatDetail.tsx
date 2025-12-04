@@ -50,7 +50,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const updatePersona = onUpdateUserPersona ?? ((_: UserPersona) => { });
   const [sessionId, setSessionId] = useState<string | null>(null);
   const wsRef = useRef<{ sendText: (t: string, chatMode?: 'daily' | 'scene', userRole?: UserPersona, modelId?: string, temperature?: number) => void; sendTyping: (typing: boolean) => void; close: () => void } | null>(null);
-  const histKey = `chat_history_${character.id}`;
+  const currentUserId = (() => { try { return localStorage.getItem('user_id') || '0' } catch { return '0' } })();
+  const histKey = `chat_history_${currentUserId}_${character.id}`;
   const configKey = `chat_config_${character.id}`;
   const modelKey = `chat_model_${character.id}`;
   const tempKey = `chat_temp_${character.id}`;
@@ -161,7 +162,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   }, [character.id]);
 
   useEffect(() => {
-    const key = `chat_session_${character.id}`;
+    const key = `chat_session_${currentUserId}_${character.id}`;
     const sid = localStorage.getItem(key);
     const setup = async () => {
       if (sid) {
@@ -240,7 +241,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         const rid = ridRaw ? parseInt(ridRaw) : undefined;
         const created = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
         const sid = created.sessionId;
-        localStorage.setItem(`chat_session_${character.id}`, sid);
+        localStorage.setItem(`chat_session_${currentUserId}_${character.id}`, sid);
         setSessionId(sid);
         const conn = connectChatWs(sid, (text, quote, meta) => {
           appendAssistantWithRead(text, quote, meta);
@@ -269,10 +270,10 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     <motion.div
       className="fixed inset-0 bg-primary-50 z-50"
       style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}
-      initial={{ x: '100%' }}
+      initial={{ x: ((navigator as any)?.maxTouchPoints > 0) ? '100%' : 0 }}
       animate={{ x: 0 }}
-      exit={{ x: '100%' }}
-      transition={{ duration: 0.3, ease: 'linear' }}
+      exit={{ x: ((navigator as any)?.maxTouchPoints > 0) ? '100%' : 0 }}
+      transition={{ duration: ((navigator as any)?.maxTouchPoints > 0) ? 0.3 : 0, ease: 'linear' }}
     >
       <div className="mx-auto w-full max-w-md h-full flex flex-col relative bg-white shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden">
         <div className="bg-primary-50/95 backdrop-blur-md pt-[env(safe-area-inset-top)] shadow-none z-10 border-b border-white/50 flex-shrink-0">

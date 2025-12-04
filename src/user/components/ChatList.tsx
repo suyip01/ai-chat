@@ -12,6 +12,7 @@ interface ChatListProps {
 }
 
 export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onTogglePin, onDeleteChat, isDetailOpen = false }) => {
+  const isTouch = (navigator as any)?.maxTouchPoints > 0
   const pinnedChats = chats.filter(c => c.character.isPinned);
   const otherChats = chats.filter(c => !c.character.isPinned);
   const [offsets, setOffsets] = useState<Record<string, number>>({});
@@ -42,8 +43,8 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
     <motion.div
       className="px-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700"
       initial={{ x: 0 }}
-      animate={isDetailOpen ? { x: '-100%' } : { x: 0 }}
-      transition={isDetailOpen ? { duration: 0.3, ease: 'linear' } : { duration: 0 }}
+      animate={isDetailOpen && isTouch ? { x: '-100%' } : { x: 0 }}
+      transition={isDetailOpen && isTouch ? { duration: 0.3, ease: 'linear' } : { duration: 0 }}
     >
       
       {pinnedChats.length > 0 && (

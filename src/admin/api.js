@@ -96,6 +96,15 @@ export const settingsAPI = {
   async save(payload) { return request('/settings', { method: 'PUT', body: JSON.stringify(payload) }); },
 };
 
+export const storiesAPI = {
+  async list() { return request('/stories'); },
+  async get(id) { return request(`/stories/${id}`); },
+  async create(payload) { return request('/stories', { method: 'POST', body: JSON.stringify(payload) }); },
+  async update(id, payload) { return request(`/stories/${id}`, { method: 'PUT', body: JSON.stringify(payload) }); },
+  async remove(id) { return request(`/stories/${id}`, { method: 'DELETE' }); },
+  async setStatus(id, status) { return request(`/stories/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) }); },
+};
+
 export const syspromptAPI = {
   async generate(payload) {
     return request('/sysprompt/generate', { method: 'POST', body: JSON.stringify(payload) });
@@ -110,6 +119,11 @@ export const uploadAPI = {
     const fd = new FormData();
     fd.append('avatar', file);
     return request('/uploads/avatar', { method: 'POST', body: fd });
+  },
+  async cover(file) {
+    const fd = new FormData();
+    fd.append('cover', file);
+    return request('/uploads/cover', { method: 'POST', body: fd });
   },
 };
 
