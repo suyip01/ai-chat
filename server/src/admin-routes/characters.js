@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
+import { runWithAdminContext, audit } from '../utils/audit.js';
 import { listCharacters, getCharacter, createCharacter, updateCharacter, deleteCharacter, setCharacterStatus } from '../admin-services/characters.js';
 
 const router = Router();
 
 router.use(authRequired);
+router.use((req, res, next) => {
+  runWithAdminContext(req.admin?.id || null, () => { audit('admin_request', { method: req.method, path: req.originalUrl }); next(); })
+});
 
 router.get('/', async (req, res) => {
   const q = req.query || {};

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
+import { runWithAdminContext, audit } from '../utils/audit.js';
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
@@ -11,6 +12,9 @@ const upload = multer({
 });
 
 router.use(authRequired);
+router.use((req, res, next) => {
+  runWithAdminContext(req.admin?.id || null, () => { audit('admin_request', { method: req.method, path: req.originalUrl }); next(); })
+});
 
 router.post('/avatar', upload.single('avatar'), async (req, res) => {
   try {

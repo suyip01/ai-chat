@@ -1,7 +1,9 @@
 import pool from '../db.js';
 import bcrypt from 'bcryptjs';
+import { audit } from '../utils/audit.js';
 
 export const listAdmins = async (q) => {
+  audit('admin_service', { op: 'listAdmins', q })
   const where = q ? 'WHERE username LIKE ? OR email LIKE ?' : '';
   const params = q ? [`%${q}%`, `%${q}%`] : [];
   const [rows] = await pool.query(
@@ -12,6 +14,7 @@ export const listAdmins = async (q) => {
 };
 
 export const createAdmin = async ({ username, nickname = null, avatar = null, email = null, password }) => {
+  audit('admin_service', { op: 'createAdmin', username, email })
   const id = Date.now();
   const hash = bcrypt.hashSync(password, 10);
   if (typeof avatar === 'string' && avatar.length) {
@@ -29,6 +32,7 @@ export const createAdmin = async ({ username, nickname = null, avatar = null, em
 };
 
 export const updateAdmin = async (id, { nickname, avatar, email, isActive }) => {
+  audit('admin_service', { op: 'updateAdmin', id })
   const sets = [];
   const params = [];
   if (typeof nickname === 'string') { sets.push('nickname=?'); params.push(nickname); }
@@ -42,22 +46,26 @@ export const updateAdmin = async (id, { nickname, avatar, email, isActive }) => 
 };
 
 export const deleteAdmin = async (id) => {
+  audit('admin_service', { op: 'deleteAdmin', id })
   const [res] = await pool.query('DELETE FROM admins WHERE id=?', [id]);
   return res.affectedRows > 0;
 };
 
 export const changeAdminPassword = async (id, password) => {
+  audit('admin_service', { op: 'changeAdminPassword', id })
   const hash = bcrypt.hashSync(password, 10);
   const [res] = await pool.query('UPDATE admins SET password_hash=? WHERE id=?', [hash, id]);
   return res.affectedRows > 0;
 };
 
 export const getAdminAvatar = async (id) => {
+  audit('admin_service', { op: 'getAdminAvatar', id })
   const [[row]] = await pool.query('SELECT avatar FROM admins WHERE id=? LIMIT 1', [id]);
   return row?.avatar || null;
 };
 
 export const updateAdminSelf = async (id, { nickname, password }) => {
+  audit('admin_service', { op: 'updateAdminSelf', id })
   const sets = [];
   const params = [];
   if (typeof nickname === 'string') { sets.push('nickname=?'); params.push(nickname); }

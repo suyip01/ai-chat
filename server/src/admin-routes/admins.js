@@ -1,9 +1,13 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
+import { runWithAdminContext, audit } from '../utils/audit.js';
 import { listAdmins, createAdmin, updateAdmin, deleteAdmin, changeAdminPassword, getAdminAvatar, updateAdminSelf } from '../admin-services/admins.js';
 
 const router = Router();
 router.use(authRequired);
+router.use((req, res, next) => {
+  runWithAdminContext(req.admin?.id || null, () => { audit('admin_request', { method: req.method, path: req.originalUrl }); next(); })
+});
 
 router.get('/', async (req, res) => {
   try {

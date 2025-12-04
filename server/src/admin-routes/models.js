@@ -1,9 +1,13 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
+import { runWithAdminContext, audit } from '../utils/audit.js';
 import { listModels, createModel, removeModel } from '../admin-services/models.js';
 
 const router = Router();
 router.use(authRequired);
+router.use((req, res, next) => {
+  runWithAdminContext(req.admin?.id || null, () => { audit('admin_request', { method: req.method, path: req.originalUrl }); next(); })
+});
 
 router.get('/', async (req, res) => {
   try { const items = await listModels(); res.json({ items }); }

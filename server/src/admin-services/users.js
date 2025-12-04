@@ -1,5 +1,6 @@
 import pool from '../db.js';
 import bcrypt from 'bcryptjs';
+import { audit } from '../utils/audit.js';
 
 export const ensureUsersSchema = async () => {
   const [tables] = await pool.query(
@@ -39,6 +40,7 @@ export const ensureUsersSchema = async () => {
 };
 
 export const listUsers = async (q) => {
+  audit('admin_service', { op: 'listUsers', q })
   await ensureUsersSchema();
   const where = q ? 'WHERE username LIKE ? OR email LIKE ?' : '';
   const params = q ? [`%${q}%`, `%${q}%`] : [];
@@ -51,6 +53,7 @@ export const listUsers = async (q) => {
 };
 
 export const createUser = async ({ username, nickname = null, avatar = null, email = null, password, chatLimit = 0 }) => {
+  audit('admin_service', { op: 'createUser', username, email })
   await ensureUsersSchema();
   const id = Date.now();
   const hash = password ? bcrypt.hashSync(password, 10) : null;
@@ -69,6 +72,7 @@ export const createUser = async ({ username, nickname = null, avatar = null, ema
 };
 
 export const updateUser = async (id, { nickname, avatar, email, chatLimit, isActive }) => {
+  audit('admin_service', { op: 'updateUser', id })
   await ensureUsersSchema();
   const sets = [];
   const params = [];
@@ -84,12 +88,14 @@ export const updateUser = async (id, { nickname, avatar, email, chatLimit, isAct
 };
 
 export const deleteUser = async (id) => {
+  audit('admin_service', { op: 'deleteUser', id })
   await ensureUsersSchema();
   const [res] = await pool.query('DELETE FROM users WHERE id=?', [id]);
   return res.affectedRows > 0;
 };
 
 export const changePassword = async (id, password) => {
+  audit('admin_service', { op: 'changeUserPassword', id })
   await ensureUsersSchema();
   const hash = bcrypt.hashSync(password, 10);
   const [res] = await pool.query('UPDATE users SET password_hash=? WHERE id=?', [hash, id]);

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArrowLeft, Send, MoreVertical, X, ChevronRight, User as UserIcon, MessageSquare, Cpu } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion'
 import { androidSlideRight, fade } from '../animations'
@@ -53,6 +53,26 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const modelKey = `chat_model_${character.id}`;
   const tempKey = `chat_temp_${character.id}`;
   const modelNameKey = `chat_model_name_${character.id}`;
+
+  const effectivePersona = useMemo<UserPersona | undefined>(() => {
+    if (userPersona) return userPersona;
+    try {
+      const nickname = localStorage.getItem('user_nickname') || '';
+      const avatar = localStorage.getItem('user_avatar') || '';
+      if (nickname || avatar) {
+        return {
+          name: nickname || '我',
+          gender: 'secret',
+          age: '',
+          profession: '',
+          basicInfo: '',
+          personality: '',
+          avatar: avatar || undefined,
+        };
+      }
+    } catch {}
+    return undefined;
+  }, [userPersona]);
 
   const appendAssistantWithRead = (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => {
     setMessages(prev => {
@@ -226,7 +246,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         });
         wsRef.current = conn;
       }
-      wsRef.current?.sendText(userMsg.text, chatMode, userPersona);
+      wsRef.current?.sendText(userMsg.text, chatMode, effectivePersona);
       wsRef.current?.sendTyping(false);
     } catch (e) {
       console.error(e);
@@ -334,10 +354,10 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                 {isMe && (
                   <div className="flex-shrink-0 ml-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-pink-200 flex items-center justify-center text-pink-600 font-bold border border-white shadow-sm">
-                      {userPersona?.avatar ? (
-                        <img src={userPersona.avatar} alt="Me" className="w-full h-full object-cover" />
+                      {effectivePersona?.avatar ? (
+                        <img src={effectivePersona.avatar} alt={effectivePersona?.name || '我'} className="w-full h-full object-cover" />
                       ) : (
-                        "傲"
+                        (effectivePersona?.name ? effectivePersona.name[0] : '我')
                       )}
                     </div>
                   </div>

@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
+import { runWithAdminContext, audit } from '../utils/audit.js';
 import { generateRolePrompt, generateNoScenePrompt } from '../admin-services/sysprompt.js';
 
 const router = Router();
 
 router.use(authRequired);
+router.use((req, res, next) => {
+  runWithAdminContext(req.admin?.id || null, () => { audit('admin_request', { method: req.method, path: req.originalUrl }); next(); })
+});
 
 router.post('/generate', async (req, res) => {
   const body = req.body || {};

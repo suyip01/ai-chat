@@ -1,5 +1,6 @@
 import pool from '../db.js';
 import { getRedis } from '../client-services/redis.js';
+import { audit } from '../utils/audit.js';
 
 const ensureSettings = async () => {
   const [rows] = await pool.query('SELECT * FROM settings WHERE id=1');
@@ -9,12 +10,14 @@ const ensureSettings = async () => {
 };
 
 export const getSettings = async () => {
+  audit('admin_service', { op: 'getSettings' })
   await ensureSettings();
   const [rows] = await pool.query('SELECT * FROM settings WHERE id=1');
   return rows[0];
 };
 
 export const updateSettings = async (payload) => {
+  audit('admin_service', { op: 'updateSettings' })
   const {
     selected_model,
     selected_chat_model,

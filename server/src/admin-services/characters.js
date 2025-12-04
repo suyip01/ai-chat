@@ -1,4 +1,5 @@
 import pool from '../db.js';
+import { audit } from '../utils/audit.js';
 
 export const ensureCharacterSchema = async () => {
   const [rows] = await pool.query(
@@ -31,6 +32,7 @@ export const ensureCharacterSchema = async () => {
 };
 
 export const listCharacters = async (creatorRole) => {
+  audit('admin_service', { op: 'listCharacters', creatorRole })
   await ensureCharacterSchema();
   const where = creatorRole ? 'WHERE c.creator_role = ?' : '';
   const params = creatorRole ? [creatorRole] : [];
@@ -95,6 +97,7 @@ export const listCharacters = async (creatorRole) => {
 };
 
 export const getCharacter = async (id) => {
+  audit('admin_service', { op: 'getCharacter', id })
   const [rows] = await pool.query('SELECT * FROM characters WHERE id=?', [id]);
   if (!rows.length) return null;
   const c = rows[0];
@@ -119,6 +122,7 @@ export const getCharacter = async (id) => {
 };
 
 export const createCharacter = async (payload) => {
+  audit('admin_service', { op: 'createCharacter' })
   const id = Date.now();
   const {
     name, gender, avatar = null, creator, creatorRole = 'admin_role', sceneTemplateId = null,
@@ -153,6 +157,7 @@ export const createCharacter = async (payload) => {
 };
 
 export const updateCharacter = async (id, payload) => {
+  audit('admin_service', { op: 'updateCharacter', id })
   const {
     name, gender, avatar = null, creator, creatorRole = 'admin_role', sceneTemplateId = null,
     identity = null, tagline = null, personality = null, relationship = null,
@@ -196,10 +201,12 @@ export const updateCharacter = async (id, payload) => {
 };
 
 export const deleteCharacter = async (id) => {
+  audit('admin_service', { op: 'deleteCharacter', id })
   const [res] = await pool.query('DELETE FROM characters WHERE id=?', [id]);
   return res.affectedRows > 0;
 };
 
 export const setCharacterStatus = async (id, status) => {
+  audit('admin_service', { op: 'setCharacterStatus', id, status })
   await pool.query('UPDATE characters SET status=? WHERE id=?', [status, id]);
 };

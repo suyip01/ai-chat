@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import pool from '../db.js';
 import { getSettings } from './settings.js';
 import { createLogger } from '../utils/logger.js';
+import { audit } from '../utils/audit.js';
 
 const apiKey = process.env.LLM_API_KEY || '';
 const baseURL = process.env.LLM_BASE_URL || '';
@@ -87,6 +88,7 @@ ${systemTemplate || 'content'}
 };
 
 export const generateRolePrompt = async (data, overrides = {}, log) => {
+  audit('admin_service', { op: 'generateRolePrompt' })
   const s = await fetchSettings();
   const chosenModel = await validateModel(overrides.model || s.model);
   const chosenTemp = typeof overrides.temperature === 'number' ? overrides.temperature : s.temperature;
@@ -102,6 +104,7 @@ export const generateRolePrompt = async (data, overrides = {}, log) => {
 };
 
 export const generateNoScenePrompt = async (sourcePrompt, overrides = {}, log) => {
+  audit('admin_service', { op: 'generateNoScenePrompt' })
   const s = await fetchSettings();
   const chosenModel = await validateModel(overrides.model || s.model);
   const chosenTemp = typeof overrides.temperature === 'number' ? overrides.temperature : s.temperature;
