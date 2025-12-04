@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
     res.json({ id })
     setImmediate(async () => {
       try {
-        console.log('[userCharacters][create] start llm for id=', id)
+        req.log.info('userCharacters.create.llm.start', { id })
         const data = await getUserCharacter(req.user.id, id)
         if (!data) return
         const [[st]] = await pool.query('SELECT selected_model, model_temperature FROM settings LIMIT 1')
@@ -45,7 +45,7 @@ router.post('/', async (req, res) => {
         const [[tpl]] = await pool.query('SELECT id, content FROM templates WHERE is_default=1 ORDER BY created_at DESC LIMIT 1')
         const tplId = tpl?.id || null
         const tplContent = tpl?.content || null
-        console.log('[userCharacters][create] using default template id=', tplId, 'preview=', (tplContent || '').slice(0, 60))
+        req.log.info('userCharacters.create.tpl', { tplId, preview: (tplContent || '').slice(0, 60) })
         const [[mrow]] = await pool.query('SELECT model_id FROM models WHERE model_id=? OR model_name=? OR model_nickname=? LIMIT 1', [selected, selected, selected])
         const modelId = mrow?.model_id || selected || null
 
@@ -68,12 +68,12 @@ router.post('/', async (req, res) => {
         console.log('[userCharacters][create] tplId=', tplId, 'modelId=', modelId, 'temperature=', temperature)
         const promptScene = await generateRolePrompt(roleData, { systemTemplate: tplContent, model: modelId, temperature })
         await pool.query('UPDATE characters SET system_prompt_scene=?, scene_temperature=?, scene_model_id=?, scene_template_id=? WHERE id=?', [promptScene || '', temperature ?? null, modelId || null, tplId ?? null, id])
-        console.log('[userCharacters][create] scene prompt len=', (promptScene || '').length)
+        req.log.info('userCharacters.create.scene.len', { len: String(promptScene || '').length })
         const promptNoScene = await generateNoScenePrompt(promptScene, { model: modelId, temperature })
         await pool.query('UPDATE characters SET system_prompt=?, prompt_temperature=?, prompt_model_id=?, status=? WHERE id=?', [promptNoScene || '', temperature ?? null, modelId || null, 'published', id])
-        console.log('[userCharacters][create] no-scene prompt len=', (promptNoScene || '').length)
+        req.log.info('userCharacters.create.noscene.len', { len: String(promptNoScene || '').length })
       } catch (err) {
-        console.error('[userCharacters] async prompt generation error:', err?.message || err, err?.stack || '')
+        req.log.error('userCharacters.create.llm.error', { error: err?.message || err })
       }
     })
   } catch (e) {
@@ -101,7 +101,7 @@ router.put('/:id', async (req, res) => {
     res.json({ ok: true })
     setImmediate(async () => {
       try {
-        console.log('[userCharacters][update] start llm for id=', id)
+        req.log.info('userCharacters.update.llm.start', { id })
         const data = await getUserCharacter(req.user.id, id)
         if (!data) return
         const [[st]] = await pool.query('SELECT selected_model, model_temperature FROM settings LIMIT 1')
@@ -110,7 +110,7 @@ router.put('/:id', async (req, res) => {
         const [[tpl]] = await pool.query('SELECT id, content FROM templates WHERE is_default=1 ORDER BY created_at DESC LIMIT 1')
         const tplId = tpl?.id || null
         const tplContent = tpl?.content || null
-        console.log('[userCharacters][update] using default template id=', tplId, 'preview=', (tplContent || '').slice(0, 60))
+        req.log.info('userCharacters.update.tpl', { tplId, preview: (tplContent || '').slice(0, 60) })
         const [[mrow]] = await pool.query('SELECT model_id FROM models WHERE model_id=? OR model_name=? OR model_nickname=? LIMIT 1', [selected, selected, selected])
         const modelId = mrow?.model_id || selected || null
         const [tagRows] = await pool.query('SELECT tag FROM character_tags WHERE character_id=?', [id])
@@ -132,12 +132,12 @@ router.put('/:id', async (req, res) => {
         console.log('[userCharacters][update] tplId=', tplId, 'modelId=', modelId, 'temperature=', temperature)
         const promptScene = await generateRolePrompt(roleData, { systemTemplate: tplContent, model: modelId, temperature })
         await pool.query('UPDATE characters SET system_prompt_scene=?, scene_temperature=?, scene_model_id=?, scene_template_id=? WHERE id=?', [promptScene || '', temperature ?? null, modelId || null, tplId ?? null, id])
-        console.log('[userCharacters][update] scene prompt len=', (promptScene || '').length)
+        req.log.info('userCharacters.update.scene.len', { len: String(promptScene || '').length })
         const promptNoScene = await generateNoScenePrompt(promptScene, { model: modelId, temperature })
         await pool.query('UPDATE characters SET system_prompt=?, prompt_temperature=?, prompt_model_id=?, status=? WHERE id=?', [promptNoScene || '', temperature ?? null, modelId || null, 'published', id])
-        console.log('[userCharacters][update] no-scene prompt len=', (promptNoScene || '').length)
+        req.log.info('userCharacters.update.noscene.len', { len: String(promptNoScene || '').length })
       } catch (err) {
-        console.error('[userCharacters] async prompt generation error:', err?.message || err, err?.stack || '')
+        req.log.error('userCharacters.update.llm.error', { error: err?.message || err })
       }
     })
   } catch (e) {
