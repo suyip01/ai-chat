@@ -99,7 +99,7 @@ CREATE TABLE characters (
   experiences TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   creator_role ENUM('user_role','admin_role') NOT NULL,
-  status ENUM('published','draft') NOT NULL DEFAULT 'draft',
+  status ENUM('published','publishing','draft') NOT NULL DEFAULT 'draft',
   visibility ENUM('public','private') NOT NULL DEFAULT 'public',
   FOREIGN KEY (scene_template_id) REFERENCES templates(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -42,12 +42,14 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const [modelId, setModelId] = useState<string | undefined>(undefined)
   const [modelTemp, setModelTemp] = useState<number>(0.1)
   const [modelNick, setModelNick] = useState<string | undefined>(undefined)
+  const [hasModelOverride, setHasModelOverride] = useState<boolean>(false)
+  const [hasTempOverride, setHasTempOverride] = useState<boolean>(false)
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const updatePersona = onUpdateUserPersona ?? ((_: UserPersona) => { });
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const wsRef = useRef<{ sendText: (t: string, chatMode?: 'daily' | 'scene', userRole?: UserPersona) => void; sendTyping: (typing: boolean) => void; close: () => void } | null>(null);
+  const wsRef = useRef<{ sendText: (t: string, chatMode?: 'daily' | 'scene', userRole?: UserPersona, modelId?: string, temperature?: number) => void; sendTyping: (typing: boolean) => void; close: () => void } | null>(null);
   const histKey = `chat_history_${character.id}`;
   const configKey = `chat_config_${character.id}`;
   const modelKey = `chat_model_${character.id}`;
@@ -150,8 +152,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       const mid = localStorage.getItem(modelKey) || undefined
       const tRaw = localStorage.getItem(tempKey)
       const t = tRaw ? parseFloat(tRaw) : undefined
-      if (mid) setModelId(mid)
-      if (typeof t === 'number' && !isNaN(t)) setModelTemp(t)
+      if (mid) { setModelId(mid); setHasModelOverride(true) }
+      if (typeof t === 'number' && !isNaN(t)) { setModelTemp(t); setHasTempOverride(true) }
       const mname = localStorage.getItem(modelNameKey) || undefined
       if (mname) setModelNick(mname)
     } catch {}
@@ -166,7 +168,6 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         setSessionId(sid);
         try {
           const info = await getSessionInfo(sid)
-          if (info?.model?.nickname) { setModelNick(info.model.nickname); try { localStorage.setItem(modelNameKey, info.model.nickname) } catch {} }
           if (info?.temperature !== undefined) { setModelTemp(info.temperature as number); try { localStorage.setItem(tempKey, String(info.temperature)) } catch {} }
         } catch {}
         const conn = connectChatWs(sid, (text, quote, meta) => {
@@ -183,7 +184,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         localStorage.setItem(key, sid);
         setSessionId(sid);
         if (created.model?.id) { setModelId(created.model.id); try { localStorage.setItem(modelKey, created.model.id) } catch {} }
-        if (created.model?.nickname) { setModelNick(created.model.nickname); try { localStorage.setItem(modelNameKey, created.model.nickname) } catch {} }
+        
         if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch {} }
         const conn = connectChatWs(sid, (text, quote, meta) => {
           appendAssistantWithRead(text, quote, meta);
@@ -246,7 +247,13 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         });
         wsRef.current = conn;
       }
-      wsRef.current?.sendText(userMsg.text, chatMode, effectivePersona);
+      wsRef.current?.sendText(
+        userMsg.text,
+        chatMode,
+        effectivePersona,
+        hasModelOverride ? modelId : undefined,
+        hasTempOverride ? modelTemp : undefined
+      );
       wsRef.current?.sendTyping(false);
     } catch (e) {
       console.error(e);
@@ -509,9 +516,9 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           isOpen={isModelSheetOpen}
           currentModelId={modelId}
           onClose={() => setIsModelSheetOpen(false)}
-          onSelect={(mid, nickname) => { setModelId(mid); setModelNick(nickname); try { localStorage.setItem(modelKey, mid); if (nickname) localStorage.setItem(modelNameKey, nickname) } catch {}; if (sessionId) updateSessionConfig(sessionId, { modelId: mid }).catch(()=>{}) }}
+          onSelect={(mid, nickname) => { setModelId(mid); setHasModelOverride(true); setModelNick(nickname); try { localStorage.setItem(modelKey, mid); if (nickname) localStorage.setItem(modelNameKey, nickname) } catch {} }}
           temperature={modelTemp}
-          onTempChange={(t) => { setModelTemp(t); try { localStorage.setItem(tempKey, String(t)) } catch {}; if (sessionId) updateSessionConfig(sessionId, { temperature: t }).catch(()=>{}) }}
+          onTempChange={(t) => { setModelTemp(t); setHasTempOverride(true); try { localStorage.setItem(tempKey, String(t)) } catch {} }}
         />
 
       </div>

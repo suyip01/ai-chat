@@ -650,7 +650,8 @@ const App: React.FC = () => {
         {!isUserSettingsOpen && !isCreating && (
           <>
             <TopBar
-              title={activeTab === NavTab.HOME ? renderHomeHeader() : (activeTab === NavTab.CHAT ? '聊天' : '我的')}
+              title={activeTab === NavTab.HOME ? renderHomeHeader() : (activeTab === NavTab.CHAT ? '聊天' : '')}
+              variant={activeTab === NavTab.ME ? 'overlay' : 'default'}
               onFilterClick={() => {
                 if (activeTab === NavTab.HOME && homeTab === 'characters') {
                   setIsCreating(true);

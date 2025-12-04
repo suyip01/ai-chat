@@ -27,8 +27,17 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
       try {
         const data = await getUserCharacter(createdId)
         if (!mounted) return
-        if (data && (data.status === 'published' || data.system_prompt || data.hasSystemPrompt)) {
+        const statusStr = typeof data?.status === 'string' ? data.status.trim() : ''
+        const hasSP = !!data?.hasSystemPrompt
+        if (statusStr === 'draft') {
+          setIsDraft(true)
+          setReady(false)
+          if (iv) clearInterval(iv)
+          return
+        }
+        if (data && (statusStr === 'published' || hasSP)) {
           setReady(true)
+          setIsDraft(false)
           setLatest(prev => ({
             ...prev,
             id: String(data.id || prev.id),
@@ -45,6 +54,7 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
             openingLine: String(data.opening_line || prev.openingLine || ''),
           }))
           if (iv) clearInterval(iv)
+          return
         }
       } catch {}
     }
@@ -67,14 +77,14 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
             plotDescription: String(data.plot_summary || prev.plotDescription || ''),
             openingLine: String(data.opening_line || prev.openingLine || ''),
           }))
-          const hasSP = !!data.system_prompt || !!data.hasSystemPrompt
+          const hasSP = !!data.hasSystemPrompt
           const statusStr = typeof data.status === 'string' ? data.status.trim() : ''
           if (statusStr === 'draft') {
             setIsDraft(true)
             setReady(false)
             return
           }
-          if (statusStr === '' && !hasSP) {
+          if (statusStr === 'publishing' && !hasSP) {
             setIsDraft(false)
             setReady(false)
             iv = setInterval(tick, 3000)

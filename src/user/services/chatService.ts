@@ -130,7 +130,7 @@ export const connectChatWs = (sessionId: string, onAssistantMessage: (text: stri
     }
   }
   open()
-  const sendText = (text: string, chatMode?: 'daily'|'scene', userRole?: UserPersona) => {
+  const sendText = (text: string, chatMode?: 'daily'|'scene', userRole?: UserPersona, modelId?: string, temperature?: number) => {
     const payload: any = { sessionId, text, chatMode }
     if (userRole) {
       payload.userRole = {
@@ -143,6 +143,8 @@ export const connectChatWs = (sessionId: string, onAssistantMessage: (text: stri
         avatar: userRole.avatar || ''
       }
     }
+    if (modelId) payload.model_id = modelId
+    if (typeof temperature === 'number') payload.temperature = temperature
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload))
     else queue.push(payload)
   }

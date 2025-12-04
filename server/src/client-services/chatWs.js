@@ -82,8 +82,10 @@ export const startChatWs = (server) => {
         const history = await getMessages(sid, 80)
         const lastUser = [...history].reverse().find(m => m && m.role === 'user')
         const quote = lastUser ? String(lastUser.content || '') : ''
-        const model = sess.model || sess.model_id || undefined
-        const temperature = Number(sess.temperature || 0.2)
+        const modelOverride = typeof payload.model_id === 'string' ? payload.model_id : undefined
+        const tempOverride = payload.temperature !== undefined ? Number(payload.temperature) : undefined
+        const model = modelOverride || sess.model || sess.model_id || undefined
+        const temperature = tempOverride !== undefined ? tempOverride : Number(sess.temperature || 0.2)
         const reply = await svc.generateResponse(history, null, sys, model, temperature)
         const content = mode === 'daily' ? String(reply || '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '') : String(reply || '')
         wlog.info('reply.len', { len: String(content).length })
@@ -94,7 +96,8 @@ export const startChatWs = (server) => {
         for (let i = 0; i < chunks.length; i++) {
           const piece = chunks[i]
           await appendAssistantMessage(sid, piece)
-          const payloadOut = includeQuote ? { type: 'assistant_message', content: piece, quote, chunkIndex: i + 1, chunkTotal: chunks.length } : { type: 'assistant_message', content: piece, chunkIndex: i + 1, chunkTotal: chunks.length }
+          const withQuote = includeQuote && i === 0
+          const payloadOut = withQuote ? { type: 'assistant_message', content: piece, quote, chunkIndex: i + 1, chunkTotal: chunks.length } : { type: 'assistant_message', content: piece, chunkIndex: i + 1, chunkTotal: chunks.length }
           const target = wsBySid.get(sid) || ws
           try { target.send(JSON.stringify(payloadOut)) } catch {}
           if (i < chunks.length - 1) {

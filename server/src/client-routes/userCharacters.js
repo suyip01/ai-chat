@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { userAuthRequired } from '../middleware/userAuth.js'
-import { listUserCharacters, getUserCharacter, createUserCharacter, updateUserCharacter, deleteUserCharacter } from '../client-services/userCharacters.js'
+import { listUserCharacters, getUserCharacter, createUserCharacter, createUserCharacterDraft, updateUserCharacter, deleteUserCharacter } from '../client-services/userCharacters.js'
 import pool from '../db.js'
 import { generateRolePrompt, generateNoScenePrompt } from '../admin-services/sysprompt.js'
 
@@ -21,7 +21,8 @@ router.get('/:id', async (req, res) => {
     const id = parseInt(req.params.id)
     const data = await getUserCharacter(req.user.id, id)
     if (!data) return res.status(404).json({ error: 'not_found' })
-    res.json(data)
+    const { system_prompt, ...safe } = data
+    res.json(safe)
   } catch (e) {
     res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' })
   }
@@ -85,7 +86,7 @@ router.post('/draft', async (req, res) => {
   try {
     const body = req.body || {}
     if (!body.name || !body.gender) return res.status(400).json({ error: 'missing_fields' })
-    const id = await createUserCharacter(req.user.id, body)
+    const id = await createUserCharacterDraft(req.user.id, body)
     res.json({ id })
   } catch (e) {
     res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' })

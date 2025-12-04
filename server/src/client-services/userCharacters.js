@@ -17,22 +17,59 @@ export const getUserCharacter = async (userId, id) => {
   const [[row]] = await pool.query(
     `SELECT id, name, gender, avatar, identity, tagline, personality, relationship,
             plot_theme, plot_summary, opening_line, hobbies, experiences,
-            age, occupation, visibility, status, created_at, system_prompt
+            age, occupation, visibility, status, created_at,
+            CASE WHEN system_prompt IS NULL OR system_prompt = '' THEN 0 ELSE 1 END AS hasSystemPrompt
      FROM characters WHERE id = ? AND creator_role = 'user_role' AND user_id = ? LIMIT 1`,
     [id, userId]
   )
   if (!row) return null
   const [tagRows] = await pool.query('SELECT tag FROM character_tags WHERE character_id=?', [id])
   const [exRows] = await pool.query('SELECT idx, content FROM character_style_examples WHERE character_id=? ORDER BY idx ASC', [id])
+  const { hasSystemPrompt, ...rest } = row || {}
   return {
-    ...row,
-    hasSystemPrompt: !!row.system_prompt,
+    ...rest,
+    hasSystemPrompt: !!hasSystemPrompt,
     tags: Array.isArray(tagRows) ? tagRows.map(r => r.tag).filter(Boolean) : [],
     styleExamples: Array.isArray(exRows) ? exRows.map(r => r.content).filter(Boolean) : []
   }
 }
 
 export const createUserCharacter = async (userId, payload) => {
+  const id = Date.now()
+  const {
+    name, gender, avatar = null,
+    identity = null, tagline = null, personality = null, relationship = null,
+    plotTheme = null, plotSummary = null, openingLine = null,
+    hobbies = null, experiences = null,
+    age = null, occupation = null,
+    tags = [], styleExamples = [],
+    character_type = null, type = null,
+    visibility = 'public'
+  } = payload || {}
+  const [[u]] = await pool.query('SELECT nickname, username FROM users WHERE id=? LIMIT 1', [userId])
+  const creator = (u?.nickname || u?.username || 'User')
+  const ctype = character_type || type || '原创角色'
+  await pool.query(
+    `INSERT INTO characters (id, name, gender, avatar, creator, creator_role, user_id, identity, tagline, personality,
+      relationship, plot_theme, plot_summary, opening_line,
+      hobbies, experiences, status, character_type, age, occupation, visibility)
+     VALUES (?,?,?,?,?,'user_role',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [id, name, gender, avatar, creator, userId, identity, tagline, personality,
+     relationship, plotTheme, plotSummary, openingLine,
+     hobbies, experiences, 'publishing', ctype, age, occupation, visibility === 'private' ? 'private' : 'public']
+  )
+  if (tags && tags.length) {
+    const values = tags.map(tag => [id, tag])
+    await pool.query('INSERT INTO character_tags (character_id, tag) VALUES ?', [values])
+  }
+  if (styleExamples && styleExamples.length) {
+    const values = styleExamples.map((content, idx) => [id, idx + 1, content || ''])
+    await pool.query('INSERT INTO character_style_examples (character_id, idx, content) VALUES ?', [values])
+  }
+  return id
+}
+
+export const createUserCharacterDraft = async (userId, payload) => {
   const id = Date.now()
   const {
     name, gender, avatar = null,

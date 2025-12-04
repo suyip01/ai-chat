@@ -1,10 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronRight, LogOut, Camera, Edit2, Mail, User as UserIcon, MessageSquare } from 'lucide-react';
-import { Character, UserProfile, UserPersona } from '../types';
+import { ChevronRight, LogOut, Camera, Edit2, Mail } from 'lucide-react';
+import { Character, UserProfile } from '../types';
 import { ImageCropper } from './ImageCropper';
-import { UserCharacterSettings } from './UserCharacterSettings';
-import { UserRoleSelectorSheet } from './UserRoleSelectorSheet';
 
 interface MePageProps {
   userProfile: UserProfile;
@@ -29,11 +27,6 @@ export const MePage: React.FC<MePageProps> = ({
   const [tempName, setTempName] = useState(userProfile.nickname);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [tempAvatar, setTempAvatar] = useState<string | null>(null);
-  const [isPersonaOpen, setIsPersonaOpen] = useState(false);
-  const [isRoleSheetOpen, setIsRoleSheetOpen] = useState(false);
-  const [userPersona, setUserPersona] = useState<UserPersona | undefined>(undefined);
-  const [userRoleId, setUserRoleId] = useState<number | undefined>(undefined);
-  const [chatCount, setChatCount] = useState<number>(userProfile.usedCount ?? 0);
   
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,7 +74,7 @@ export const MePage: React.FC<MePageProps> = ({
   };
 
   useEffect(() => {
-    setChatCount(userProfile.usedCount ?? 0)
+    
   }, [userProfile.usedCount])
 
   
@@ -124,7 +117,7 @@ export const MePage: React.FC<MePageProps> = ({
         </div>
 
         {/* Profile Card - Compacted */}
-        <div className="absolute top-20 left-4 right-4 bg-white rounded-3xl shadow-lg p-4 flex flex-col items-center animate-in slide-in-from-bottom-4 duration-500">
+        <div className="absolute top-16 left-4 right-4 bg-white rounded-3xl shadow-lg p-4 flex flex-col items-center animate-in slide-in-from-bottom-4 duration-500">
              {/* Avatar - Smaller Size */}
              <div className="relative -mt-12 mb-2 group cursor-pointer" onClick={handleAvatarClick}>
                 <div className="w-20 h-20 rounded-full border-4 border-white shadow-md overflow-hidden bg-slate-100">
@@ -168,24 +161,7 @@ export const MePage: React.FC<MePageProps> = ({
       </div>
 
       {/* 2. Scrollable Content - Added margin top to clear the card */}
-      <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-6 no-scrollbar mt-14">
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => setIsRoleSheetOpen(true)}
-            className="bg-white rounded-3xl shadow-[0_6px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_18px_rgba(0,0,0,0.08)] active:shadow-[0_12px_28px_rgba(0,0,0,0.12)] active:scale-[0.98] transition-all p-5 flex flex-col items-center justify-center gap-2 border border-transparent"
-          >
-            <div className="w-12 h-12 rounded-full bg-purple-50 text-primary-600 flex items-center justify-center">
-              <UserIcon size={22} />
-            </div>
-            <div className="text-slate-800 font-bold text-sm">我的档案</div>
-          </button>
-          <div className="bg-white rounded-3xl shadow-[0_6px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_18px_rgba(0,0,0,0.08)] active:shadow-[0_12px_28px_rgba(0,0,0,0.12)] p-5 flex flex-col items-center justify-center gap-2 border border-transparent">
-            <div className="w-12 h-12 rounded-full bg-purple-50 text-primary-600 flex items-center justify-center">
-              <MessageSquare size={22} />
-            </div>
-            <div className="text-slate-800 font-bold text-sm">聊天次数：{chatCount}</div>
-          </div>
-        </div>
+      <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-6 no-scrollbar mt-8">
          
          {/* My Characters */}
          <div>
@@ -280,23 +256,7 @@ export const MePage: React.FC<MePageProps> = ({
         </div>
       )}
 
-      {isPersonaOpen && (
-        <UserCharacterSettings
-          currentPersona={userPersona}
-          roleId={userRoleId}
-          onBack={() => setIsPersonaOpen(false)}
-          onSave={(p) => { setUserPersona(p); setIsPersonaOpen(false); }}
-          withinContainer
-        />
-      )}
-
-      <UserRoleSelectorSheet
-        isOpen={isRoleSheetOpen}
-        currentPersona={userPersona}
-        onClose={() => setIsRoleSheetOpen(false)}
-        onAdd={() => { setIsRoleSheetOpen(false); setUserRoleId(undefined); setUserPersona(undefined); setIsPersonaOpen(true) }}
-        onSelect={(persona, roleId) => { setUserPersona(persona); setUserRoleId(roleId as number); setIsRoleSheetOpen(false); setIsPersonaOpen(true) }}
-      />
+      
 
     </div>
   );
