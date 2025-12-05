@@ -149,7 +149,10 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       const raw = localStorage.getItem(configKey);
       if (raw) {
         const cfg = JSON.parse(raw) as { chatMode?: 'daily'|'scene'; persona?: UserPersona };
-        if (cfg?.chatMode === 'daily' || cfg?.chatMode === 'scene') setChatMode(cfg.chatMode);
+        if (cfg?.chatMode === 'daily' || cfg?.chatMode === 'scene') {
+          setChatMode(cfg.chatMode);
+          setInput(cfg.chatMode === 'scene' ? '（）' : '');
+        }
         if (cfg?.persona) setPersonaLocal(cfg.persona);
       }
       const mid = localStorage.getItem(modelKey) || undefined
