@@ -28,7 +28,7 @@ const LoginPage = ({ onLogin }) => {
     }
   };
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden" onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}>
       <div className="ambient-bg"></div>
       <div className="glass-card p-10 rounded-3xl w-full max-w-md shadow-2xl transform transition-all hover:scale-[1.01]">
         <div className="text-center mb-8">

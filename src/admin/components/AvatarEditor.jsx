@@ -237,7 +237,7 @@ function EditView({ imageSrc, onSave, onCancel }) {
     const [zoom, setZoom] = useState(1);
 
     const CANVAS_SIZE = 800;
-    const VIEWPORT_SIZE = 280;
+    const VIEWPORT_SIZE = 600;
 
     useEffect(() => {
         const init = async () => {
@@ -394,7 +394,7 @@ function EditView({ imageSrc, onSave, onCancel }) {
                     onTouchEnd={handleMouseUp}
                     onWheel={handleWheel}
                     className="cursor-move max-w-full max-h-full"
-                    style={{ width: '100%', height: 'auto', maxHeight: '400px' }}
+                    style={{ width: '100%', height: 'auto', maxHeight: '520px' }}
                 />
             </div>
 
