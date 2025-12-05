@@ -79,7 +79,8 @@ const App: React.FC = () => {
             localStorage.setItem('user_nickname', nick)
             localStorage.setItem('user_email', email)
             if (avatar) localStorage.setItem('user_avatar', avatar)
-            if (data?.id !== undefined) localStorage.setItem('user_id', String(data.id))
+            const uidFromApi = (data?.id ?? data?.user_id ?? data?.uid)
+            if (uidFromApi !== undefined && uidFromApi !== null) localStorage.setItem('user_id', String(uidFromApi))
           } catch {}
         }
       } catch {}
@@ -119,7 +120,9 @@ const App: React.FC = () => {
         try {
           const previews: ChatPreview[] = []
           const uid = localStorage.getItem('user_id') || '0'
-          const keys = Object.keys(localStorage).filter(k => k.startsWith(`chat_history_${uid}_`))
+          if (!uid || uid === '0') { setChats([]); return }
+          const allKeys = Object.keys(localStorage)
+          const keys = allKeys.filter(k => k.startsWith(`chat_history_${uid}_`))
           keys.forEach(k => {
             const cid = k.replace(`chat_history_${uid}_`, '')
             const char = mapped.find(c => String(c.id) === String(cid))
@@ -128,6 +131,8 @@ const App: React.FC = () => {
             if (!raw) return
             const arr = JSON.parse(raw) as Array<{ id:string; senderId:string; text:string; ts:number; type:string }>
             if (!arr.length) return
+            const hasSession = !!localStorage.getItem(`chat_session_${uid}_${cid}`)
+            if (!hasSession) return
             const last = arr[arr.length - 1]
             const lastMsg: Message = { id: last.id, senderId: last.senderId, text: last.text, timestamp: new Date(last.ts), type: last.type as MessageType }
             previews.push({ characterId: String(cid), character: char, lastMessage: lastMsg, unreadCount: 0 })
@@ -235,7 +240,9 @@ const App: React.FC = () => {
   // When opening a chat, we could fetch full history. For now, we mock history based on the last message.
   const getInitialMessages = (chat: ChatPreview): Message[] => {
     try {
-      const raw = localStorage.getItem(`chat_history_${chat.characterId}`);
+      const uid = localStorage.getItem('user_id') || '0'
+      const nsKey = `chat_history_${uid}_${chat.characterId}`
+      const raw = localStorage.getItem(nsKey)
       if (raw) {
         const arr = JSON.parse(raw) as Array<{ id:string; senderId:string; text:string; ts:number; type:string; quote?:string; read?:boolean }>;
         const msgs: Message[] = arr.map(m => ({ id: m.id, senderId: m.senderId, text: m.text, timestamp: new Date(m.ts), type: m.type as MessageType, quote: m.quote, read: m.read }));
@@ -244,7 +251,7 @@ const App: React.FC = () => {
     } catch {}
     // No special mock conversation
 
-    // For newly created characters, use the Opening Line if available
+    // For newly created characters or no history, use the Opening Line if available
     if (chat.character.openingLine) {
       return [{
         id: `m_${Date.now()}`,

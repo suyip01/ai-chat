@@ -44,6 +44,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const [modelNick, setModelNick] = useState<string | undefined>(undefined)
   const [hasModelOverride, setHasModelOverride] = useState<boolean>(false)
   const [hasTempOverride, setHasTempOverride] = useState<boolean>(false)
+  const [personaLocal, setPersonaLocal] = useState<UserPersona | undefined>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -58,7 +59,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const modelNameKey = `chat_model_name_${character.id}`;
 
   const effectivePersona = useMemo<UserPersona | undefined>(() => {
-    if (userPersona) return userPersona;
+    if (personaLocal) return personaLocal;
     try {
       const nickname = localStorage.getItem('user_nickname') || '';
       const avatar = localStorage.getItem('user_avatar') || '';
@@ -75,7 +76,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       }
     } catch {}
     return undefined;
-  }, [userPersona]);
+  }, [personaLocal]);
 
   const appendAssistantWithRead = (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => {
     setMessages(prev => {
@@ -85,7 +86,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       }
       const msg: Message = { id: (Date.now() + 1).toString(), senderId: character.id, text, quote, timestamp: new Date(), type: MessageType.TEXT };
       next.push(msg);
-      onUpdateLastMessage(msg);
+      try { setTimeout(() => onUpdateLastMessage(msg), 0) } catch {}
       return next;
     });
     if (meta && typeof meta.chunkIndex === 'number' && typeof meta.chunkTotal === 'number') {
@@ -125,7 +126,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(histKey);
+      const legacyKey = `chat_history_${character.id}`
+      const raw = localStorage.getItem(histKey) || (currentUserId === '0' ? localStorage.getItem(legacyKey) : null);
       if (raw) {
         const arr = JSON.parse(raw) as Array<{ id: string; senderId: string; text: string; ts: number; type: string; quote?: string; read?: boolean }>;
         const msgs: Message[] = arr.map(m => ({ id: m.id, senderId: m.senderId, text: m.text, timestamp: new Date(m.ts), type: m.type as MessageType, quote: m.quote, read: m.read }));
@@ -148,7 +150,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       if (raw) {
         const cfg = JSON.parse(raw) as { chatMode?: 'daily'|'scene'; persona?: UserPersona };
         if (cfg?.chatMode === 'daily' || cfg?.chatMode === 'scene') setChatMode(cfg.chatMode);
-        if (cfg?.persona) updatePersona(cfg.persona);
+        if (cfg?.persona) setPersonaLocal(cfg.persona);
       }
       const mid = localStorage.getItem(modelKey) || undefined
       const tRaw = localStorage.getItem(tempKey)
@@ -163,10 +165,12 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
   useEffect(() => {
     const key = `chat_session_${currentUserId}_${character.id}`;
-    const sid = localStorage.getItem(key);
+    const sid = localStorage.getItem(key) || localStorage.getItem(`chat_session_${character.id}`);
     const setup = async () => {
       if (sid) {
         setSessionId(sid);
+        // migrate legacy session key
+        if (!localStorage.getItem(key)) { try { localStorage.setItem(key, sid) } catch {} }
         try {
           const info = await getSessionInfo(sid)
           if (info?.temperature !== undefined) { setModelTemp(info.temperature as number); try { localStorage.setItem(tempKey, String(info.temperature)) } catch {} }
@@ -230,7 +234,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     };
 
     setMessages(prev => [...prev, userMsg]);
-    onUpdateLastMessage(userMsg);
+    try { setTimeout(() => onUpdateLastMessage(userMsg), 0) } catch {}
     // Reset input based on mode
     setInput(chatMode === 'scene' ? '（）' : '');
     setIsTyping(true);
@@ -510,7 +514,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           currentPersona={userPersona}
           onClose={() => setIsRoleSheetOpen(false)}
           onAdd={() => { setIsRoleSheetOpen(false); setIsUserSettingsOpenLocal(true); }}
-          onSelect={(persona) => { updatePersona(persona); try { localStorage.setItem(configKey, JSON.stringify({ chatMode, persona })); } catch {} }}
+          onSelect={(persona) => { setPersonaLocal(persona); try { localStorage.setItem(configKey, JSON.stringify({ chatMode, persona })); } catch {} }}
         />
 
         <ModelSelectorSheet

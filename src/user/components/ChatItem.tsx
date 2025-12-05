@@ -26,7 +26,7 @@ export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin, 
   return (
     <div 
       onClick={onClick}
-      className={`group relative flex items-center gap-4 p-4 mb-3 bg-white ${roundedClass || 'rounded-2xl'} shadow-sm border border-transparent hover:border-primary-100 hover:shadow-md active:scale-[0.98] transition-all duration-200 cursor-pointer`}
+      className={`group relative flex items-center gap-4 p-4 bg-white ${roundedClass || 'rounded-2xl'} shadow-sm border border-transparent hover:border-primary-100 hover:shadow-md active:scale-[0.98] transition-all duration-200 cursor-pointer`}
     >
       {/* Avatar Container */}
       <div className="relative flex-shrink-0">

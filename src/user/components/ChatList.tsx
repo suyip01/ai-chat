@@ -56,10 +56,10 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
                 const reveal = Math.min(96, Math.max(0, -((offsets[chat.characterId] || 0))))
                 return (
                   <div
-                    className="absolute right-0 top-0 bottom-0 bg-red-500 flex items-center justify-center rounded-r-2xl"
+                    className="absolute right-0 top-0 bottom-0 bg-red-500 flex items-center justify-center rounded-r-2xl shadow-sm"
                     style={{ width: `${reveal}px`, transition: 'width 120ms ease' }}
                   >
-                    <button onClick={() => setConfirmId(chat.characterId)} className="text-white font-bold">删除</button>
+                    <button onClick={() => setConfirmId(chat.characterId)} className="text-white font-bold drop-shadow-sm">删除</button>
                   </div>
                 )
               })()}
@@ -91,10 +91,10 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
                 const reveal = Math.min(96, Math.max(0, -((offsets[chat.characterId] || 0))))
                 return (
                   <div
-                    className="absolute right-0 top-0 bottom-0 bg-red-500 flex items-center justify-center rounded-r-2xl"
+                    className="absolute right-0 top-0 bottom-0 bg-red-500 flex items-center justify-center rounded-r-2xl shadow-sm"
                     style={{ width: `${reveal}px`, transition: 'width 120ms ease' }}
                   >
-                    <button onClick={() => setConfirmId(chat.characterId)} className="text-white font-bold">删除</button>
+                    <button onClick={() => setConfirmId(chat.characterId)} className="text-white font-bold drop-shadow-sm">删除</button>
                   </div>
                 )
               })()}

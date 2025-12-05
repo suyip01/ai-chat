@@ -47,6 +47,7 @@ npm run dev
 ## 构建与部署
 ```bash
 npm run build
+npx vite build
 ```
 会在 `dist/` 生成静态资源，可使用任意静态服务器部署（如 Nginx、Vercel、Netlify）。
 
