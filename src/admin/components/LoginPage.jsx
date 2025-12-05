@@ -35,7 +35,7 @@ const LoginPage = ({ onLogin }) => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-pink-100 text-pink-600 mb-4 shadow-inner">
             <Sparkles size={32} />
           </div>
-          <h1 className="text-3xl font-cute text-pink-900 mb-2">Linkusrge</h1>
+          <h1 className="text-3xl font-cute text-pink-900 mb-2">YumeCrush</h1>
           <p className="text-pink-400 text-sm">运营管理平台</p>
         </div>
         <div className="space-y-5">

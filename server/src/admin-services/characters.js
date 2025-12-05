@@ -200,6 +200,50 @@ export const updateCharacter = async (id, payload) => {
   } catch {}
 };
 
+export const updateCharacterPreserveOwner = async (id, payload) => {
+  audit('admin_service', { op: 'updateCharacterPreserveOwner', id })
+  const {
+    name, gender, avatar = null, sceneTemplateId = null,
+    identity = null, tagline = null, personality = null, relationship = null,
+    plotTheme = null, plotSummary = null, openingLine = null, systemPrompt = null, systemPromptScene = null,
+    promptModelId = null, promptTemperature = null,
+    sceneModelId = null, sceneTemperature = null,
+    hobbies = null, experiences = null, status, tags = [], styleExamples = [],
+    characterType = '原创角色', age = null, occupation = null,
+  } = payload;
+  await pool.query(
+    `UPDATE characters SET name=?, gender=?, avatar=?, scene_template_id=?, identity=?, tagline=?, personality=?,
+      relationship=?, plot_theme=?, plot_summary=?, opening_line=?, system_prompt=?, system_prompt_scene=?,
+      prompt_model_id=?, prompt_temperature=?, scene_model_id=?, scene_temperature=?,
+      hobbies=?, experiences=?, status=?, character_type=?, age=?, occupation=?
+     WHERE id=?`,
+    [name, gender, avatar, sceneTemplateId, identity, tagline, personality,
+     relationship, plotTheme, plotSummary, openingLine, systemPrompt, systemPromptScene,
+     promptModelId, promptTemperature, sceneModelId, sceneTemperature,
+     hobbies, experiences, status, characterType, age, occupation, id]
+  );
+  await pool.query('DELETE FROM character_tags WHERE character_id=?', [id]);
+  await pool.query('DELETE FROM character_style_examples WHERE character_id=?', [id]);
+  if (tags && tags.length) {
+    const values = tags.map(tag => [id, tag]);
+    await pool.query('INSERT INTO character_tags (character_id, tag) VALUES ?', [values]);
+  }
+  if (styleExamples && styleExamples.length) {
+    const values = styleExamples.map((content, idx) => [id, idx + 1, content || '']);
+    await pool.query('INSERT INTO character_style_examples (character_id, idx, content) VALUES ?', [values]);
+  }
+  try {
+    const { getRedis, keyCharacter } = await import('../client-services/redis.js')
+    const rds = await getRedis()
+    await rds.hSet(keyCharacter(id), {
+      id: String(id),
+      system_prompt: systemPrompt || '',
+      system_prompt_scene: systemPromptScene || '',
+      updated_at: String(Date.now())
+    })
+  } catch {}
+};
+
 export const deleteCharacter = async (id) => {
   audit('admin_service', { op: 'deleteCharacter', id })
   const [res] = await pool.query('DELETE FROM characters WHERE id=?', [id]);

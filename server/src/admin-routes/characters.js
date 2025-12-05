@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authRequired } from '../middleware/auth.js';
 import { runWithAdminContext, audit } from '../utils/audit.js';
-import { listCharacters, getCharacter, createCharacter, updateCharacter, deleteCharacter, setCharacterStatus } from '../admin-services/characters.js';
+import { listCharacters, getCharacter, createCharacter, updateCharacter, updateCharacterPreserveOwner, deleteCharacter, setCharacterStatus } from '../admin-services/characters.js';
 
 const router = Router();
 
@@ -49,8 +49,21 @@ router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'bad_id' });
   const body = req.body || {};
-  const payload = { ...body, creator: body.creator || req.admin?.username || 'Admin', creatorRole: body.creatorRole || 'admin_role' };
-  try { await updateCharacter(id, payload); res.json({ ok: true }); }
+  try {
+    const existing = await getCharacter(id);
+    if (!existing) return res.status(404).json({ error: 'not_found' });
+    if (existing.creator_role === 'user_role') {
+      const payload = { ...body };
+      delete payload.creator;
+      delete payload.creatorRole;
+      delete payload.user_id;
+      await updateCharacterPreserveOwner(id, payload);
+    } else {
+      const payload = { ...body, creator: body.creator || req.admin?.username || 'Admin', creatorRole: body.creatorRole || 'admin_role' };
+      await updateCharacter(id, payload);
+    }
+    res.json({ ok: true });
+  }
   catch (e) { console.error('PUT /api/admin/characters/:id error:', e?.message || e, 'id:', id, 'body:', req.body); res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' }); }
 });
 

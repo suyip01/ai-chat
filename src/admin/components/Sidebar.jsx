@@ -105,7 +105,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, username, onEditProfile })
         <div className="w-8 h-8 bg-pink-500 rounded-lg flex items-center justify-center text-white flex-shrink-0">
           <Sparkles size={18} />
         </div>
-        <span className="text-xl font-cute text-pink-900 tracking-wide hidden xl:block">Linksurge Admin</span>
+        <span className="text-xl font-cute text-pink-900 tracking-wide hidden xl:block">YumeCrush Admin</span>
       </div>
       <nav className="flex-1 px-4 space-y-2">
         {menuItems.map((item) => (
