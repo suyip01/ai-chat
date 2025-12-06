@@ -979,7 +979,7 @@ const App: React.FC = () => {
           )}
 
           {/* 3. Main Tab Navigation View */}
-          {!isUserSettingsOpen && !isCreating && !selectedChat && (
+          {!isUserSettingsOpen && !isCreating && (
             <>
               <TopBar
                 title={activeTab === NavTab.HOME ? renderHomeHeader() : (activeTab === NavTab.CHAT ? '聊天' : '')}

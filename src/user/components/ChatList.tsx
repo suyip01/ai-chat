@@ -49,7 +49,7 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
       className="px-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700"
       initial={{ x: 0 }}
       animate={isDetailOpen && isTouch ? { x: '-100%' } : { x: 0 }}
-      transition={isTouch ? { duration: 0.3, ease: 'linear' } : { duration: 0 }}
+      transition={isDetailOpen && isTouch ? { duration: 0.3, ease: 'linear' } : { duration: 0 }}
     >
 
       {pinnedChats.length > 0 && (

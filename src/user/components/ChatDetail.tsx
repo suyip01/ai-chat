@@ -306,8 +306,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   return (
     <motion.div
       className="fixed inset-0 bg-primary-50 z-50"
-      style={{ ...viewportStyle, overscrollBehavior: 'none', position: 'fixed' }}
-      //style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}
+      style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}
       initial={{ x: ((navigator as any)?.maxTouchPoints > 0) ? '100%' : 0 }}
       animate={{ x: 0 }}
       exit={{ x: ((navigator as any)?.maxTouchPoints > 0) ? '100%' : 0 }}
