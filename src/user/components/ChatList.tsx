@@ -20,6 +20,7 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
   const startXRef = useRef<number>(0);
   const startYRef = useRef<number>(0);
   const activeIdRef = useRef<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; id: string | null }>({ visible: false, x: 0, y: 0, id: null });
 
   const onTouchStart = (e: React.TouchEvent, id: string) => {
     startXRef.current = e.touches[0].clientX;
@@ -43,6 +44,17 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
     activeIdRef.current = null;
   };
   const closeSwipe = (id: string) => setOffsets(prev => ({ ...prev, [id]: 0 }));
+
+  const handleContextMenu = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    if (isTouch) return;
+    let x = e.clientX;
+    const menuWidth = 120;
+    if (x + menuWidth > window.innerWidth) {
+      x = window.innerWidth - menuWidth - 10;
+    }
+    setContextMenu({ visible: true, x, y: e.clientY, id });
+  };
 
   return (
     <motion.div
@@ -72,6 +84,7 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
                 onTouchStart={(e) => onTouchStart(e, chat.characterId)}
                 onTouchMove={(e) => onTouchMove(e, chat.characterId)}
                 onTouchEnd={() => onTouchEnd(chat.characterId)}
+                onContextMenu={(e) => handleContextMenu(e, chat.characterId)}
                 style={{ transform: `translateX(${offsets[chat.characterId] || 0}px)`, transition: 'transform 180ms ease' }}
               >
                 <ChatItem
@@ -107,6 +120,7 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
                 onTouchStart={(e) => onTouchStart(e, chat.characterId)}
                 onTouchMove={(e) => onTouchMove(e, chat.characterId)}
                 onTouchEnd={() => onTouchEnd(chat.characterId)}
+                onContextMenu={(e) => handleContextMenu(e, chat.characterId)}
                 style={{ transform: `translateX(${offsets[chat.characterId] || 0}px)`, transition: 'transform 180ms ease' }}
               >
                 <ChatItem
@@ -147,6 +161,27 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
           <p className="text-slate-500 font-medium">暂无消息</p>
           <p className="text-slate-400 text-sm mt-1">快去和角色聊天吧！</p>
         </div>
+      )}
+
+      {contextMenu.visible && (
+        <>
+          <div
+            className="fixed inset-0 z-[99]"
+            onClick={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(prev => ({ ...prev, visible: false })); }}
+          ></div>
+          <div
+            className="fixed z-[100] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden min-w-[120px] animate-in fade-in zoom-in-95 duration-100"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <button
+              onClick={() => { if (contextMenu.id) setConfirmId(contextMenu.id); setContextMenu(prev => ({ ...prev, visible: false })); }}
+              className="w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
+            >
+              删除
+            </button>
+          </div>
+        </>
       )}
     </motion.div>
   );
