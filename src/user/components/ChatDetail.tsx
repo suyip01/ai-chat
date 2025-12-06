@@ -327,7 +327,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                 onClick={onShowProfile}
               >
                 <h2 className="font-bold text-slate-800 text-lg">
-                  {isTyping ? '正在输入中...' : character.name}
+                  {isTyping ? '对方正在输入中...' : character.name}
                 </h2>
               </div>
             </div>
