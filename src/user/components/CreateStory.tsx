@@ -63,23 +63,25 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
   const [showRoleTips, setShowRoleTips] = useState(false);
   const roleTipsRef = useRef<HTMLDivElement | null>(null);
   const [localImportableRoles, setLocalImportableRoles] = useState(importableRoles);
+  const combineRequestedRef = useRef(false)
   useEffect(() => {
     setLocalImportableRoles(importableRoles || []);
   }, [importableRoles]);
   useEffect(() => {
-    if (!localImportableRoles || !localImportableRoles.length) {
-      (async () => {
-        try {
-          const { authFetch } = await import('../services/http')
-          const res = await authFetch('/stories/combine')
-          if (res && res.ok) {
-            const data = await res.json()
-            const items = Array.isArray(data?.items) ? data.items : []
-            setLocalImportableRoles(items.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
-          }
-        } catch { }
-      })()
-    }
+    if (combineRequestedRef.current) return
+    if (localImportableRoles && localImportableRoles.length) return
+    combineRequestedRef.current = true
+    ;(async () => {
+      try {
+        const { authFetch } = await import('../services/http')
+        const res = await authFetch('/stories/combine')
+        if (res && res.ok) {
+          const data = await res.json()
+          const items = Array.isArray(data?.items) ? data.items : []
+          setLocalImportableRoles(items.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
+        }
+      } catch { }
+    })()
   }, [])
   const myRoles = React.useMemo(() => {
     const src = Array.isArray(myUserCharacters) ? myUserCharacters : []

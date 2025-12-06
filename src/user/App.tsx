@@ -989,7 +989,10 @@ const App: React.FC = () => {
                     if (homeTab === 'characters') {
                       setIsCreating(true)
                     } else if (homeTab === 'stories') {
-                      (async () => {
+                      setEditStoryInitial(null)
+                      setImportableRoles([])
+                      setIsCreatingStory(true)
+                      ;(async () => {
                         try {
                           const { authFetch } = await import('./services/http')
                           const res = await authFetch('/stories/combine')
@@ -997,13 +1000,9 @@ const App: React.FC = () => {
                             const data = await res.json()
                             const items = Array.isArray(data?.items) ? data.items : []
                             setImportableRoles(items.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
-                          } else {
-                            setImportableRoles([])
                           }
                         } catch {
-                          setImportableRoles([])
                         }
-                        setIsCreatingStory(true)
                       })()
                     }
                   }
