@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { createLogger } from '../utils/logger.js'
 
 export class TextGenerationService {
   constructor() {
@@ -6,6 +7,9 @@ export class TextGenerationService {
     const baseURL = process.env.LLM_BASE_URL || process.env.OPENAI_BASE_URL || process.env.ASR_BASE_URL;
     this.client = new OpenAI({ apiKey, baseURL });
     this.systemPrompt = null;
+    this.timeoutMs = Number(process.env.LLM_TIMEOUT_MS || 120000);
+    this.retryCount = Number(process.env.LLM_RETRY || 2);
+    this.lastAttempts = 0;
   }
 
   async loadSystemPrompt() {
@@ -31,23 +35,44 @@ export class TextGenerationService {
     return messages;
   }
 
-  async generateResponse(history, latestUserText, systemPromptOverride, modelOverride, temperatureOverride) {
+  async generateResponse(history, latestUserText, systemPromptOverride, modelOverride, temperatureOverride, context = {}) {
     await this.loadSystemPrompt();
     const messages = this.buildMessages(history, latestUserText, systemPromptOverride);
-    console.log('LLM prompt messages:', messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : String(m.content) })));
+    const wlog = createLogger({ component: 'llm' })
+    wlog.info('llm.request', { userId: context.userId, sid: context.sid, messageCount: messages.length })
     const model = modelOverride || process.env.LLM_MODEL;
     const temperature = typeof temperatureOverride === 'number' ? temperatureOverride : 0.2;
-    console.log('LLM model params:', { model, temperature, max_tokens: 20000 });
-    const resp = await this.client.chat.completions.create({
-      model,
-      messages,
-      //      stream: false,
-      temperature,
-      //      max_tokens: 200000
+    wlog.info('llm.params', { userId: context.userId, sid: context.sid, model, temperature })
+    const withTimeout = (p, ms) => new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error('llm_timeout')), ms);
+      p.then(r => { clearTimeout(t); resolve(r); }).catch(e => { clearTimeout(t); reject(e); });
     });
-    const out = resp.choices?.[0]?.message?.content || '';
-    console.log('LLM raw content:', out);
-    return out;
+    let lastErr = null;
+    this.lastAttempts = 0;
+    for (let i = 0; i <= this.retryCount; i++) {
+      try {
+        const t0 = process.hrtime.bigint()
+        wlog.info('llm.attempt', { userId: context.userId, sid: context.sid, attempt: i + 1 })
+        const resp = await withTimeout(this.client.chat.completions.create({ model, messages, temperature }), this.timeoutMs);
+        const out = resp.choices?.[0]?.message?.content || '';
+        const durMs = Number(process.hrtime.bigint() - t0) / 1e6
+        wlog.info('llm.success', { userId: context.userId, sid: context.sid, attempt: i + 1, duration_ms: Math.round(durMs), rawLen: String(out).length, rawPreview: String(out).slice(0, 160) })
+        this.lastAttempts = i + 1;
+        if (String(out).trim().length === 0) throw new Error('llm_empty');
+        return out;
+      } catch (e) {
+        lastErr = e;
+        wlog.error('llm.error', { userId: context.userId, sid: context.sid, attempt: i + 1, error: e?.message || String(e) })
+        if (i < this.retryCount) {
+          const backoff = Math.min(2000 * (i + 1), 8000);
+          wlog.info('llm.backoff', { userId: context.userId, sid: context.sid, attempt: i + 1, delay_ms: backoff })
+          await new Promise(res => setTimeout(res, backoff));
+          continue;
+        }
+      }
+    }
+    wlog.error('llm.failed', { userId: context.userId, sid: context.sid, error: lastErr?.message || String(lastErr || 'llm_failed') })
+    throw lastErr || new Error('llm_failed');
   }
 }
 

@@ -74,32 +74,59 @@ export const startChatWs = (server) => {
       if (!payload.text) return
       const sess = await getSession(sid)
       if (!sess) return
+      wlog.info('user.message', { userId: sess.userId, sid, textLen: String(payload.text).length, textPreview: String(payload.text).slice(0, 100) })
       await appendUserMessage(sid, payload.text)
       llmCounts.set(sid, 0)
       const job = async () => {
         const svc = new TextGenerationService()
         const sys = await buildSystem(sess, mode, roleOverride)
         const history = await getMessages(sid, 80)
+        wlog.info('llm.start', {
+          userId: sess.userId,
+          sid,
+          mode,
+          historyCount: Array.isArray(history) ? history.length : 0,
+          sysLen: String(sys || '').length,
+          sysPreview: String(sys || '').slice(0, 160)
+        })
         const lastUser = [...history].reverse().find(m => m && m.role === 'user')
         const quote = lastUser ? String(lastUser.content || '') : ''
         const modelOverride = typeof payload.model_id === 'string' ? payload.model_id : undefined
         const tempOverride = payload.temperature !== undefined ? Number(payload.temperature) : undefined
         const model = modelOverride || sess.model || sess.model_id || undefined
         const temperature = tempOverride !== undefined ? tempOverride : Number(sess.temperature || 0.2)
-        const reply = await svc.generateResponse(history, null, sys, model, temperature)
+        let reply
+        let t0
+        let durMs
+        try {
+          t0 = process.hrtime.bigint()
+          reply = await svc.generateResponse(history, null, sys, model, temperature, { sid, userId: sess.userId })
+          durMs = Number(process.hrtime.bigint() - t0) / 1e6
+        } catch (e) {
+          durMs = t0 ? Number(process.hrtime.bigint() - t0) / 1e6 : undefined
+          wlog.error('llm.error', { userId: sess.userId, sid, error: e?.message || e, duration_ms: durMs !== undefined ? Math.round(durMs) : undefined })
+          reply = ''
+        }
+        wlog.info('llm.done', { userId: sess.userId, sid, model, temperature, duration_ms: durMs !== undefined ? Math.round(durMs) : undefined, rawLen: String(reply || '').length, rawPreview: String(reply || '').slice(0, 160) })
         const content = mode === 'daily' ? String(reply || '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '') : String(reply || '')
-        wlog.info('reply.len', { len: String(content).length })
+        wlog.info('reply.len', { userId: sess.userId, sid, len: String(content).length })
         const chunks = content.split('\n').map(s => s.trim()).filter(s => s.length)
         const count = llmCounts.get(sid) || 0
-        const includeQuote = count >= 1
-        wlog.info('llm.count', { count, includeQuote, quotePreview: quote ? String(quote).slice(0, 30) : '' })
+        const includeQuote = (count >= 1) || ((svc.lastAttempts || 1) > 1)
+        wlog.info('llm.count', { userId: sess.userId, sid, count, includeQuote, quotePreview: quote ? String(quote).slice(0, 30) : '' })
+        wlog.info('reply.chunks', { userId: sess.userId, sid, total: chunks.length, chunkPreviews: chunks.slice(0, 5).map(c => String(c).slice(0, 80)) })
         for (let i = 0; i < chunks.length; i++) {
           const piece = chunks[i]
           await appendAssistantMessage(sid, piece)
           const withQuote = includeQuote && i === 0
           const payloadOut = withQuote ? { type: 'assistant_message', content: piece, quote, chunkIndex: i + 1, chunkTotal: chunks.length } : { type: 'assistant_message', content: piece, chunkIndex: i + 1, chunkTotal: chunks.length }
           const target = wsBySid.get(sid) || ws
-          try { target.send(JSON.stringify(payloadOut)) } catch {}
+          try {
+            target.send(JSON.stringify(payloadOut))
+            wlog.info('reply.send', { userId: sess.userId, sid, chunkIndex: i + 1, chunkTotal: chunks.length, len: String(piece).length, preview: String(piece).slice(0, 100), withQuote })
+          } catch (e) {
+            wlog.error('reply.send.error', { userId: sess.userId, sid, chunkIndex: i + 1, error: e?.message || e })
+          }
           if (i < chunks.length - 1) {
             await new Promise(res => setTimeout(res, 2000))
           }

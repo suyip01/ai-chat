@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pin } from 'lucide-react';
 
 interface ChatItemProps {
@@ -17,6 +17,7 @@ export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin, 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
   };
+  const [imgError, setImgError] = useState(false)
 
   const handlePinClick = (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -31,11 +32,18 @@ export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin, 
       {/* Avatar Container */}
       <div className="relative flex-shrink-0">
         <div className="w-14 h-14 rounded-full p-0.5 bg-gradient-to-tr from-primary-300 to-accent-pink">
-             <img 
-                src={chat.character.avatar} 
-                alt={chat.character.name} 
-                className="w-full h-full rounded-full object-cover border-2 border-white"
+          {(!imgError && chat.character.avatar) ? (
+            <img
+              src={chat.character.avatar}
+              alt={chat.character.name}
+              onError={() => setImgError(true)}
+              className="w-full h-full rounded-full object-cover border-2 border-white"
             />
+          ) : (
+            <div className="w-full h-full rounded-full border-2 border-white bg-white flex items-center justify-center text-slate-500 font-bold">
+              {chat.character.name?.[0] || '?'}
+            </div>
+          )}
         </div>
       </div>
 

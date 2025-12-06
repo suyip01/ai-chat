@@ -1,15 +1,17 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowLeft, Check, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Check, ArrowRight, Info } from 'lucide-react';
 import { Story, StoryRole } from '../types';
 
 interface StoryReaderProps {
   story: Story;
   onBack: () => void;
   onStartRoleplay: (role: StoryRole) => void;
+  connectedRoleNames?: string[];
+  validRoleNames?: string[];
 }
 
-export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStartRoleplay }) => {
+export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStartRoleplay, connectedRoleNames = [], validRoleNames = [] }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   
@@ -20,6 +22,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
   // Role Selection State
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedRoleName, setSelectedRoleName] = useState<string | null>(null);
+  const [showAlreadyConnectedModal, setShowAlreadyConnectedModal] = useState(false);
   
   // Drag state refs to avoid closure staleness without re-binding listeners constantly
   const dragStartY = useRef(0);
@@ -122,8 +125,12 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
   }, [isDragging, thumbHeight]);
 
   const handleConfirmRole = () => {
-      if (selectedRoleName && story.availableRoles) {
-          const role = story.availableRoles.find(r => r.name === selectedRoleName);
+      if (selectedRoleName) {
+          if (connectedRoleNames.includes(selectedRoleName)) {
+              setShowAlreadyConnectedModal(true);
+              return;
+          }
+          const role = (story.availableRoles || []).find(r => r.name === selectedRoleName);
           if (role) {
               onStartRoleplay(role);
           }
@@ -131,17 +138,18 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
   };
 
   const paragraphs = story.content.split('\n').filter(p => p.trim() !== '');
+  const displayRoles = (story.availableRoles || []).filter(role => {
+    return validRoleNames && validRoleNames.length ? validRoleNames.includes(role.name) : true;
+  });
 
   return (
     <div className="fixed inset-0 bg-white z-[60] flex flex-col h-full w-full animate-in slide-in-from-right duration-300">
-      <div className="fixed top-4 left-4 z-[100]">
-        <button onClick={onBack} className="w-10 h-10 bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/30 transition-all">
-          <ArrowLeft size={24} />
-        </button>
-      </div>
       
       {/* Container with max width */}
       <div className="mx-auto w-full max-w-md h-full flex flex-col relative bg-white rounded-none md:rounded-3xl md:overflow-hidden shadow-2xl">
+        <button onClick={onBack} className="absolute top-4 left-4 z-[100] w-10 h-10 bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/30 transition-all">
+          <ArrowLeft size={24} />
+        </button>
         {/* Scrollable Content */}
         <div 
         className="flex-1 overflow-y-auto no-scrollbar bg-[#FAFAFA]"
@@ -150,7 +158,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
         >
         {/* Cover Image */}
         <div className="w-full h-64 relative">
-             <img src={story.image} alt={story.title} className="w-full h-full object-cover" />
+             <img src={story.image || '/uploads/covers/default_storyimg.jpg'} alt={story.title} className="w-full h-full object-cover" />
              <div className="absolute inset-0 bg-gradient-to-t from-[#FAFAFA] to-transparent"></div>
         </div>
 
@@ -166,7 +174,7 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
                 {/* Author Info */}
                 <div className="flex items-center mt-2">
                     <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border border-white shadow-sm mr-3">
-                         <img src={`https://api.dicebear.com/7.x/miniavs/svg?seed=${story.author}`} alt="author" className="w-full h-full object-cover" />
+                         <img src={story.user_avatar || `https://api.dicebear.com/7.x/miniavs/svg?seed=${story.author}`} alt="author" className="w-full h-full object-cover" />
                     </div>
                     <span className="text-sm font-bold text-slate-700">{story.author}</span>
                 </div>
@@ -205,17 +213,16 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
                 ))}
             </div>
 
-            {/* Transmigrate Button - Static Position at Bottom of Content */}
-            <div className="hidden">
+            {/* Chat with Role Button */}
+            <div className="flex justify-center mb-8">
                 <button
                     onClick={() => setShowRoleModal(true)}
                     className="flex items-center gap-2 px-6 py-3 bg-purple-100 rounded-full shadow-lg shadow-purple-200/50 hover:bg-purple-200 transition-all active:scale-95 cursor-pointer"
                 >
                     <span 
                         className="text-lg font-bold text-purple-600 tracking-widest"
-                        style={{ fontFamily: "'Noto Serif SC', serif" }}
                     >
-                        穿进此书
+                        与角色开聊
                     </span>
                     <ArrowRight size={18} className="text-purple-600" />
                 </button>
@@ -248,13 +255,13 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
               <div className="bg-white w-[85%] max-w-sm rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
                   <div className="p-6 pb-2">
-                       <h3 className="text-xl font-bold text-slate-900 text-center mb-1 font-kosugi">请选择穿书角色</h3>
-                       <p className="text-xs text-slate-400 text-center mb-6">AI已为您识别主要角色</p>
+                       <h3 className="text-xl font-bold text-slate-900 text-center mb-6 font-kosugi">请选择聊天角色</h3>
                        
                        <div className="space-y-3 max-h-[50vh] overflow-y-auto no-scrollbar py-2 px-1">
-                           {story.availableRoles ? (
-                               story.availableRoles.map(role => {
+                           {displayRoles.length > 0 ? (
+                               displayRoles.map(role => {
                                    const isSelected = selectedRoleName === role.name;
+                                   const isConnected = connectedRoleNames.includes(role.name);
                                    return (
                                      <div 
                                         key={role.name}
@@ -267,9 +274,14 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
                                             }
                                         `}
                                      >
-                                         <span className={`font-bold text-base ${isSelected ? 'text-purple-700' : 'text-slate-800'}`}>
-                                             {role.name}
-                                         </span>
+                                         <div className="flex flex-col">
+                                           <span className={`font-bold text-base ${isSelected ? 'text-purple-700' : 'text-slate-800'}`}>
+                                               {role.name}
+                                           </span>
+                                           {isConnected && (
+                                             <span className="text-[10px] text-green-500 font-bold mt-1">● 已建联</span>
+                                           )}
+                                         </div>
                                          
                                          {isSelected && (
                                              <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center text-white shadow-sm">
@@ -304,14 +316,31 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
                                    }
                                `}
                            >
-                               进入故事世界
+                               查看角色卡
                            </button>
                        </div>
                   </div>
               </div>
           </div>
-      )}
+  )}
 
+      {showAlreadyConnectedModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl p-6 w-[80%] max-w-xs shadow-2xl scale-100 animate-in zoom-in-95 duration-200 flex flex-col items-center text-center">
+                <div className="w-12 h-12 bg-purple-100 text-purple-500 rounded-full flex items-center justify-center mb-4">
+                    <Info size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2 font-kosugi">你已经与该角色建联了</h3>
+                <p className="text-xs text-slate-400 mb-6 font-kosugi">请在聊天列表查看与该角色的聊天记录</p>
+                <button 
+                    onClick={() => setShowAlreadyConnectedModal(false)}
+                    className="w-full py-3 rounded-2xl bg-purple-600 text-white font-bold shadow-lg shadow-purple-200 hover:bg-purple-700 transition-colors text-sm font-kosugi"
+                >
+                    我知道了
+                </button>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

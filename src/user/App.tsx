@@ -8,18 +8,33 @@ import { CharacterProfile } from './components/CharacterProfile';
 import { CharacterProfileAwait } from './components/CharacterProfileAwait';
 import { UserCharacterSettings } from './components/UserCharacterSettings';
 import { CreateCharacter } from './components/CreateCharacter';
+import { CreateStory } from './components/CreateStory';
 import { Login } from './components/Login';
 import { ToastProvider } from './components/Toast';
-import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, UserPersona, UserProfile, Story } from './types';
+import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, UserPersona, UserProfile, Story, StoryRole } from './types';
 import { MePage } from './components/MePage';
 import { listStories as listStoriesClient, StoryPreview, getStory as getStoryClient } from './services/storiesService';
+import { listUserStories as listMyStories, getUserStory as getMyStory } from './services/userStoriesService';
 import { StoryReader } from './components/StoryReader';
-import { listCharacters } from './services/charactersService';
-import { listUserCharacters as listMine } from './services/userCharactersService';
+import { listCharacters, getCharacter } from './services/charactersService';
+import { listUserCharacters as listMine, getUserCharacter } from './services/userCharactersService';
 import { createChatSession } from './services/chatService';
 
 // Mock Data
 const MOCK_CHATS: ChatPreview[] = [];
+
+const CharacterThumb: React.FC<{ char: Character }> = ({ char }) => {
+  const [imgError, setImgError] = useState(false)
+  return (
+    <div className="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-slate-100 relative group flex items-center justify-center">
+      {(!imgError && char.avatar) ? (
+        <img src={char.avatar} alt={char.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" onError={() => setImgError(true)} />
+      ) : (
+        <span className="text-2xl font-bold text-slate-500">{char.name?.[0] || '?'}</span>
+      )}
+    </div>
+  )
+}
 
 
 const App: React.FC = () => {
@@ -33,10 +48,14 @@ const App: React.FC = () => {
   const [isUserSettingsOpen, setIsUserSettingsOpen] = useState(false);
   const [userPersona, setUserPersona] = useState<UserPersona | undefined>(undefined);
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreatingStory, setIsCreatingStory] = useState(false);
   const [createInitial, setCreateInitial] = useState<{ initial?: Character; id?: string | number; isEdit?: boolean } | null>(null)
   const [awaitProfile, setAwaitProfile] = useState<{ character: Character; id: string } | null>(null);
   const [stories, setStories] = useState<StoryPreview[]>([])
   const [readingStory, setReadingStory] = useState<Story | null>(null)
+  const [myStories, setMyStories] = useState<Story[]>([])
+  const [editStoryInitial, setEditStoryInitial] = useState<Story | null>(null)
+  const [importableRoles, setImportableRoles] = useState<Array<{ id: string; name: string; avatar: string; desc: string; isPrivate: boolean; isMine: boolean }>>([])
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!localStorage.getItem('user_access_token'));
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
     const nick = localStorage.getItem('user_nickname') || '我';
@@ -81,18 +100,18 @@ const App: React.FC = () => {
             if (avatar) localStorage.setItem('user_avatar', avatar)
             const uidFromApi = (data?.id ?? data?.user_id ?? data?.uid)
             if (uidFromApi !== undefined && uidFromApi !== null) localStorage.setItem('user_id', String(uidFromApi))
-          } catch {}
+          } catch { }
         }
-      } catch {}
+      } catch { }
     })()
-    ;(async () => {
-      try {
-        const items = await listStoriesClient({ limit: 12 })
-        setStories(items)
-      } catch {
-        setStories([])
-      }
-    })()
+      ; (async () => {
+        try {
+          const items = await listStoriesClient({ limit: 12 })
+          setStories(items)
+        } catch {
+          setStories([])
+        }
+      })()
     setLoadingCharacters(true);
     listCharacters({ limit: 24 })
       .then(items => {
@@ -129,7 +148,7 @@ const App: React.FC = () => {
             if (!char) return
             const raw = localStorage.getItem(k)
             if (!raw) return
-            const arr = JSON.parse(raw) as Array<{ id:string; senderId:string; text:string; ts:number; type:string }>
+            const arr = JSON.parse(raw) as Array<{ id: string; senderId: string; text: string; ts: number; type: string }>
             if (!arr.length) return
             const hasSession = !!localStorage.getItem(`chat_session_${uid}_${cid}`)
             if (!hasSession) return
@@ -138,7 +157,7 @@ const App: React.FC = () => {
             previews.push({ characterId: String(cid), character: char, lastMessage: lastMsg, unreadCount: 0 })
           })
           if (previews.length) setChats(previews)
-        } catch {}
+        } catch { }
       })
       .catch(() => setCharacters([]))
       .finally(() => setLoadingCharacters(false));
@@ -182,9 +201,28 @@ const App: React.FC = () => {
         setMyUserCharacters([])
       }
     })()
+      ; (async () => {
+        try {
+          const items = await listMyStories({ includeDrafts: true })
+          const mapped: Story[] = items.map((it: any) => ({
+            id: typeof it.id === 'number' ? it.id : Number(Date.now()),
+            title: it.title || '',
+            description: it.description || '',
+            image: it.image || '/uploads/covers/default_storyimg.jpg',
+            tags: Array.isArray(it.tags) ? it.tags : [],
+            author: userProfile.nickname || '我',
+            likes: '0',
+            content: '',
+            status: it.status
+          }))
+          setMyStories(mapped)
+        } catch {
+          setMyStories([])
+        }
+      })()
   }, [isLoggedIn]);
 
-  
+
 
   useEffect(() => {
     const isTouch = (navigator as any)?.maxTouchPoints > 0
@@ -230,49 +268,25 @@ const App: React.FC = () => {
       <ToastProvider>
         <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden" style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}>
           <div className="h-full w-full max-w-md mx-auto bg白 relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex">
-              <Login onLogin={() => setIsLoggedIn(true)} />
+            <Login onLogin={() => setIsLoggedIn(true)} />
           </div>
         </div>
       </ToastProvider>
     );
   }
 
-  // When opening a chat, we could fetch full history. For now, we mock history based on the last message.
   const getInitialMessages = (chat: ChatPreview): Message[] => {
     try {
       const uid = localStorage.getItem('user_id') || '0'
       const nsKey = `chat_history_${uid}_${chat.characterId}`
       const raw = localStorage.getItem(nsKey)
       if (raw) {
-        const arr = JSON.parse(raw) as Array<{ id:string; senderId:string; text:string; ts:number; type:string; quote?:string; read?:boolean }>;
+        const arr = JSON.parse(raw) as Array<{ id: string; senderId: string; text: string; ts: number; type: string; quote?: string; read?: boolean }>;
         const msgs: Message[] = arr.map(m => ({ id: m.id, senderId: m.senderId, text: m.text, timestamp: new Date(m.ts), type: m.type as MessageType, quote: m.quote, read: m.read }));
         if (msgs.length) return msgs;
       }
-    } catch {}
-    // No special mock conversation
-
-    // For newly created characters or no history, use the Opening Line if available
-    if (chat.character.openingLine) {
-      return [{
-        id: `m_${Date.now()}`,
-        senderId: chat.characterId,
-        text: chat.character.openingLine.replace(/^['"“]|['"”]$/g, ''), // Strip quotes
-        timestamp: new Date(),
-        type: MessageType.TEXT
-      }];
-    }
-
-    // Default Fallback
-    return [
-      {
-        id: 'm0',
-        senderId: chat.characterId,
-        text: "很高兴认识你！",
-        timestamp: new Date(new Date().setDate(new Date().getDate() - 2)),
-        type: MessageType.TEXT
-      },
-      chat.lastMessage
-    ];
+    } catch { }
+    return [];
   };
 
   const handleUpdateLastMessage = (msg: Message) => {
@@ -323,13 +337,14 @@ const App: React.FC = () => {
         sid = created.sessionId;
         localStorage.setItem(key, sid);
       }
-      const last: Message = {
-        id: `msg_${Date.now()}`,
-        senderId: character.id,
-        text: character.openingLine ? character.openingLine.replace(/^['"“]|['"”]$/g, '') : '你好...',
-        timestamp: new Date(),
-        type: MessageType.TEXT
-      };
+      const opener = character.openingLine || character.oneLinePersona || ''
+      const mid = `msg_${Date.now()}`
+      const last: Message = { id: mid, senderId: character.id, text: opener, timestamp: new Date(), type: MessageType.TEXT };
+      try {
+        const nsKey = `chat_history_${uid}_${character.id}`
+        const record = { id: mid, senderId: character.id, text: opener, ts: Date.now(), type: MessageType.TEXT }
+        localStorage.setItem(nsKey, JSON.stringify([record]))
+      } catch { }
       const newChat: ChatPreview = {
         characterId: character.id,
         character,
@@ -342,16 +357,18 @@ const App: React.FC = () => {
       setSelectedChat(newChat);
       setActiveTab(NavTab.CHAT);
     } catch {
+      const opener = character.openingLine || character.oneLinePersona || ''
+      const mid = `msg_${Date.now()}`
+      const record = { id: mid, senderId: character.id, text: opener, ts: Date.now(), type: MessageType.TEXT }
+      try {
+        const uid = localStorage.getItem('user_id') || '0'
+        const nsKey = `chat_history_${uid}_${character.id}`
+        localStorage.setItem(nsKey, JSON.stringify([record]))
+      } catch { }
       const fallback: ChatPreview = {
         characterId: character.id,
         character,
-        lastMessage: {
-          id: `msg_${Date.now()}`,
-          senderId: character.id,
-          text: character.openingLine ? character.openingLine.replace(/^['"“]|['"”]$/g, '') : '你好...',
-          timestamp: new Date(),
-          type: MessageType.TEXT
-        },
+        lastMessage: { id: mid, senderId: character.id, text: opener, timestamp: new Date(), type: MessageType.TEXT },
         unreadCount: 0
       };
       setChats(prev => [fallback, ...prev]);
@@ -410,24 +427,44 @@ const App: React.FC = () => {
                     className="group relative bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer border border-transparent hover:border-primary-100 hover:-translate-y-0.5 duration-200"
                     onClick={async () => {
                       try {
-                        const full = await getStoryClient(story.id)
-                        const mapped: Story = {
-                          id: Number(full.id),
-                          title: full.title,
-                          description: full.description || '',
-                          image: full.image || '',
-                          tags: Array.isArray(full.tags) ? full.tags : [],
-                          author: full.author || '',
-                          likes: '',
-                          content: full.content || '',
-                          publishDate: full.publish_date || undefined,
+                        const anyItem: any = story as any
+                        if (typeof anyItem?.content === 'string' && anyItem.content.length) {
+                          const mapped: Story = {
+                            id: typeof story.id === 'number' ? story.id : Number(Date.now()),
+                            title: story.title,
+                            description: story.description || '',
+                            image: story.image || '/uploads/covers/default_storyimg.jpg',
+                            tags: Array.isArray(story.tags) ? (story.tags as string[]) : [],
+                            author: story.author || userProfile.nickname || '我',
+                            likes: '0',
+                            content: anyItem.content,
+                            publishDate: anyItem.publishDate || undefined,
+                            status: anyItem.status,
+                            availableRoles: Array.isArray(anyItem.availableRoles) ? anyItem.availableRoles : []
+                          }
+                          setReadingStory(mapped)
+                        } else {
+                          const full = await getStoryClient(story.id)
+                          const mapped: Story = {
+                            id: Number(full.id),
+                            title: full.title,
+                            description: full.description || '',
+                            image: full.image || '/uploads/covers/default_storyimg.jpg',
+                            tags: Array.isArray(full.tags) ? full.tags : [],
+                            author: full.author || '',
+                            user_avatar: (full as any)?.user_avatar || '',
+                            likes: '',
+                            content: full.content || '',
+                            publishDate: full.publish_date || undefined,
+                            availableRoles: Array.isArray((full as any)?.roles) ? (full as any).roles.map((r: any) => ({ id: r.id, name: r.name, avatar: '', description: '' })) : []
+                          }
+                          setReadingStory(mapped)
                         }
-                        setReadingStory(mapped)
-                      } catch {}
+                      } catch { }
                     }}
                   >
                     <div className="h-40 overflow-hidden relative">
-                      <img src={story.image} alt={story.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      <img src={story.image || '/uploads/covers/default_storyimg.jpg'} alt={story.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent"></div>
                       <div className="absolute bottom-4 left-4">
                         <h3 className="text-xl font-bold text-white">{story.title}</h3>
@@ -461,16 +498,14 @@ const App: React.FC = () => {
                 {!loadingCharacters && characters.map(char => (
                   <div
                     key={char.id}
-                    className="bg-white rounded-2xl p-4 shadow-sm flex gap-4 hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-primary-100"
+                    className="bg白 rounded-2xl p-4 shadow-sm flex gap-4 hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-primary-100"
                     onClick={() => {
                       setIsProfileFromChat(false);
                       setIsProfileFromMe(false);
                       setViewingProfile(char);
                     }}
                   >
-                    <div className="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-slate-100 relative group">
-                      <img src={char.avatar} alt={char.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                    </div>
+                    <CharacterThumb char={char} />
 
                     <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
                       <div>
@@ -512,19 +547,155 @@ const App: React.FC = () => {
             userProfile={userProfile}
             myCharacters={characters}
             myUserCharacters={myUserCharacters}
-            myStories={[]}
+            myStories={myStories}
             onUpdateProfile={(p) => {
               setUserProfile(p);
               try {
                 localStorage.setItem('user_nickname', p.nickname || '我');
                 localStorage.setItem('user_email', p.email || 'me@example.com');
                 if (p.avatar) localStorage.setItem('user_avatar', p.avatar);
-              } catch {}
+              } catch { }
             }}
             onCharacterClick={(char) => {
               setIsProfileFromChat(false);
               setIsProfileFromMe(true);
               setViewingProfile(char);
+            }}
+            onReadStory={async (st) => {
+              try {
+                const anyItem: any = st as any
+                if (typeof anyItem?.content === 'string' && anyItem.content.length) {
+                  const mapped: Story = {
+                    id: typeof st.id === 'number' ? st.id : Number(Date.now()),
+                    title: st.title,
+                    description: st.description || '',
+                    image: st.image || '/uploads/covers/default_storyimg.jpg',
+                    tags: Array.isArray(st.tags) ? st.tags : [],
+                    author: userProfile.nickname || '我',
+                    likes: '0',
+                    content: anyItem.content,
+                    publishDate: anyItem.publishDate || undefined,
+                    status: anyItem.status
+                  }
+                  setReadingStory(mapped)
+                } else {
+                  const full = await getMyStory(st.id)
+                  const ids: Array<number | string> = Array.isArray((full as any)?.characterIds) ? (full as any).characterIds : []
+                  let roles: StoryRole[] = []
+                  if (ids.length) {
+                    const findById = (cid: any) => characters.find(c => String(c.id) === String(cid)) || myUserCharacters.find(c => String(c.id) === String(cid))
+                    roles = ids.map((cid) => {
+                      const c = findById(cid)
+                      if (!c) return null
+                      return { id: cid, name: c.name, avatar: c.avatar, description: c.oneLinePersona || c.bio || '' }
+                    }).filter(Boolean) as StoryRole[]
+                  }
+                  const mapped: Story = {
+                    id: Number(full.id),
+                    title: full.title,
+                    description: full.description || '',
+                    image: full.image || '/uploads/covers/default_storyimg.jpg',
+                    tags: Array.isArray(full.tags) ? full.tags : [],
+                    author: userProfile.nickname || '我',
+                    user_avatar: (full as any)?.user_avatar || '',
+                    likes: '0',
+                    content: full.content || '',
+                    publishDate: (full as any)?.publishDate ?? undefined,
+                    status: (st as any).status || undefined,
+                    availableRoles: roles
+                  }
+                  setReadingStory(mapped)
+                }
+              } catch { }
+            }}
+            onEditStory={async (st) => {
+              try {
+                const full = await getMyStory(st.id)
+                const ids: Array<number | string> = Array.isArray((full as any)?.characterIds) ? (full as any).characterIds : []
+                let combinedItems: Array<any> = []
+                try {
+                  const { authFetch } = await import('./services/http')
+                  const res = await authFetch('/stories/combine')
+                  if (res && res.ok) {
+                    const data = await res.json()
+                    combinedItems = Array.isArray(data?.items) ? data.items : []
+                  }
+                } catch { }
+                setImportableRoles(combinedItems.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
+                const byCombine = (cid: any) => {
+                  const it = combinedItems.find(x => String(x.character_id) === String(cid))
+                  return it ? { id: cid, name: it.character_name, avatar: it.character_avatar || '', description: it.desc || '' } : null
+                }
+                let roles = ids.map(byCombine).filter(Boolean) as StoryRole[]
+                if (!roles.length) {
+                  const findById = (cid: any) => characters.find(c => String(c.id) === String(cid)) || myUserCharacters.find(c => String(c.id) === String(cid))
+                  roles = ids.map((cid) => {
+                    const c = findById(cid)
+                    if (!c) return null
+                    return { id: cid, name: c.name, avatar: c.avatar, description: c.oneLinePersona || c.bio || '' }
+                  }).filter(Boolean) as StoryRole[]
+                }
+                const mapped: Story = {
+                  id: Number(full.id),
+                  title: full.title,
+                  description: full.description || '',
+                  image: full.image || '/uploads/covers/default_storyimg.jpg',
+                  tags: Array.isArray(full.tags) ? full.tags : [],
+                  author: userProfile.nickname || '我',
+                  likes: '0',
+                  content: full.content || '',
+                  publishDate: (full as any)?.publishDate ?? undefined,
+                  status: (st as any).status || undefined,
+                  availableRoles: roles,
+                  ...(ids && { characterIds: ids } as any)
+                }
+                setEditStoryInitial(mapped)
+                setIsCreatingStory(true)
+              } catch {
+                const mapped: Story = {
+                  id: typeof st.id === 'number' ? st.id : Number(Date.now()),
+                  title: st.title,
+                  description: st.description || '',
+                  image: st.image || '/uploads/covers/default_storyimg.jpg',
+                  tags: Array.isArray(st.tags) ? st.tags : [],
+                  author: userProfile.nickname || '我',
+                  likes: '0',
+                  content: '',
+                  status: (st as any).status || undefined,
+                  availableRoles: []
+                }
+                setEditStoryInitial(mapped)
+                setIsCreatingStory(true)
+              }
+            }}
+            onEditCharacter={(char) => {
+              setCreateInitial({ initial: char, id: char.id, isEdit: true })
+              setIsCreating(true)
+            }}
+            onDeleteCharacter={(char) => {
+              setMyUserCharacters(prev => prev.filter(c => c.id !== char.id))
+              setCharacters(prev => prev.filter(c => c.id !== char.id))
+            }}
+            onAddCharacter={() => {
+              setCreateInitial(null)
+              setIsCreating(true)
+            }}
+            onAddStory={async () => {
+              try {
+                const { authFetch } = await import('./services/http')
+                const res = await authFetch('/stories/combine')
+                if (res && res.ok) {
+                  const data = await res.json()
+                  const items = Array.isArray(data?.items) ? data.items : []
+                  setImportableRoles(items.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
+                } else {
+                  setImportableRoles([])
+                }
+              } catch {
+                setImportableRoles([])
+              }
+              setEditStoryInitial(null)
+              setIsCreatingStory(true)
             }}
             onLogout={handleLogout}
           />
@@ -561,150 +732,289 @@ const App: React.FC = () => {
       >
         <div className="h-full w-full max-w-md mx-auto bg白 relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex flex-col">
 
-        {/* 0. Create Character Overlay */}
-        {isCreating && (
-          <CreateCharacter
-            onBack={() => { setIsCreating(false); setCreateInitial(null) }}
-            onCreate={handleCreateCharacter}
-            isEdit={!!createInitial?.isEdit}
-            characterId={createInitial?.id}
-            initial={createInitial?.initial}
-            onUpdated={(updated) => {
-              setIsCreating(false)
-              setCreateInitial(null)
-              setViewingProfile(updated)
-            }}
-          />
-        )}
-
-        {/* 0.5 User Settings Overlay */}
-        {isUserSettingsOpen && (
-          <UserCharacterSettings
-            currentPersona={userPersona}
-            onBack={() => setIsUserSettingsOpen(false)}
-            onSave={(persona) => setUserPersona(persona)}
-          />
-        )}
-
-        {/* 2. Chat Detail View Overlay - Render FIRST so it stays mounted behind profile */}
-        <AnimatePresence initial={false}>
-          {selectedChat && !isUserSettingsOpen && !isCreating && (
-            <ChatDetail
-              character={selectedChat.character}
-              initialMessages={getInitialMessages(selectedChat)}
-              userPersona={userPersona}
-              onBack={() => { setSelectedChat(null); setChatFromList(false); }}
-              onUpdateLastMessage={handleUpdateLastMessage}
-              onOpenUserSettings={() => setIsUserSettingsOpen(true)}
-              onUpdateUserPersona={(persona) => setUserPersona(persona)}
-              onShowProfile={() => {
-                setIsProfileFromChat(true);
-                setIsProfileFromMe(false);
-                setAwaitProfile(null);
-                setViewingProfile(selectedChat.character);
+          {/* 0. Create Character Overlay */}
+          {isCreating && (
+            <CreateCharacter
+              onBack={() => { setIsCreating(false); setCreateInitial(null) }}
+              onCreate={handleCreateCharacter}
+              isEdit={!!createInitial?.isEdit}
+              characterId={createInitial?.id}
+              initial={createInitial?.initial}
+              onUpdated={(updated) => {
+                setIsCreating(false)
+                setCreateInitial(null)
+                setViewingProfile(updated)
               }}
             />
           )}
-        </AnimatePresence>
 
-        {/* 1. Profile View Overlay - Render SECOND so it covers ChatDetail */}
-        <AnimatePresence initial={false}>
-          {viewingProfile && !isUserSettingsOpen && !isCreating && !awaitProfile && (
-            isProfileFromMe ? (
-              <CharacterProfileAwait
-                character={viewingProfile}
-                createdId={viewingProfile.id}
-                onBack={() => setViewingProfile(null)}
-                onStartChat={(char) => startChatFromProfile(char)}
-                onEdit={(char) => {
-                  setCreateInitial({ initial: char, id: char.id, isEdit: true })
-                  setIsCreating(true)
-                }}
-                onDeleted={async () => {
-                  setViewingProfile(null)
-                  try {
-                    const items = await listMine()
-                    const mapped: Character[] = items.map((it: any) => ({
-                      id: String(it.id),
-                      name: it.name || '未知',
-                      avatar: it.avatar || '',
-                      profileImage: '',
-                      status: CharacterStatus.ONLINE,
-                      bio: it.plot_summary || '',
-                      tags: Array.isArray(it.tags) ? it.tags : [],
-                      creator: userProfile.nickname || '我',
-                      oneLinePersona: it.tagline || '',
-                      personality: it.personality || '',
-                      profession: it.occupation || '',
-                      age: it.age ? String(it.age) : '',
-                      roleType: '',
-                      gender: it.gender || '',
-                      currentRelationship: it.relationship || '',
-                      plotTheme: it.plot_theme || '',
-                      plotDescription: '',
-                      openingLine: it.opening_line || '',
-                      styleExamples: Array.isArray(it.styleExamples) ? it.styleExamples : [],
-                      hobbies: it.hobbies || '',
-                      experiences: it.experiences || '',
-                      isPublic: it.visibility ? it.visibility === 'public' : false
-                    }))
-                    setMyUserCharacters(mapped)
-                  } catch {
-                    setMyUserCharacters([])
-                  }
-                }}
-              />
-            ) : (
-              <CharacterProfile
-                character={viewingProfile}
-                onBack={() => setViewingProfile(null)}
-                onStartChat={() => startChatFromProfile(viewingProfile)}
-                isFromChat={isProfileFromChat}
-                isExistingChat={!!chats.find(c => c.characterId === viewingProfile.id)}
-              />
-            )
+          {/* 0.5 User Settings Overlay */}
+          {isUserSettingsOpen && (
+            <UserCharacterSettings
+              currentPersona={userPersona}
+              onBack={() => setIsUserSettingsOpen(false)}
+              onSave={(persona) => setUserPersona(persona)}
+            />
           )}
-        </AnimatePresence>
 
-        {awaitProfile && !isUserSettingsOpen && !isCreating && (
-          <CharacterProfileAwait
-            character={awaitProfile.character}
-            createdId={awaitProfile.id}
-            onBack={() => setAwaitProfile(null)}
-            onStartChat={(char) => { setAwaitProfile(null); startChatFromProfile(char) }}
-          />
-        )}
+          {/* 0.75 Create Story Overlay */}
+          {isCreatingStory && (
+            <CreateStory
+              onBack={() => { setIsCreatingStory(false); setEditStoryInitial(null) }}
+              onPublish={(newStory) => {
+                setStories(prev => upsertById(prev as any[], newStory as any))
+                setMyStories(prev => upsertById(prev, newStory as any))
+                setIsCreatingStory(false)
+                setEditStoryInitial(null)
+              }}
+              onSaveDraft={(draft) => {
+                setMyStories(prev => upsertById(prev, draft as any))
+                setIsCreatingStory(false)
+                setEditStoryInitial(null)
+              }}
+              availableCharacters={characters}
+              myUserCharacters={myUserCharacters}
+              initialStory={editStoryInitial || undefined}
+              importableRoles={importableRoles}
+            />
+          )}
 
-        {/* 阅读故事 Overlay */}
-        {readingStory && (
-          <StoryReader
-            story={readingStory}
-            onBack={() => setReadingStory(null)}
-            onStartRoleplay={() => setReadingStory(null)}
-          />
-        )}
+          {/* 2. Chat Detail View Overlay - Render FIRST so it stays mounted behind profile */}
+          <AnimatePresence initial={false}>
+            {selectedChat && !isUserSettingsOpen && !isCreating && (
+              <ChatDetail
+                character={selectedChat.character}
+                initialMessages={getInitialMessages(selectedChat)}
+                userPersona={userPersona}
+                onBack={() => { setSelectedChat(null); setChatFromList(false); }}
+                onUpdateLastMessage={handleUpdateLastMessage}
+                onOpenUserSettings={() => setIsUserSettingsOpen(true)}
+                onUpdateUserPersona={(persona) => setUserPersona(persona)}
+                onShowProfile={() => {
+                  setIsProfileFromChat(true);
+                  setIsProfileFromMe(false);
+                  setAwaitProfile(null);
+                  setViewingProfile(selectedChat.character);
+                }}
+              />
+            )}
+          </AnimatePresence>
 
-        {/* 3. Main Tab Navigation View */}
-        {!isUserSettingsOpen && !isCreating && (
-          <>
-            <TopBar
-              title={activeTab === NavTab.HOME ? renderHomeHeader() : (activeTab === NavTab.CHAT ? '聊天' : '')}
-              variant={activeTab === NavTab.ME ? 'overlay' : 'default'}
-              onFilterClick={() => {
-                if (activeTab === NavTab.HOME && homeTab === 'characters') {
-                  setIsCreating(true);
+          {/* 1. Profile View Overlay - Render SECOND so it covers ChatDetail */}
+          <AnimatePresence initial={false}>
+            {viewingProfile && !isUserSettingsOpen && !isCreating && !awaitProfile && (
+              isProfileFromMe ? (
+                <CharacterProfileAwait
+                  character={viewingProfile}
+                  createdId={viewingProfile.id}
+                  onBack={() => setViewingProfile(null)}
+                  onStartChat={(char) => startChatFromProfile(char)}
+                />
+              ) : (
+                <CharacterProfile
+                  character={viewingProfile}
+                  onBack={() => setViewingProfile(null)}
+                  onStartChat={() => startChatFromProfile(viewingProfile)}
+                  isFromChat={isProfileFromChat}
+                  isExistingChat={!!chats.find(c => c.characterId === viewingProfile.id)}
+                />
+              )
+            )}
+          </AnimatePresence>
+
+          {awaitProfile && !isUserSettingsOpen && !isCreating && (
+            <CharacterProfileAwait
+              character={awaitProfile.character}
+              createdId={awaitProfile.id}
+              onBack={() => setAwaitProfile(null)}
+              onStartChat={(char) => { setAwaitProfile(null); startChatFromProfile(char) }}
+            />
+          )}
+
+          {/* 阅读故事 Overlay */}
+          {readingStory && (
+            <StoryReader
+              story={readingStory}
+              onBack={() => setReadingStory(null)}
+              connectedRoleNames={chats.map(c => c.character.name)}
+              validRoleNames={(readingStory.availableRoles || []).map(r => r.name)}
+              onStartRoleplay={(role: StoryRole) => {
+                setReadingStory(null)
+                const rid = role?.id
+                let candidate = undefined as Character | undefined
+                if (rid !== undefined && rid !== null) {
+                  candidate = characters.find(c => String(c.id) === String(rid)) || myUserCharacters.find(c => String(c.id) === String(rid))
+                }
+                if (!candidate) {
+                  const name = role?.name || ''
+                  candidate = characters.find(c => c.name === name) || myUserCharacters.find(c => c.name === name)
+                }
+                if (candidate) {
+                  setViewingProfile(candidate)
+                  setIsProfileFromChat(false)
+                  setIsProfileFromMe(false)
+                  ;(async () => {
+                    try {
+                      const isMine = !!myUserCharacters.find(c => String(c.id) === String(candidate!.id))
+                      if (isMine) {
+                        const data = await getUserCharacter(candidate!.id)
+                        const mapped: Character = {
+                          id: String(candidate!.id),
+                          name: data?.name || candidate!.name,
+                          avatar: data?.avatar || candidate!.avatar || '',
+                          profileImage: candidate!.profileImage || '',
+                          status: CharacterStatus.ONLINE,
+                          bio: data?.tagline || '',
+                          tags: Array.isArray(data?.tags) ? data.tags : [],
+                          creator: userProfile.nickname || '我',
+                          oneLinePersona: data?.tagline || '',
+                          personality: data?.personality || '',
+                          profession: data?.occupation || '',
+                          age: data?.age ? String(data.age) : '',
+                          roleType: '',
+                          gender: data?.gender || '',
+                          currentRelationship: data?.relationship || '',
+                          plotTheme: data?.plot_theme || '',
+                          plotDescription: data?.plot_summary || '',
+                          openingLine: data?.opening_line || '',
+                          styleExamples: Array.isArray(data?.styleExamples) ? data.styleExamples : [],
+                          hobbies: data?.hobbies || '',
+                          experiences: data?.experiences || '',
+                          isPublic: String(data?.visibility || '') === 'public',
+                          isPublished: String(data?.status || '') === 'published'
+                        } as any
+                        setViewingProfile(mapped)
+                      } else {
+                        const full = await getCharacter(candidate!.id)
+                        const mapped: Character = {
+                          id: String(full.id),
+                          name: full.name || candidate!.name,
+                          avatar: full.avatar || candidate!.avatar || '',
+                          profileImage: full.profileImage || candidate!.profileImage || '',
+                          status: CharacterStatus.ONLINE,
+                          bio: full.bio || '',
+                          tags: Array.isArray(full.tags) ? full.tags : [],
+                          creator: full.creator || '',
+                          oneLinePersona: full.oneLinePersona || '',
+                          personality: full.personality || '',
+                          profession: full.profession || (full as any).occupation || '',
+                          age: full.age || '',
+                          roleType: full.roleType || '',
+                          currentRelationship: full.currentRelationship || (full as any).relationship || '',
+                          plotTheme: (full as any).plotTheme || (full as any).plot_theme || '',
+                          plotDescription: (full as any).plotDescription || (full as any).plot_summary || '',
+                          openingLine: full.openingLine || ''
+                        } as any
+                        setViewingProfile(mapped)
+                      }
+                    } catch { }
+                  })()
+                }
+                if (!candidate && (rid !== undefined && rid !== null)) {
+                  ;(async () => {
+                    try {
+                      const full = await getCharacter(rid)
+                      const mapped: Character = {
+                        id: String(full.id),
+                        name: full.name || '',
+                        avatar: full.avatar || '',
+                        profileImage: full.profileImage || '',
+                        status: CharacterStatus.ONLINE,
+                          bio: full.bio || '',
+                        tags: Array.isArray(full.tags) ? full.tags : [],
+                        creator: full.creator || '',
+                        oneLinePersona: full.oneLinePersona || '',
+                        personality: full.personality || '',
+                        profession: full.profession || (full as any).occupation || '',
+                        age: full.age || '',
+                        roleType: full.roleType || '',
+                        currentRelationship: full.currentRelationship || (full as any).relationship || '',
+                        plotTheme: (full as any).plotTheme || (full as any).plot_theme || '',
+                        plotDescription: (full as any).plotDescription || (full as any).plot_summary || '',
+                        openingLine: full.openingLine || ''
+                      } as any
+                      setViewingProfile(mapped)
+                      setIsProfileFromChat(false)
+                      setIsProfileFromMe(false)
+                      return
+                    } catch { }
+                    try {
+                      const data = await getUserCharacter(rid)
+                      const mapped: Character = {
+                        id: String(rid),
+                        name: data?.name || '',
+                        avatar: data?.avatar || '',
+                        profileImage: '',
+                        status: CharacterStatus.ONLINE,
+                        bio: data?.tagline || '',
+                        tags: Array.isArray(data?.tags) ? data.tags : [],
+                        creator: userProfile.nickname || '我',
+                        oneLinePersona: data?.tagline || '',
+                        personality: data?.personality || '',
+                        profession: data?.occupation || '',
+                        age: data?.age ? String(data.age) : '',
+                        roleType: '',
+                        gender: data?.gender || '',
+                        currentRelationship: data?.relationship || '',
+                        plotTheme: data?.plot_theme || '',
+                        plotDescription: data?.plot_summary || '',
+                        openingLine: data?.opening_line || '',
+                        styleExamples: Array.isArray(data?.styleExamples) ? data.styleExamples : [],
+                        hobbies: data?.hobbies || '',
+                        experiences: data?.experiences || '',
+                        isPublic: String(data?.visibility || '') === 'public',
+                        isPublished: String(data?.status || '') === 'published'
+                      } as any
+                      setViewingProfile(mapped)
+                      setIsProfileFromChat(false)
+                      setIsProfileFromMe(false)
+                    } catch { }
+                  })()
                 }
               }}
-              showAdd={activeTab === NavTab.HOME && homeTab === 'characters'}
             />
-            <AnimatePresence initial={false}>
-              <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth min-h-0">
-                {renderContent()}
-              </div>
-            </AnimatePresence>
-            <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
-          </>
-        )}
+          )}
+
+          {/* 3. Main Tab Navigation View */}
+          {!isUserSettingsOpen && !isCreating && !selectedChat && (
+            <>
+              <TopBar
+                title={activeTab === NavTab.HOME ? renderHomeHeader() : (activeTab === NavTab.CHAT ? '聊天' : '')}
+                variant={activeTab === NavTab.ME ? 'overlay' : 'default'}
+                onFilterClick={() => {
+                  if (activeTab === NavTab.HOME) {
+                    if (homeTab === 'characters') {
+                      setIsCreating(true)
+                    } else if (homeTab === 'stories') {
+                      (async () => {
+                        try {
+                          const { authFetch } = await import('./services/http')
+                          const res = await authFetch('/stories/combine')
+                          if (res && res.ok) {
+                            const data = await res.json()
+                            const items = Array.isArray(data?.items) ? data.items : []
+                            setImportableRoles(items.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
+                          } else {
+                            setImportableRoles([])
+                          }
+                        } catch {
+                          setImportableRoles([])
+                        }
+                        setIsCreatingStory(true)
+                      })()
+                    }
+                  }
+                }}
+                showAdd={activeTab === NavTab.HOME}
+              />
+              <AnimatePresence initial={false}>
+                <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth min-h-0">
+                  {renderContent()}
+                </div>
+              </AnimatePresence>
+              <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+            </>
+          )}
         </div>
       </div>
     </ToastProvider>
@@ -712,3 +1022,6 @@ const App: React.FC = () => {
 };
 
 export default App;
+  const upsertById = <T extends { id: any }>(list: T[], item: T): T[] => {
+    return [item, ...list.filter(it => String(it.id) !== String(item.id))]
+  }

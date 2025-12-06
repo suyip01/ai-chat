@@ -45,6 +45,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const [hasModelOverride, setHasModelOverride] = useState<boolean>(false)
   const [hasTempOverride, setHasTempOverride] = useState<boolean>(false)
   const [personaLocal, setPersonaLocal] = useState<UserPersona | undefined>(undefined)
+  const [charImgError, setCharImgError] = useState(false)
+  const [userImgError, setUserImgError] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -74,7 +76,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           avatar: avatar || undefined,
         };
       }
-    } catch {}
+    } catch { }
     return undefined;
   }, [personaLocal]);
 
@@ -86,7 +88,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       }
       const msg: Message = { id: (Date.now() + 1).toString(), senderId: character.id, text, quote, timestamp: new Date(), type: MessageType.TEXT };
       next.push(msg);
-      try { setTimeout(() => onUpdateLastMessage(msg), 0) } catch {}
+      try { setTimeout(() => onUpdateLastMessage(msg), 0) } catch { }
       return next;
     });
     if (meta && typeof meta.chunkIndex === 'number' && typeof meta.chunkTotal === 'number') {
@@ -108,19 +110,47 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     scrollToBottom();
   }, [messages, isTyping]);
 
+  const [viewportStyle, setViewportStyle] = useState<{ height: string | number; top: string | number }>({ height: '100%', top: 0 });
+
   useEffect(() => {
+    const handleVisualViewport = () => {
+      if (window.visualViewport) {
+        setViewportStyle({
+          height: `${window.visualViewport.height}px`,
+          top: `${window.visualViewport.offsetTop}px`
+        });
+
+        // Ensure input is visible by scrolling to bottom
+        if (contentRef.current) {
+          contentRef.current.scrollTop = contentRef.current.scrollHeight;
+        }
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleVisualViewport);
+      window.visualViewport.addEventListener('scroll', handleVisualViewport);
+      // Initial set
+      handleVisualViewport();
+    }
+
     const onResize = () => {
-      if (contentRef.current) {
-        contentRef.current.scrollTop = contentRef.current.scrollHeight;
-      } else {
-        scrollToBottom();
+      if (!window.visualViewport) {
+        if (contentRef.current) {
+          contentRef.current.scrollTop = contentRef.current.scrollHeight;
+        } else {
+          scrollToBottom();
+        }
       }
     }
     window.addEventListener('resize', onResize)
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize as any)
+
     return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleVisualViewport);
+        window.visualViewport.removeEventListener('scroll', handleVisualViewport);
+      }
       window.removeEventListener('resize', onResize)
-      if (window.visualViewport) window.visualViewport.removeEventListener('resize', onResize as any)
     }
   }, [])
 
@@ -148,7 +178,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     try {
       const raw = localStorage.getItem(configKey);
       if (raw) {
-        const cfg = JSON.parse(raw) as { chatMode?: 'daily'|'scene'; persona?: UserPersona };
+        const cfg = JSON.parse(raw) as { chatMode?: 'daily' | 'scene'; persona?: UserPersona };
         if (cfg?.chatMode === 'daily' || cfg?.chatMode === 'scene') {
           setChatMode(cfg.chatMode);
           setInput(cfg.chatMode === 'scene' ? '（）' : '');
@@ -162,7 +192,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       if (typeof t === 'number' && !isNaN(t)) { setModelTemp(t); setHasTempOverride(true) }
       const mname = localStorage.getItem(modelNameKey) || undefined
       if (mname) setModelNick(mname)
-    } catch {}
+    } catch { }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character.id]);
 
@@ -173,11 +203,11 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       if (sid) {
         setSessionId(sid);
         // migrate legacy session key
-        if (!localStorage.getItem(key)) { try { localStorage.setItem(key, sid) } catch {} }
+        if (!localStorage.getItem(key)) { try { localStorage.setItem(key, sid) } catch { } }
         try {
           const info = await getSessionInfo(sid)
-          if (info?.temperature !== undefined) { setModelTemp(info.temperature as number); try { localStorage.setItem(tempKey, String(info.temperature)) } catch {} }
-        } catch {}
+          if (info?.temperature !== undefined) { setModelTemp(info.temperature as number); try { localStorage.setItem(tempKey, String(info.temperature)) } catch { } }
+        } catch { }
         const conn = connectChatWs(sid, (text, quote, meta) => {
           appendAssistantWithRead(text, quote, meta);
         });
@@ -191,9 +221,9 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         const sid = created.sessionId;
         localStorage.setItem(key, sid);
         setSessionId(sid);
-        if (created.model?.id) { setModelId(created.model.id); try { localStorage.setItem(modelKey, created.model.id) } catch {} }
-        
-        if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch {} }
+        if (created.model?.id) { setModelId(created.model.id); try { localStorage.setItem(modelKey, created.model.id) } catch { } }
+
+        if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch { } }
         const conn = connectChatWs(sid, (text, quote, meta) => {
           appendAssistantWithRead(text, quote, meta);
         });
@@ -219,7 +249,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         setInput('');
       }
     }
-    try { localStorage.setItem(configKey, JSON.stringify({ chatMode: mode, persona: userPersona || undefined })); } catch {}
+    try { localStorage.setItem(configKey, JSON.stringify({ chatMode: mode, persona: userPersona || undefined })); } catch { }
   };
 
   const handleSend = async () => {
@@ -237,7 +267,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     };
 
     setMessages(prev => [...prev, userMsg]);
-    try { setTimeout(() => onUpdateLastMessage(userMsg), 0) } catch {}
+    try { setTimeout(() => onUpdateLastMessage(userMsg), 0) } catch { }
     // Reset input based on mode
     setInput(chatMode === 'scene' ? '（）' : '');
     setIsTyping(true);
@@ -327,8 +357,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                       onClick={onShowProfile}
                       className="w-10 h-10 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center text-blue-500 font-bold border border-white cursor-pointer active:scale-95 transition-transform"
                     >
-                      {character.avatar ? (
-                        <img src={character.avatar} alt={character.name} className="w-full h-full object-cover" />
+                      {(!charImgError && character.avatar) ? (
+                        <img src={character.avatar} alt={character.name} className="w-full h-full object-cover" onError={() => setCharImgError(true)} />
                       ) : (
                         character.name[0]
                       )}
@@ -369,8 +399,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                 {isMe && (
                   <div className="flex-shrink-0 ml-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-pink-200 flex items-center justify-center text-pink-600 font-bold border border-white shadow-sm">
-                      {effectivePersona?.avatar ? (
-                        <img src={effectivePersona.avatar} alt={effectivePersona?.name || '我'} className="w-full h-full object-cover" />
+                      {(!userImgError && effectivePersona?.avatar) ? (
+                        <img src={effectivePersona.avatar} alt={effectivePersona?.name || '我'} className="w-full h-full object-cover" onError={() => setUserImgError(true)} />
                       ) : (
                         (effectivePersona?.name ? effectivePersona.name[0] : '我')
                       )}
@@ -430,53 +460,53 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                   </button>
                 </div>
 
-            <div className="p-2">
-              {/* My Character Settings */}
-              <button
-                onClick={() => {
-                  setIsSettingsOpen(false);
-                  setIsRoleSheetOpen(true);
-                }}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
-              >
-                <div className="flex items-center gap-3 text-slate-700">
-                  <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                    <UserIcon size={18} />
-                  </div>
-                  <span className="font-bold text-sm">我的角色设置</span>
-                </div>
-                <ChevronRight size={16} className="text-slate-300" />
-              </button>
+                <div className="p-2">
+                  {/* My Character Settings */}
+                  <button
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      setIsRoleSheetOpen(true);
+                    }}
+                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+                  >
+                    <div className="flex items-center gap-3 text-slate-700">
+                      <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                        <UserIcon size={18} />
+                      </div>
+                      <span className="font-bold text-sm">我的角色设置</span>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-300" />
+                  </button>
 
-              <div className="h-[1px] bg-slate-50 mx-4"></div>
+                  <div className="h-[1px] bg-slate-50 mx-4"></div>
 
-              {/* Model */}
-              <button
-                onClick={() => { setIsSettingsOpen(false); setIsModelSheetOpen(true) }}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
-              >
-                <div className="flex items-center gap-3 text-slate-700">
-                  <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                    <Cpu size={18} />
-                  </div>
-                  <span className="font-bold text-sm">模型</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500">{modelNick || '默认'}</span>
-                  <ChevronRight size={16} className="text-slate-300" />
-                </div>
-              </button>
+                  {/* Model */}
+                  <button
+                    onClick={() => { setIsSettingsOpen(false); setIsModelSheetOpen(true) }}
+                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+                  >
+                    <div className="flex items-center gap-3 text-slate-700">
+                      <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                        <Cpu size={18} />
+                      </div>
+                      <span className="font-bold text-sm">模型</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">{modelNick || '默认'}</span>
+                      <ChevronRight size={16} className="text-slate-300" />
+                    </div>
+                  </button>
 
-              <div className="h-[1px] bg-slate-50 mx-4"></div>
+                  <div className="h-[1px] bg-slate-50 mx-4"></div>
 
-              {/* Chat Mode */}
-              <div className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
-                <div className="flex items-center gap-3 text-slate-700">
-                  <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                    <MessageSquare size={18} />
-                  </div>
-                  <span className="font-bold text-sm">聊天模式</span>
-                </div>
+                  {/* Chat Mode */}
+                  <div className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                    <div className="flex items-center gap-3 text-slate-700">
+                      <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                        <MessageSquare size={18} />
+                      </div>
+                      <span className="font-bold text-sm">聊天模式</span>
+                    </div>
 
                     {/* Toggle */}
                     <div className="flex bg-slate-100 p-1 rounded-lg">
@@ -517,20 +547,19 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           currentPersona={userPersona}
           onClose={() => setIsRoleSheetOpen(false)}
           onAdd={() => { setIsRoleSheetOpen(false); setIsUserSettingsOpenLocal(true); }}
-          onSelect={(persona) => { setPersonaLocal(persona); try { localStorage.setItem(configKey, JSON.stringify({ chatMode, persona })); } catch {} }}
+          onSelect={(persona) => { setPersonaLocal(persona); try { localStorage.setItem(configKey, JSON.stringify({ chatMode, persona })); } catch { } }}
         />
 
         <ModelSelectorSheet
           isOpen={isModelSheetOpen}
           currentModelId={modelId}
           onClose={() => setIsModelSheetOpen(false)}
-          onSelect={(mid, nickname) => { setModelId(mid); setHasModelOverride(true); setModelNick(nickname); try { localStorage.setItem(modelKey, mid); if (nickname) localStorage.setItem(modelNameKey, nickname) } catch {} }}
+          onSelect={(mid, nickname) => { setModelId(mid); setHasModelOverride(true); setModelNick(nickname); try { localStorage.setItem(modelKey, mid); if (nickname) localStorage.setItem(modelNameKey, nickname) } catch { } }}
           temperature={modelTemp}
-          onTempChange={(t) => { setModelTemp(t); setHasTempOverride(true); try { localStorage.setItem(tempKey, String(t)) } catch {} }}
+          onTempChange={(t) => { setModelTemp(t); setHasTempOverride(true); try { localStorage.setItem(tempKey, String(t)) } catch { } }}
         />
 
       </div>
     </motion.div>
   );
 };
- 

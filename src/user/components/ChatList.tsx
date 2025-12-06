@@ -18,15 +18,20 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
   const [offsets, setOffsets] = useState<Record<string, number>>({});
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const startXRef = useRef<number>(0);
+  const startYRef = useRef<number>(0);
   const activeIdRef = useRef<string | null>(null);
 
   const onTouchStart = (e: React.TouchEvent, id: string) => {
     startXRef.current = e.touches[0].clientX;
+    startYRef.current = e.touches[0].clientY;
     activeIdRef.current = id;
   };
   const onTouchMove = (e: React.TouchEvent, id: string) => {
     if (activeIdRef.current !== id) return;
     const dx = e.touches[0].clientX - startXRef.current;
+    const dy = e.touches[0].clientY - startYRef.current;
+    if (Math.abs(dy) > Math.abs(dx)) return; // Vertical scroll, ignore swipe
+
     const offset = Math.max(-96, Math.min(0, dx));
     setOffsets(prev => ({ ...prev, [id]: offset }));
   };
@@ -44,9 +49,9 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
       className="px-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700"
       initial={{ x: 0 }}
       animate={isDetailOpen && isTouch ? { x: '-100%' } : { x: 0 }}
-      transition={isDetailOpen && isTouch ? { duration: 0.3, ease: 'linear' } : { duration: 0 }}
+      transition={isTouch ? { duration: 0.3, ease: 'linear' } : { duration: 0 }}
     >
-      
+
       {pinnedChats.length > 0 && (
         <div className="mb-6">
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">置顶</h2>
@@ -76,7 +81,7 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
                   roundedClass={(offsets[chat.characterId] || 0) < 0 ? 'rounded-l-2xl rounded-r-none' : 'rounded-2xl'}
                 />
               </div>
-              
+
             </div>
           ))}
         </div>
@@ -111,39 +116,39 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
                   roundedClass={(offsets[chat.characterId] || 0) < 0 ? 'rounded-l-2xl rounded-r-none' : 'rounded-2xl'}
                 />
               </div>
-              
+
             </div>
           ))}
         </div>
-  )}
-  {confirmId && (
-    <>
-      <div className="fixed inset-0 z-[80] bg-black/20 animate-[fadeBg_200ms_ease]"></div>
-      <div className="fixed inset-0 z-[90] flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-[85%] max-w-sm animate-[fadeCard_200ms_ease]">
-          <div className="px-6 py-5 text-center text-slate-800 font-bold">确认删除此会话？</div>
-          <div className="h-[1px] bg-slate-100"></div>
-          <div className="flex">
-            <button className="flex-1 py-4 text-slate-600 active:opacity-70" onClick={() => { closeSwipe(confirmId); setConfirmId(null); }}>取消</button>
-            <div className="w-[1px] bg-slate-100"></div>
-            <button className="flex-1 py-4 text-red-600 font-bold active:opacity-70" onClick={() => { const id = confirmId; setConfirmId(null); onDeleteChat(id); }}>确认删除</button>
+      )}
+      {confirmId && (
+        <>
+          <div className="fixed inset-0 z-[80] bg-black/20 animate-[fadeBg_200ms_ease]"></div>
+          <div className="fixed inset-0 z-[90] flex items-center justify-center">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-[85%] max-w-sm animate-[fadeCard_200ms_ease]">
+              <div className="px-6 py-5 text-center text-slate-800 font-bold">确认删除此会话？</div>
+              <div className="h-[1px] bg-slate-100"></div>
+              <div className="flex">
+                <button className="flex-1 py-4 text-slate-600 active:opacity-70" onClick={() => { closeSwipe(confirmId); setConfirmId(null); }}>取消</button>
+                <div className="w-[1px] bg-slate-100"></div>
+                <button className="flex-1 py-4 text-red-600 font-bold active:opacity-70" onClick={() => { const id = confirmId; setConfirmId(null); onDeleteChat(id); }}>确认删除</button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-      <style>{`
+          <style>{`
         @keyframes fadeCard { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: translateY(0) } }
         @keyframes fadeBg { from { opacity: 0 } to { opacity: 1 } }
       `}</style>
-    </>
-  )}
+        </>
+      )}
 
       {chats.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4 text-4xl">
-                🌸
-            </div>
-            <p className="text-slate-500 font-medium">暂无消息</p>
-            <p className="text-slate-400 text-sm mt-1">快去和角色聊天吧！</p>
+          <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4 text-4xl">
+            🌸
+          </div>
+          <p className="text-slate-500 font-medium">暂无消息</p>
+          <p className="text-slate-400 text-sm mt-1">快去和角色聊天吧！</p>
         </div>
       )}
     </motion.div>

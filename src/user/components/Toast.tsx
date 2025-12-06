@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useRef, useState } from 'react';
 
-const ToastCtx = createContext<{ showToast: (text: string, type?: 'info' | 'success' | 'error' | 'role') => void; showCenter: (text: string) => void }>({ showToast: () => {}, showCenter: () => {} });
+const ToastCtx = createContext<{ showToast: (text: string, type?: 'info' | 'success' | 'error' | 'role') => void; showCenter: (text: string, type?: 'info' | 'success' | 'error') => void }>({ showToast: () => {}, showCenter: () => {} });
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<{ id: number; text: string; type: string; position: 'bottom' | 'center'; duration?: number }[]>([]);
@@ -20,7 +20,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts((prev) => [...prev, { id, text, type, position: 'bottom', duration }]);
     scheduleRemoval(id, duration);
   };
-  const showCenter = (text: string) => {
+  const showCenter = (text: string, type: 'info' | 'success' | 'error' = 'info') => {
     const extendDuration = 3000;
     setToasts((prev) => {
       const existing = prev.find((t) => t.position === 'center' && t.text === text);
@@ -30,7 +30,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       const id = Date.now();
       scheduleRemoval(id, 2000);
-      return [...prev, { id, text, type: 'center', position: 'center', duration: 2000 }];
+      return [...prev, { id, text, type, position: 'center', duration: 2000 }];
     });
   };
   return (
@@ -61,7 +61,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           {toasts.filter(t => t.position === 'center').map((t) => (
             <div
               key={t.id}
-              className="bg-white text-slate-800 px-6 py-3 rounded-2xl shadow-2xl border border-slate-200 whitespace-nowrap"
+              className={`${t.type === 'error' ? 'bg-white text-red-500 border-red-200' : 'bg-white text-slate-800 border-slate-200'} px-6 py-3 rounded-2xl shadow-2xl border whitespace-nowrap`}
             >
               {t.text}
             </div>

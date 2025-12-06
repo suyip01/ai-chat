@@ -115,11 +115,46 @@ CREATE TABLE stories (
   image VARCHAR(255),
   author VARCHAR(128),
   likes VARCHAR(64),
+  status ENUM('published','draft') NOT NULL DEFAULT 'draft',
   content TEXT NOT NULL,
   publish_date TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Link stories to multiple characters (many-to-many)
+CREATE TABLE story_characters (
+  story_id BIGINT NOT NULL,
+  character_id BIGINT NOT NULL,
+  PRIMARY KEY (story_id, character_id),
+  FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE,
+  FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Auto-manage publish_date based on status
+DELIMITER $$
+CREATE TRIGGER stories_before_insert
+BEFORE INSERT ON stories
+FOR EACH ROW
+BEGIN
+  IF NEW.status = 'published' THEN
+    SET NEW.publish_date = CURRENT_TIMESTAMP;
+  ELSE
+    SET NEW.publish_date = NULL;
+  END IF;
+END$$
+
+CREATE TRIGGER stories_before_update
+BEFORE UPDATE ON stories
+FOR EACH ROW
+BEGIN
+  IF NEW.status = 'published' AND (OLD.status <> 'published' OR OLD.publish_date IS NULL) THEN
+    SET NEW.publish_date = CURRENT_TIMESTAMP;
+  ELSEIF NEW.status <> 'published' THEN
+    SET NEW.publish_date = NULL;
+  END IF;
+END$$
+DELIMITER ;
 
 CREATE TABLE story_tags (
   story_id BIGINT NOT NULL,

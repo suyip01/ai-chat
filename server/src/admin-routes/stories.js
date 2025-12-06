@@ -18,17 +18,17 @@ router.get('/:id', async (req, res) => {
 })
 
 router.post('/', async (req, res) => {
-  const { user_id, title, description, image, author, likes, content, publish_date, status, tags } = req.body || {}
+  const { user_id, title, description, image, author, likes, content, status, tags, character_ids } = req.body || {}
   if (!title || !content) return res.status(400).json({ error: 'missing_fields' })
-  try { const id = await createStory({ user_id, title, description, image, author, likes, content, publish_date, status, tags }); res.json({ id }) } catch (e) { req.log?.error?.('[admin.stories.create] failed', { error: e?.message }); res.status(500).json({ error: 'server_error' }) }
+  try { const id = await createStory({ user_id, title, description, image, author, likes, content, status, tags, character_ids }); res.json({ id }) } catch (e) { req.log?.error?.('[admin.stories.create] failed', { error: e?.message }); res.status(500).json({ error: 'server_error' }) }
 })
 
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id)
   if (!id) return res.status(400).json({ error: 'bad_id' })
-  const { title, description, image, author, likes, content, publish_date, status, tags } = req.body || {}
+  const { title, description, image, author, likes, content, status, tags, character_ids } = req.body || {}
   if (!title || !content) return res.status(400).json({ error: 'missing_fields' })
-  try { await updateStory(id, { title, description, image, author, likes, content, publish_date, status, tags }); res.json({ ok: true }) } catch (e) { req.log?.error?.('[admin.stories.update] failed', { id, error: e?.message }); res.status(500).json({ error: 'server_error' }) }
+  try { await updateStory(id, { title, description, image, author, likes, content, status, tags, character_ids }); res.json({ ok: true }) } catch (e) { req.log?.error?.('[admin.stories.update] failed', { id, error: e?.message }); res.status(500).json({ error: 'server_error' }) }
 })
 
 router.delete('/:id', async (req, res) => {

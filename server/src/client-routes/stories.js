@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { listStories, getStory } from '../admin-services/stories.js'
+import { listPublishedCharacters } from '../client-services/characters.js'
+import { listUserCharacters } from '../client-services/userCharacters.js'
 import { userAuthRequired } from '../middleware/userAuth.js'
 
 const router = Router()
@@ -27,6 +29,22 @@ router.get('/', async (req, res) => {
   }
 })
 
+// Combined roles for story creation: public published + user's private published
+router.get('/combine', async (req, res) => {
+  try {
+    const pub = await listPublishedCharacters({ visibility: 'public', limit: 100 })
+    const mine = await listUserCharacters(req.user.id)
+    const myPrivatePublished = (mine || []).filter(it => String(it.mypage_visibility) === 'private' && String(it.mypage_status) === 'published')
+    const mapPub = (c) => ({ character_id: String(c.id), character_name: c.name, character_avatar: c.avatar, desc: c.tagline || c.plot_summary || '', isPrivate: false, isMine: false })
+    const mapMine = (c) => ({ character_id: String(c.mypage_id), character_name: c.mypage_name, character_avatar: c.mypage_avatar || '', desc: c.mypage_tagline || '', isPrivate: true, isMine: true })
+    const items = [...(pub || []).map(mapPub), ...myPrivatePublished.map(mapMine)]
+    req.log.info('stories.combine.roles', { count: items.length })
+    res.json({ items })
+  } catch {
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
 router.get('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id)
@@ -44,6 +62,8 @@ router.get('/:id', async (req, res) => {
       content: data.content,
       publish_date: data.publish_date,
       tags: Array.isArray(data.tags) ? data.tags : [],
+      roles: Array.isArray(data.roles) ? data.roles : [],
+      user_avatar: data.user_avatar || ''
     })
   } catch {
     res.status(500).json({ error: 'server_error' })

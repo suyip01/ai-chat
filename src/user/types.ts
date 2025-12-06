@@ -97,6 +97,7 @@ export interface UserProfile {
 }
 
 export interface StoryRole {
+  id?: string | number;
   name: string;
   avatar: string;
   description: string;
@@ -110,9 +111,45 @@ export interface Story {
   image: string;
   tags: string[];
   author: string;
+  user_avatar?: string;
   likes: string;
   content: string; // The actual story text
   publishDate?: string;
   publish_date?: string;
+  status?: 'published' | 'draft'; // New field
   availableRoles?: StoryRole[];
+  isUserCreated?: boolean; // New field
+}
+
+export interface Character {
+  id: string;
+  name: string;
+  avatar: string;
+  profileImage?: string; // New field for the original uncropped image
+  status: CharacterStatus;
+  bio: string;
+  tags: string[];
+  isPinned?: boolean;
+  relationshipLevel?: number; // 0-100
+  creator?: string; 
+  playCount?: string;
+  
+  // Profile specific fields
+  age?: string;
+  profession?: string;
+  gender?: string;
+  roleType?: string; // '原创角色', etc.
+  isOriginal?: boolean;
+  oneLinePersona?: string;
+  personality?: string;
+  currentRelationship?: string;
+  plotTheme?: string;
+  plotDescription?: string;
+  openingLine?: string;
+  
+  // Advanced fields
+  styleExamples?: string[];
+  hobbies?: string;
+  experiences?: string;
+  isPublic?: boolean;
 }

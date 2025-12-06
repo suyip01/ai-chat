@@ -16,6 +16,7 @@ interface CharacterProfileProps {
 export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, onBack, onStartChat, isFromChat = false, isExistingChat = false }) => {
   const [showAllTags, setShowAllTags] = useState(false);
   const { showToast, showCenter } = useToast();
+  const [imgError, setImgError] = useState(false);
 
   // Logic: Show first 4 initially. If showAllTags is true, show all.
   const visibleTags = showAllTags ? character.tags : character.tags.slice(0, 4);
@@ -45,11 +46,18 @@ export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, o
 
 
             {/* Background Image - Use profileImage (original) if available, else avatar */}
-            <img
-              src={character.profileImage || character.avatar}
-              alt={character.name}
-              className="w-full h-full object-cover"
-            />
+            {(!imgError && (character.profileImage || character.avatar)) ? (
+              <img
+                src={character.profileImage || character.avatar}
+                alt={character.name}
+                className="w-full h-full object-cover"
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                <span className="text-6xl font-bold text-slate-500">{character.name?.[0] || '?'}</span>
+              </div>
+            )}
 
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-slate-900/10"></div>

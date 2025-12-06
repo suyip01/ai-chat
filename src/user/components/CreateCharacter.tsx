@@ -372,6 +372,9 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
         {tempAvatar && (
             <ImageCropper 
                 imageSrc={tempAvatar}
+                aspectRatio={1}
+                outputWidth={800}
+                outputHeight={800}
                 onCancel={() => {
                     setTempAvatar(null);
                     if (fileInputRef.current) fileInputRef.current.value = '';
