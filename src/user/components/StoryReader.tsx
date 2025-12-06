@@ -214,19 +214,21 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
             </div>
 
             {/* Chat with Role Button */}
-            <div className="flex justify-center mb-8">
-                <button
-                    onClick={() => setShowRoleModal(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-purple-100 rounded-full shadow-lg shadow-purple-200/50 hover:bg-purple-200 transition-all active:scale-95 cursor-pointer"
-                >
-                    <span 
-                        className="text-lg font-bold text-purple-600 tracking-widest"
-                    >
-                        与角色开聊
-                    </span>
-                    <ArrowRight size={18} className="text-purple-600" />
-                </button>
-            </div>
+            {(displayRoles.length > 0) && (
+              <div className="flex justify-center mb-8">
+                  <button
+                      onClick={() => setShowRoleModal(true)}
+                      className="flex items-center gap-2 px-6 py-3 bg-purple-100 rounded-full shadow-lg shadow-purple-200/50 hover:bg-purple-200 transition-all active:scale-95 cursor-pointer"
+                  >
+                      <span 
+                          className="text-lg font-bold text-purple-600 tracking-widest"
+                      >
+                          与角色开聊
+                      </span>
+                      <ArrowRight size={18} className="text-purple-600" />
+                  </button>
+              </div>
+            )}
 
         </div>
         </div>

@@ -139,7 +139,7 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
     '感性', '体贴', '理性', '反差', '激情',
     '校园', '贴心', '偏执', '疯批', '傲娇',
     '职场', '冷漠', '忧郁', '人夫', '养胃',
-    '控制欲', '黏人', '可爱', '成熟', '性感'
+    '控制欲', '黏人', '可爱', '成熟', '性感', '四爱'
   ];
 
   const handleAvatarClick = () => {

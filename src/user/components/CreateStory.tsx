@@ -60,6 +60,27 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [customTagInput, setCustomTagInput] = useState('');
   const [tempImage, setTempImage] = useState<string | null>(null);
+  const [showRoleTips, setShowRoleTips] = useState(false);
+  const roleTipsRef = useRef<HTMLDivElement | null>(null);
+  const [localImportableRoles, setLocalImportableRoles] = useState(importableRoles);
+  useEffect(() => {
+    setLocalImportableRoles(importableRoles || []);
+  }, [importableRoles]);
+  useEffect(() => {
+    if (!localImportableRoles || !localImportableRoles.length) {
+      (async () => {
+        try {
+          const { authFetch } = await import('../services/http')
+          const res = await authFetch('/stories/combine')
+          if (res && res.ok) {
+            const data = await res.json()
+            const items = Array.isArray(data?.items) ? data.items : []
+            setLocalImportableRoles(items.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
+          }
+        } catch { }
+      })()
+    }
+  }, [])
   const myRoles = React.useMemo(() => {
     const src = Array.isArray(myUserCharacters) ? myUserCharacters : []
     return src
@@ -72,16 +93,16 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
     if (prefilledRef.current) return
     const ids: Array<string|number> = Array.isArray((initialStory as any)?.characterIds) ? (initialStory as any).characterIds : []
     if (!ids.length) return
-    if (!importableRoles || !importableRoles.length) return
+    if (!localImportableRoles || !localImportableRoles.length) return
     const idSet = new Set(ids.map(x => String(x)))
-    const matched = importableRoles
+    const matched = localImportableRoles
       .filter(r => idSet.has(String(r.id)))
       .map(r => ({ name: r.name, avatar: r.avatar, description: r.desc || '暂无描述' }))
     if (matched.length) {
       prefilledRef.current = true
       setForm(prev => ({ ...prev, roles: matched }))
     }
-  }, [initialStory, importableRoles])
+  }, [initialStory, localImportableRoles])
 
   useEffect(() => {
     if (!initialStory) return
@@ -91,6 +112,36 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
       prefilledRef.current = true
     }
   }, [initialStory])
+
+  useEffect(() => {
+    if (!initialStory) return
+    setForm(prev => ({
+      ...prev,
+      title: initialStory.title || prev.title,
+      description: initialStory.description || prev.description,
+      image: initialStory.image || prev.image,
+      content: initialStory.content || prev.content,
+      tags: Array.isArray(initialStory.tags) ? initialStory.tags : prev.tags
+    }))
+  }, [initialStory])
+
+  useEffect(() => {
+    if (!showRoleTips) return
+    const timer = setTimeout(() => setShowRoleTips(false), 6000)
+    return () => clearTimeout(timer)
+  }, [showRoleTips])
+
+  useEffect(() => {
+    if (!showRoleTips) return
+    const onDocClick = (e: MouseEvent) => {
+      const el = roleTipsRef.current
+      if (!el) { setShowRoleTips(false); return }
+      const target = e.target as Node
+      if (!el.contains(target)) setShowRoleTips(false)
+    }
+    window.addEventListener('click', onDocClick, true)
+    return () => window.removeEventListener('click', onDocClick, true)
+  }, [showRoleTips])
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -108,7 +159,7 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
     'BG', 'BL', 'GL', '暗恋', '校园',
     '职场', '悬疑', '科幻', '古风', '穿越',
     '重生', '甜宠', '虐恋', 'HE', 'BE',
-    '爽文', '娱乐圈', '青梅竹马', '强强'
+    '爽文', '娱乐圈', '青梅竹马', '强强', '同人'
   ];
 
   const handleImageClick = () => {
@@ -436,14 +487,31 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
 
           {/* 3. Characters */}
           <section className="glass-card p-6 space-y-4">
-            <div className="flex justify-between items-center mb-2">
-              <div className="section-title !font-kosugi !text-purple-900 mb-0">登场角色</div>
+            <div className="flex justify-between items-center mb-2 relative">
+              <div className="flex items-center gap-2">
+                <div className="section-title !font-kosugi !text-purple-900 mb-0">登场角色</div>
+                <button
+                  onClick={() => setShowRoleTips(true)}
+                  className="w-5 h-5 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100"
+                >
+                  <AlertCircle size={12} />
+                </button>
+              </div>
               <button
                 onClick={() => setShowRoleModal(true)}
                 className="text-xs bg-purple-100 text-purple-600 px-3 py-1.5 rounded-full font-bold hover:bg-purple-200 transition"
               >
                 + 导入角色
               </button>
+              {showRoleTips && (
+                <>
+                  <div className="fixed inset-0 z-[60]" onClick={() => setShowRoleTips(false)}></div>
+                  <div ref={roleTipsRef} className="absolute left-0 top-8 z-[61] bg-white rounded-2xl shadow-xl border border-slate-100 p-3 w-[88%]">
+                    <div className="text-xs text-slate-700 font-kosugi">当故事角色来自于“角色广场”或“你已创建的角色”时，请在下方添加所有出场角色，便于读者一键与角色聊天哦～</div>
+                    <div className="text-[10px] text-slate-400 mt-1 font-kosugi">若角色不来自上述来源，可不添加。</div>
+                  </div>
+                </>
+              )}
             </div>
 
             {form.roles.length === 0 ? (
@@ -502,7 +570,7 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
         {showTagModal && (
           <>
             <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[61]" onClick={() => setShowTagModal(false)}></div>
-            <div className="fixed bottom-0 left-0 w-full bg-white rounded-t-[30px] z-[62] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col h-[70vh] animate-in slide-in-from-bottom duration-300">
+            <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-md bg-white rounded-t-[30px] z-[62] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col h-[70vh] animate-in slide-in-from-bottom duration-300">
               <div className="px-5 py-4 flex justify-between items-center border-b border-purple-50 bg-white rounded-t-[30px]">
                 <button onClick={() => setShowTagModal(false)} className="w-8 h-8 rounded-full bg-purple-50 text-purple-800 flex items-center justify-center">
                   <ChevronDown size={20} />
@@ -573,7 +641,7 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
                 <button onClick={() => setShowRoleModal(false)} className="p-2 bg-slate-100 rounded-full"><X size={16} /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {(importableRoles || [])
+                {(localImportableRoles || [])
                   .filter(item => !form.roles.some(r => r.name === item.name))
                   .sort((a, b) => (a.isPrivate === b.isPrivate ? 0 : a.isPrivate ? -1 : 1))
                   .map(item => (

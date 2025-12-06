@@ -144,9 +144,6 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
 
       {chats.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4 text-4xl">
-            🌸
-          </div>
           <p className="text-slate-500 font-medium">暂无消息</p>
           <p className="text-slate-400 text-sm mt-1">快去和角色聊天吧！</p>
         </div>

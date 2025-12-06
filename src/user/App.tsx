@@ -608,65 +608,66 @@ const App: React.FC = () => {
                 }
               } catch { }
             }}
-            onEditStory={async (st) => {
-              try {
-                const full = await getMyStory(st.id)
-                const ids: Array<number | string> = Array.isArray((full as any)?.characterIds) ? (full as any).characterIds : []
-                let combinedItems: Array<any> = []
-                try {
-                  const { authFetch } = await import('./services/http')
-                  const res = await authFetch('/stories/combine')
-                  if (res && res.ok) {
-                    const data = await res.json()
-                    combinedItems = Array.isArray(data?.items) ? data.items : []
-                  }
-                } catch { }
-                setImportableRoles(combinedItems.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
-                const byCombine = (cid: any) => {
-                  const it = combinedItems.find(x => String(x.character_id) === String(cid))
-                  return it ? { id: cid, name: it.character_name, avatar: it.character_avatar || '', description: it.desc || '' } : null
-                }
-                let roles = ids.map(byCombine).filter(Boolean) as StoryRole[]
-                if (!roles.length) {
-                  const findById = (cid: any) => characters.find(c => String(c.id) === String(cid)) || myUserCharacters.find(c => String(c.id) === String(cid))
-                  roles = ids.map((cid) => {
-                    const c = findById(cid)
-                    if (!c) return null
-                    return { id: cid, name: c.name, avatar: c.avatar, description: c.oneLinePersona || c.bio || '' }
-                  }).filter(Boolean) as StoryRole[]
-                }
-                const mapped: Story = {
-                  id: Number(full.id),
-                  title: full.title,
-                  description: full.description || '',
-                  image: full.image || '/uploads/covers/default_storyimg.jpg',
-                  tags: Array.isArray(full.tags) ? full.tags : [],
-                  author: userProfile.nickname || '我',
-                  likes: '0',
-                  content: full.content || '',
-                  publishDate: (full as any)?.publishDate ?? undefined,
-                  status: (st as any).status || undefined,
-                  availableRoles: roles,
-                  ...(ids && { characterIds: ids } as any)
-                }
-                setEditStoryInitial(mapped)
-                setIsCreatingStory(true)
-              } catch {
-                const mapped: Story = {
-                  id: typeof st.id === 'number' ? st.id : Number(Date.now()),
-                  title: st.title,
-                  description: st.description || '',
-                  image: st.image || '/uploads/covers/default_storyimg.jpg',
-                  tags: Array.isArray(st.tags) ? st.tags : [],
-                  author: userProfile.nickname || '我',
-                  likes: '0',
-                  content: '',
-                  status: (st as any).status || undefined,
-                  availableRoles: []
-                }
-                setEditStoryInitial(mapped)
-                setIsCreatingStory(true)
+            onEditStory={(st) => {
+              const immediate: Story = {
+                id: typeof st.id === 'number' ? st.id : Number(Date.now()),
+                title: st.title,
+                description: st.description || '',
+                image: st.image || '/uploads/covers/default_storyimg.jpg',
+                tags: Array.isArray(st.tags) ? st.tags : [],
+                author: userProfile.nickname || '我',
+                likes: '0',
+                content: '',
+                status: (st as any).status || undefined,
+                availableRoles: []
               }
+              setEditStoryInitial(immediate)
+              setIsCreatingStory(true)
+
+              ;(async () => {
+                try {
+                  const full = await getMyStory(st.id)
+                  const ids: Array<number | string> = Array.isArray((full as any)?.characterIds) ? (full as any).characterIds : []
+                  let combinedItems: Array<any> = []
+                  try {
+                    const { authFetch } = await import('./services/http')
+                    const res = await authFetch('/stories/combine')
+                    if (res && res.ok) {
+                      const data = await res.json()
+                      combinedItems = Array.isArray(data?.items) ? data.items : []
+                    }
+                  } catch { }
+                  setImportableRoles(combinedItems.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
+                  const byCombine = (cid: any) => {
+                    const it = combinedItems.find(x => String(x.character_id) === String(cid))
+                    return it ? { id: cid, name: it.character_name, avatar: it.character_avatar || '', description: it.desc || '' } : null
+                  }
+                  let roles = ids.map(byCombine).filter(Boolean) as StoryRole[]
+                  if (!roles.length) {
+                    const findById = (cid: any) => characters.find(c => String(c.id) === String(cid)) || myUserCharacters.find(c => String(c.id) === String(cid))
+                    roles = ids.map((cid) => {
+                      const c = findById(cid)
+                      if (!c) return null
+                      return { id: cid, name: c.name, avatar: c.avatar, description: c.oneLinePersona || c.bio || '' }
+                    }).filter(Boolean) as StoryRole[]
+                  }
+                  const mapped: Story = {
+                    id: Number(full.id),
+                    title: full.title,
+                    description: full.description || '',
+                    image: full.image || '/uploads/covers/default_storyimg.jpg',
+                    tags: Array.isArray(full.tags) ? full.tags : [],
+                    author: userProfile.nickname || '我',
+                    likes: '0',
+                    content: full.content || '',
+                    publishDate: (full as any)?.publishDate ?? undefined,
+                    status: (st as any).status || undefined,
+                    availableRoles: roles,
+                    ...(ids && { characterIds: ids } as any)
+                  }
+                  setEditStoryInitial(mapped)
+                } catch { }
+              })()
             }}
             onEditCharacter={(char) => {
               setCreateInitial({ initial: char, id: char.id, isEdit: true })
@@ -680,22 +681,24 @@ const App: React.FC = () => {
               setCreateInitial(null)
               setIsCreating(true)
             }}
-            onAddStory={async () => {
-              try {
-                const { authFetch } = await import('./services/http')
-                const res = await authFetch('/stories/combine')
-                if (res && res.ok) {
-                  const data = await res.json()
-                  const items = Array.isArray(data?.items) ? data.items : []
-                  setImportableRoles(items.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
-                } else {
-                  setImportableRoles([])
-                }
-              } catch {
-                setImportableRoles([])
-              }
+            onAddStory={() => {
               setEditStoryInitial(null)
               setIsCreatingStory(true)
+              ;(async () => {
+                try {
+                  const { authFetch } = await import('./services/http')
+                  const res = await authFetch('/stories/combine')
+                  if (res && res.ok) {
+                    const data = await res.json()
+                    const items = Array.isArray(data?.items) ? data.items : []
+                    setImportableRoles(items.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
+                  } else {
+                    setImportableRoles([])
+                  }
+                } catch {
+                  setImportableRoles([])
+                }
+              })()
             }}
             onLogout={handleLogout}
           />

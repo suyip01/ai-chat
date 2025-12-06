@@ -25,10 +25,10 @@ export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, o
   return (
     <motion.div
       className="fixed inset-0 z-50 bg-primary-50"
-      initial={{ x: ((navigator as any)?.maxTouchPoints > 0) ? '100%' : 0 }}
+      initial={{ x: (((navigator as any)?.maxTouchPoints > 0) && isFromChat) ? '100%' : 0 }}
       animate={{ x: 0 }}
-      exit={{ x: ((navigator as any)?.maxTouchPoints > 0) ? '100%' : 0 }}
-      transition={{ duration: ((navigator as any)?.maxTouchPoints > 0) ? 0.3 : 0, ease: 'linear' }}
+      exit={{ x: (((navigator as any)?.maxTouchPoints > 0) && isFromChat) ? '100%' : 0 }}
+      transition={{ duration: (((navigator as any)?.maxTouchPoints > 0) && isFromChat) ? 0.3 : 0, ease: 'linear' }}
     >
       <div className="mx-auto w-full max-w-md h-full flex flex-col bg-white shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden relative">
         {/* Back Button - Fixed Position */}
