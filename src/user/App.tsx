@@ -3,25 +3,22 @@ import { AnimatePresence } from 'framer-motion';
 import { TopBar } from './components/TopBar';
 import { BottomNav } from './components/BottomNav';
 import { ChatList } from './components/ChatList';
+import { ChatDetail } from './components/ChatDetail';
+import { CharacterProfile } from './components/CharacterProfile';
+import { CharacterProfileAwait } from './components/CharacterProfileAwait';
+import { UserCharacterSettings } from './components/UserCharacterSettings';
+import { CreateCharacter } from './components/CreateCharacter';
+import { CreateStory } from './components/CreateStory';
+import { Login } from './components/Login';
 import { ToastProvider } from './components/Toast';
 import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, UserPersona, UserProfile, Story, StoryRole } from './types';
- 
+import { MePage } from './components/MePage';
 import { listStories as listStoriesClient, StoryPreview, getStory as getStoryClient } from './services/storiesService';
 import { listUserStories as listMyStories, getUserStory as getMyStory } from './services/userStoriesService';
- 
+import { StoryReader } from './components/StoryReader';
 import { listCharacters, getCharacter } from './services/charactersService';
 import { listUserCharacters as listMine, getUserCharacter } from './services/userCharactersService';
 import { createChatSession } from './services/chatService';
-
-const Login = React.lazy(() => import('./components/Login'))
-const ChatDetail = React.lazy(() => import('./components/ChatDetail'))
-const CharacterProfile = React.lazy(() => import('./components/CharacterProfile'))
-const CharacterProfileAwait = React.lazy(() => import('./components/CharacterProfileAwait'))
-const UserCharacterSettings = React.lazy(() => import('./components/UserCharacterSettings'))
-const CreateCharacter = React.lazy(() => import('./components/CreateCharacter'))
-const CreateStory = React.lazy(() => import('./components/CreateStory'))
-const MePage = React.lazy(() => import('./components/MePage'))
-const StoryReader = React.lazy(() => import('./components/StoryReader'))
 
 // Mock Data
 const MOCK_CHATS: ChatPreview[] = [];
@@ -301,9 +298,7 @@ const App: React.FC = () => {
       <ToastProvider>
         <div className="fixed inset-0 w-full bg-primary-50 overflow-hidden" style={{ height: 'calc(var(--vh) * 100)', overscrollBehavior: 'none' }}>
           <div className="h-full w-full max-w-md mx-auto bg白 relative shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden flex">
-            <React.Suspense fallback={<div className="flex-1" />}> 
-              <Login onLogin={() => setIsLoggedIn(true)} />
-            </React.Suspense>
+            <Login onLogin={() => setIsLoggedIn(true)} />
           </div>
         </div>
       </ToastProvider>
@@ -578,7 +573,6 @@ const App: React.FC = () => {
         );
       case NavTab.ME:
         return (
-          <React.Suspense fallback={<div />}> 
           <MePage
             userProfile={userProfile}
             myCharacters={characters}
@@ -738,7 +732,6 @@ const App: React.FC = () => {
             }}
             onLogout={handleLogout}
           />
-          </React.Suspense>
         );
       case NavTab.CHAT:
       default:
@@ -774,7 +767,6 @@ const App: React.FC = () => {
 
           {/* 0. Create Character Overlay */}
           {isCreating && (
-            <React.Suspense fallback={<div />}> 
             <CreateCharacter
               onBack={() => { setIsCreating(false); setCreateInitial(null) }}
               onCreate={handleCreateCharacter}
@@ -787,23 +779,19 @@ const App: React.FC = () => {
                 setViewingProfile(updated)
               }}
             />
-            </React.Suspense>
           )}
 
           {/* 0.5 User Settings Overlay */}
           {isUserSettingsOpen && (
-            <React.Suspense fallback={<div />}> 
             <UserCharacterSettings
               currentPersona={userPersona}
               onBack={() => setIsUserSettingsOpen(false)}
               onSave={(persona) => setUserPersona(persona)}
             />
-            </React.Suspense>
           )}
 
           {/* 0.75 Create Story Overlay */}
           {isCreatingStory && (
-            <React.Suspense fallback={<div />}> 
             <CreateStory
               onBack={() => { setIsCreatingStory(false); setEditStoryInitial(null) }}
               onPublish={(newStory) => {
@@ -822,13 +810,11 @@ const App: React.FC = () => {
               initialStory={editStoryInitial || undefined}
               importableRoles={importableRoles}
             />
-            </React.Suspense>
           )}
 
           {/* 2. Chat Detail View Overlay - Render FIRST so it stays mounted behind profile */}
           <AnimatePresence initial={false}>
             {selectedChat && !isUserSettingsOpen && !isCreating && (
-              <React.Suspense fallback={<div />}> 
               <ChatDetail
                 character={selectedChat.character}
                 initialMessages={getInitialMessages(selectedChat)}
@@ -844,7 +830,6 @@ const App: React.FC = () => {
                   setViewingProfile(selectedChat.character);
                 }}
               />
-              </React.Suspense>
             )}
           </AnimatePresence>
 
@@ -852,16 +837,13 @@ const App: React.FC = () => {
           <AnimatePresence initial={false}>
             {viewingProfile && !isUserSettingsOpen && !isCreating && !awaitProfile && (
               isProfileFromMe ? (
-                <React.Suspense fallback={<div />}> 
                 <CharacterProfileAwait
                   character={viewingProfile}
                   createdId={viewingProfile.id}
                   onBack={() => setViewingProfile(null)}
                   onStartChat={(char) => startChatFromProfile(char)}
                 />
-                </React.Suspense>
               ) : (
-                <React.Suspense fallback={<div />}> 
                 <CharacterProfile
                   character={viewingProfile}
                   onBack={() => setViewingProfile(null)}
@@ -869,25 +851,21 @@ const App: React.FC = () => {
                   isFromChat={isProfileFromChat}
                   isExistingChat={!!chats.find(c => c.characterId === viewingProfile.id)}
                 />
-                </React.Suspense>
               )
             )}
           </AnimatePresence>
 
           {awaitProfile && !isUserSettingsOpen && !isCreating && (
-            <React.Suspense fallback={<div />}> 
             <CharacterProfileAwait
               character={awaitProfile.character}
               createdId={awaitProfile.id}
               onBack={() => setAwaitProfile(null)}
               onStartChat={(char) => { setAwaitProfile(null); startChatFromProfile(char) }}
             />
-            </React.Suspense>
           )}
 
           {/* 阅读故事 Overlay */}
           {readingStory && (
-            <React.Suspense fallback={<div />}> 
             <StoryReader
               story={readingStory}
               onBack={() => setReadingStory(null)}
@@ -1028,7 +1006,6 @@ const App: React.FC = () => {
                 }
               }}
             />
-            </React.Suspense>
           )}
 
           {/* 3. Main Tab Navigation View */}
