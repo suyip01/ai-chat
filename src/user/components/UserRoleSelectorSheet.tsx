@@ -30,6 +30,7 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
   const initialOffsetRef = useRef<number>(0)
   const [confirmId, setConfirmId] = useState<number | null>(null)
   const isTouch = (navigator as any)?.maxTouchPoints > 0
+  const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; id: number | null }>({ visible: false, x: 0, y: 0, id: null })
 
   useEffect(() => {
     if (isOpen) {
@@ -80,6 +81,15 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
     }
     if (onEdit) onEdit(persona, r.id)
     onClose()
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, id: number) => {
+    e.preventDefault()
+    if (isTouch) return
+    let x = e.clientX
+    const menuWidth = 140
+    if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10
+    setContextMenu({ visible: true, x, y: e.clientY, id })
   }
 
   const onTouchStart = (e: React.TouchEvent, id: number) => {
@@ -179,6 +189,7 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
                         onTouchStart={(e) => onTouchStart(e, r.id)}
                         onTouchMove={(e) => onTouchMove(e, r.id)}
                         onTouchEnd={() => onTouchEnd(r.id)}
+                        onContextMenu={(e) => handleContextMenu(e, r.id)}
                         className={`${(offsets[r.id] || 0) < 0 ? 'rounded-l-xl rounded-r-none' : (offsets[r.id] || 0) > 0 ? 'rounded-l-none rounded-r-xl' : 'rounded-xl'} p-4 bg-white shadow-sm border flex items-center gap-3 active:scale-[0.98] transition-transform ${selected === r.id ? 'border-[#A855F7] shadow-[0_0_0_6px_rgba(168,85,247,0.18)]' : 'border-slate-100'}`}
                         style={{ transform: `translateX(${offsets[r.id] || 0}px)`, transition: 'transform 180ms ease' }}
                       >
@@ -190,16 +201,6 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
                           <div className="text-xs text-slate-500 truncate">{r.profession || ''}{r.age ? ` · ${r.age}` : ''}</div>
                         </div>
                         {selected === r.id && <CheckCircle className="w-5 h-5 text-[#A855F7]" />}
-                        {!isTouch && (
-                          <div className="flex items-center gap-2 ml-2">
-                            <button onClick={() => handleEdit(r)} className="px-2 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100">
-                              <span className="inline-flex items-center gap-1"><Edit2 className="w-3 h-3" />编辑</span>
-                            </button>
-                            <button onClick={() => setConfirmId(r.id)} className="px-2 py-1 text-xs font-bold text-red-600 bg-red-50 rounded-md hover:bg-red-100">
-                              <span className="inline-flex items-center gap-1"><Trash2 className="w-3 h-3" />删除</span>
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -228,6 +229,42 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
                 <button className="flex-1 py-4 text-red-600 font-bold active:opacity-70" onClick={() => { const id = confirmId as number; handleConfirmDelete(id) }}>确认删除</button>
               </div>
             </div>
+          </div>
+        </>
+      )}
+      {contextMenu.visible && (
+        <>
+          <div
+            className="fixed inset-0 z-[99]"
+            onClick={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(prev => ({ ...prev, visible: false })); }}
+          ></div>
+          <div
+            className="fixed z-[100] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden min-w-[120px]"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <button
+              onClick={() => {
+                const r = roles.find(x => x.id === contextMenu.id)
+                if (r) handleEdit(r)
+                setContextMenu(prev => ({ ...prev, visible: false }))
+              }}
+              className="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+            >
+              <Edit2 className="w-4 h-4 text-indigo-500" />
+              编辑
+            </button>
+            <div className="h-[1px] bg-slate-100 w-full"></div>
+            <button
+              onClick={() => {
+                setConfirmId(contextMenu.id)
+                setContextMenu(prev => ({ ...prev, visible: false }))
+              }}
+              className="w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              删除
+            </button>
           </div>
         </>
       )}
