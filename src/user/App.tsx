@@ -866,6 +866,12 @@ const App: React.FC = () => {
                 setCreateInitial(null)
                 setViewingProfile(updated)
               }}
+              onSaveDraft={(draft) => {
+                setIsCreating(false)
+                setCreateInitial(null)
+                setMyUserCharacters(prev => upsertById(prev, draft as any))
+                setActiveTab(NavTab.ME)
+              }}
             />
           )}
 

@@ -81,15 +81,16 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
 
     const nw = img.naturalWidth;
     const nh = img.naturalHeight;
-    const fitScale = Math.min(cropW / nw, cropH / nh);
-    const R = OUT_H / cropH;
+    const fitScale = Math.max(cropW / nw, cropH / nh);
+    const Rw = OUT_W / cropW;
+    const Rh = OUT_H / cropH;
 
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, OUT_W, OUT_H);
 
     ctx.translate(OUT_W / 2, OUT_H / 2);
-    ctx.translate(offset.x * R, offset.y * R);
-    ctx.scale(zoom * R, zoom * R);
+    ctx.translate(offset.x * Rw, offset.y * Rh);
+    ctx.scale(zoom * Rw, zoom * Rh);
     ctx.scale(fitScale, fitScale);
     ctx.drawImage(img, -nw / 2, -nh / 2);
 
@@ -130,8 +131,10 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
             className="absolute max-w-none transition-transform duration-75 ease-linear pointer-events-none"
             style={{
                 transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-                height: cropH, 
-                width: 'auto'
+                //height: cropH,
+                height: 'auto',
+                width: cropW
+                //width: 'auto'
             }}
             draggable={false}
           />

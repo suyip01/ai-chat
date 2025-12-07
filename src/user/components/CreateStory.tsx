@@ -374,7 +374,8 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
   };
 
   const handleSaveDraft = () => {
-    if (initialStory) { updateDraft(); return; }
+    if (!validate()) { setShowErrorModal(true); return }
+    if (initialStory) { updateDraft(); return }
     saveToServer('draft')
   };
 

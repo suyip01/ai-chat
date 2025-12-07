@@ -12,9 +12,10 @@ interface CreateCharacterProps {
   characterId?: number | string;
   initial?: Partial<Character>;
   onUpdated?: (character: Character) => void;
+  onSaveDraft?: (character: Character) => void;
 }
 
-export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCreate, isEdit = false, characterId, initial, onUpdated }) => {
+export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCreate, isEdit = false, characterId, initial, onUpdated, onSaveDraft }) => {
   const [form, setForm] = useState({
     type: '原创角色',
     avatar: '',
@@ -61,7 +62,6 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
     return new Blob([u8], { type: mime });
   };
 
-  // Load draft on mount
   useEffect(() => {
     if (initial) {
       setForm(prev => ({
@@ -85,15 +85,6 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
         searchTags: Array.isArray(initial.tags) ? initial.tags : prev.searchTags,
         isPublic: typeof initial.isPublic === 'boolean' ? initial.isPublic : prev.isPublic
       }))
-    }
-    const savedDraft = localStorage.getItem('create_character_draft');
-    if (savedDraft && !isEdit) {
-      try {
-        const parsed = JSON.parse(savedDraft);
-        setForm(prev => ({ ...prev, ...parsed }));
-      } catch (e) {
-        console.error("Failed to load draft", e);
-      }
     }
   }, [initial, isEdit]);
 
@@ -210,14 +201,39 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
               tags: form.searchTags,
               styleExamples: form.styleExamples.filter(Boolean)
             }
+            let savedId: number | null = null;
             if (isEdit && characterId) {
               await updateUserCharacterDraft(characterId, payload)
+              savedId = typeof characterId === 'number' ? characterId : (parseInt(String(characterId)) || null)
             } else {
-              await createUserCharacterDraft(payload)
+              savedId = await createUserCharacterDraft(payload)
             }
+            const draftCharacter: Character = {
+              id: savedId ? String(savedId) : (characterId ? String(characterId) : `c_${Date.now()}`),
+              name: form.name || '未命名',
+              avatar: form.avatar || '',
+              profileImage: form.profileImage || form.avatar || '',
+              status: CharacterStatus.ONLINE,
+              bio: form.tagline || '',
+              tags: form.searchTags,
+              creator: '我',
+              oneLinePersona: form.tagline,
+              personality: form.personality,
+              profession: form.profession,
+              age: form.age,
+              roleType: form.type,
+              currentRelationship: form.relationship,
+              plotTheme: form.plotTheme,
+              plotDescription: form.plotSummary,
+              openingLine: form.openingLine,
+              styleExamples: form.styleExamples.filter(Boolean),
+              hobbies: form.hobbies,
+              experiences: form.experiences,
+              isPublic: form.isPublic
+            } as any
+            if (onSaveDraft) onSaveDraft(draftCharacter)
           } catch {}
-          // Optional local backup
-          localStorage.setItem('create_character_draft', JSON.stringify(form));
+          try { localStorage.removeItem('create_character_draft') } catch {}
       } else {
           localStorage.removeItem('create_character_draft');
           setForm({
