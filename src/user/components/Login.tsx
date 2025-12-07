@@ -64,9 +64,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div ref={containerRef} className="fixed left-0 w-full bg-primary-50 overflow-y-auto font-sans animate-in fade-in duration-700" style={{ ...viewportStyle, overscrollBehavior: 'none' }}>
-      <div className="min-h-full w-full flex flex-col px-8 py-10">
-        <div className="w-full flex flex-col items-center z-10 max-w-sm m-auto">
+    <div ref={containerRef} className="fixed left-0 w-full bg-primary-50 overflow-y-auto no-scrollbar scroll-smooth font-sans animate-in fade-in duration-700" style={{ ...viewportStyle, overscrollBehavior: 'none' }}>
+      <div className="h-full w-full max-w-md mx-auto bg-white rounded-none md:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+        <div className="min-h-full w-full flex flex-col px-8 py-10">
+          <div className="w-full flex flex-col items-center z-10 max-w-sm m-auto">
 
           {/* Title Group */}
           <div className="text-center mb-12">
@@ -119,6 +120,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </button>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );

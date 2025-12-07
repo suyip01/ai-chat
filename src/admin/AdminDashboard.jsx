@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles } from 'lucide-react';
 import { adminsAPI } from './api.js';
-import StyleInjector from './components/StyleInjector.jsx';
-import LoginPage from './components/LoginPage.jsx';
 import { ToastProvider } from './Toast.jsx';
-import Sidebar from './components/Sidebar.jsx';
-import TemplatesView from './templates/TemplatesView.jsx';
-import CharacterManagement from './characters/CharacterManagement.jsx';
-import UsersView from './users/UsersView.jsx';
-import ModelSettingsView from './settings/ModelSettingsView.jsx';
-import ModelManageView from './settings/ModelManageView.jsx';
-import AdminAccountsView from './settings/AdminAccountsView.jsx';
-import StoryManagement from './story/StoryManagement.jsx';
+const StyleInjector = React.lazy(() => import('./components/StyleInjector.jsx'))
+const LoginPage = React.lazy(() => import('./components/LoginPage.jsx'))
+const Sidebar = React.lazy(() => import('./components/Sidebar.jsx'))
+const TemplatesView = React.lazy(() => import('./templates/TemplatesView.jsx'))
+const CharacterManagement = React.lazy(() => import('./characters/CharacterManagement.jsx'))
+const UsersView = React.lazy(() => import('./users/UsersView.jsx'))
+const ModelSettingsView = React.lazy(() => import('./settings/ModelSettingsView.jsx'))
+const ModelManageView = React.lazy(() => import('./settings/ModelManageView.jsx'))
+const AdminAccountsView = React.lazy(() => import('./settings/AdminAccountsView.jsx'))
+const StoryManagement = React.lazy(() => import('./story/StoryManagement.jsx'))
 
 const AdminDashboard = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -55,8 +55,11 @@ const AdminDashboard = () => {
   if (!isLoggedIn) {
     return (
       <>
-        <StyleInjector />
+        <React.Suspense fallback={<div />}> 
+          <StyleInjector />
+        </React.Suspense>
         <ToastProvider>
+          <React.Suspense fallback={<div />}> 
           <LoginPage onLogin={() => {
             setIsLoggedIn(true);
             const user = localStorage.getItem('admin_username');
@@ -64,13 +67,17 @@ const AdminDashboard = () => {
             setActiveTab('templates');
             navigate('/super-admin/sysprompt');
           }} />
+          </React.Suspense>
         </ToastProvider>
       </>
     );
   }
   return (
-    <div className="flex min-h-screen bg-white">
-      <StyleInjector />
+    <div className="flex min-h-screen bg白">
+      <React.Suspense fallback={<div />}> 
+        <StyleInjector />
+      </React.Suspense>
+      <React.Suspense fallback={<div />}> 
       <Sidebar
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -87,18 +94,21 @@ const AdminDashboard = () => {
         username={username}
         onEditProfile={() => setShowEdit(true)}
       />
+      </React.Suspense>
       <main className="flex-1 ml-16 xl:ml-56 p-8 relative z-10 transition-all duration-300 h-screen overflow-y-auto">
         <div className="absolute top-0 right-0 p-4 pointer-events-none opacity-20">
           <Sparkles size={120} className="text-pink-300" />
         </div>
-        {activeTab === 'templates' && <TemplatesView />}
-        {activeTab === 'stories' && <StoryManagement />}
-        {(activeTab === 'characters' || activeTab === 'official_characters') && <CharacterManagement creatorRole="admin_role" />}
-        {activeTab === 'user_characters' && <CharacterManagement creatorRole="user_role" />}
-        {activeTab === 'users' && <UsersView />}
-        {activeTab === 'model_settings' && <ModelSettingsView />}
-        {activeTab === 'model_manage' && username === 'admin' && <ModelManageView />}
-        {activeTab === 'admin_accounts' && username === 'admin' && <AdminAccountsView />}
+        <React.Suspense fallback={<div />}> 
+          {activeTab === 'templates' && <TemplatesView />}
+          {activeTab === 'stories' && <StoryManagement />}
+          {(activeTab === 'characters' || activeTab === 'official_characters') && <CharacterManagement creatorRole="admin_role" />}
+          {activeTab === 'user_characters' && <CharacterManagement creatorRole="user_role" />}
+          {activeTab === 'users' && <UsersView />}
+          {activeTab === 'model_settings' && <ModelSettingsView />}
+          {activeTab === 'model_manage' && username === 'admin' && <ModelManageView />}
+          {activeTab === 'admin_accounts' && username === 'admin' && <AdminAccountsView />}
+        </React.Suspense>
       </main>
       <div className="ambient-bg"></div>
       {showEdit && (
