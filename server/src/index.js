@@ -25,6 +25,7 @@ import http from 'http';
 import { startChatWs } from './client-services/chatWs.js';
 import { authRequired } from './middleware/auth.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { errorLogger } from './middleware/errorLogger.js';
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET missing');
@@ -68,3 +69,6 @@ const start = async () => {
   });
 };
 start();
+
+// 错误日志中间件应在所有路由挂载后
+app.use(errorLogger);

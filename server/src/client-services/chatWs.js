@@ -8,28 +8,36 @@ import TextGenerationService from './textGenerationService.js'
 import { createLogger } from '../utils/logger.js'
 
 const buildSystem = async (sess, mode, roleOverride) => {
-  const r = await getRedis()
-  const summary = await r.get(keySummary(sess.sid))
-  const parts = []
-  const base = mode === 'scene' ? sess.system_prompt_scene : sess.system_prompt
-  if (base) parts.push(base)
-  if (summary) parts.push(`历史记忆：${summary}`)
-  let role = roleOverride || null
-  if (!role) role = await r.hGetAll(keyRole(sess.userId, sess.userRoleId))
-  if (role && Object.keys(role).length) {
-    const info = []
-    info.push('### 我的角色设定如下：')
-    info.push(`- 名字：${role.name || ''}`)
-    info.push(`- 性别：${role.gender || ''}`)
-    info.push(`- 年龄：${role.age || ''}`)
-    info.push(`- 职业：${role.profession || ''}`)
-    info.push(`- 基本信息：${role.basic_info || ''}`)
-    info.push(`- 性格描述：${role.personality || ''}`)
-    parts.push(info.join('\n'))
-  } else {
-    parts.push('### 我的角色设定如下：\n- 名字：\n- 性别：\n- 年龄：\n- 职业：\n- 基本信息：\n- 性格描述：')
+  const wlog = createLogger({ component: 'ws' })
+  try {
+    const r = await getRedis()
+    const summary = await r.get(keySummary(sess.sid))
+    const parts = []
+    const base = mode === 'scene' ? sess.system_prompt_scene : sess.system_prompt
+    if (base) parts.push(base)
+    if (summary) parts.push(`历史记忆：${summary}`)
+    let role = roleOverride || null
+    if (!role) role = await r.hGetAll(keyRole(sess.userId, sess.userRoleId))
+    if (role && Object.keys(role).length) {
+      const info = []
+      info.push('### 我的个人资料如下：')
+      info.push(`- 名字：${role.name || ''}`)
+      info.push(`- 性别：${role.gender || ''}`)
+      info.push(`- 年龄：${role.age || ''}`)
+      info.push(`- 职业：${role.profession || ''}`)
+      info.push(`- 基本信息：${role.basic_info || ''}`)
+      info.push(`- 性格描述：${role.personality || ''}`)
+      parts.push(info.join('\n'))
+    } else {
+      parts.push('### 我的角色设定如下：\n- 名字：\n- 性别：\n- 年龄：\n- 职业：\n- 基本信息：\n- 性格描述：')
+    }
+    const sys = parts.join('\n\n')
+    wlog.debug('buildSystem.ok', { sid: sess.sid, sysLen: String(sys).length })
+    return sys
+  } catch (e) {
+    wlog.error('buildSystem.error', { sid: sess.sid, message: e?.message || String(e), stack: e?.stack })
+    return ''
   }
-  return parts.join('\n\n')
 }
 
 export const startChatWs = (server) => {

@@ -236,14 +236,14 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
         </div>
 
         {/* Personality */}
-        <div className="bg白 rounded-xl p-5 shadow-sm">
-           <label className="block font-bold text-slate-800 text-sm mb-2">性格描述</label>
-           <textarea 
-             placeholder="请输入性格描述..." 
-             className="w-full text-sm outline-none placeholder:text-slate-300 py-1 resize-none h-20"
-             value={personality}
-             onChange={e => setPersonality(e.target.value)}
-           />
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <label className="block font-bold text-slate-800 text-sm mb-2">性格描述</label>
+          <textarea 
+            placeholder="请输入性格描述..." 
+            className="w-full text-sm outline-none placeholder:text-slate-300 py-1 resize-none h-20"
+            value={personality}
+            onChange={e => setPersonality(e.target.value)}
+          />
         </div>
 
         </div>

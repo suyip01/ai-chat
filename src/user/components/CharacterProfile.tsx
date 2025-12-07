@@ -68,7 +68,7 @@ export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, o
                 <h1 className="text-5xl font-bold tracking-wide">{character.name}</h1>
                 {/* Dynamic Role Type Badge */}
                 <span className="bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] border border-white/30 text-white flex items-center gap-1">
-                  <span className="text-green-400">●</span> {character.roleType || '原创'}
+                  <span className="text-green-400">●</span> {character.character_type || character.roleType || '原创角色'}
                 </span>
               </div>
               <div className="flex items-center text-white text-sm font-medium pl-1">

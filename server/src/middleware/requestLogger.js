@@ -1,8 +1,8 @@
 import crypto from 'crypto'
 import { createLogger } from '../utils/logger.js'
 
-const INCLUDE_REQ = String(process.env.LOG_INCLUDE_REQ || '').toLowerCase() === 'true'
-const INCLUDE_RESP = String(process.env.LOG_INCLUDE_RESP || '').toLowerCase() === 'true'
+const INCLUDE_REQ = String(process.env.LOG_INCLUDE_REQ || 'true').toLowerCase() === 'true'
+const INCLUDE_RESP = String(process.env.LOG_INCLUDE_RESP || 'true').toLowerCase() === 'true'
 const HIDDEN = ['authorization','apikey','llm_api_key','password','secret','token']
 const deepRedact = (obj) => {
   if (!obj || typeof obj !== 'object') return obj
@@ -11,7 +11,7 @@ const deepRedact = (obj) => {
   for (const k of Object.keys(obj)) {
     const v = obj[k]
     if (HIDDEN.includes(k.toLowerCase())) out[k] = '******'
-    else if (typeof v === 'string') out[k] = v.length > 200 ? (v.slice(0,200) + `...(${v.length})`) : v
+    else if (typeof v === 'string') out[k] = v
     else if (v && typeof v === 'object') out[k] = deepRedact(v)
     else out[k] = v
   }
@@ -31,7 +31,7 @@ export const requestLogger = (req, _res, next) => {
           if (Buffer.isBuffer(body)) preview = body.toString('utf8')
           else if (typeof body === 'string') preview = body
           else preview = JSON.stringify(body)
-          if (typeof preview === 'string' && preview.length > 200) preview = preview.slice(0,200) + `...(${preview.length})`
+          // 不裁剪响应内容，完整记录
           _res.locals = _res.locals || {}
           _res.locals.__resp_preview = preview
         }

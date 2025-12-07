@@ -46,6 +46,7 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
             name: data.name || prev.name,
             avatar: data.avatar || prev.avatar,
             profileImage: prev.profileImage,
+            character_type: String(data.character_type || prev.character_type || ''),
             oneLinePersona: data.tagline || prev.oneLinePersona,
             personality: data.personality || prev.personality,
             profession: String(data.occupation || prev.profession || ''),
@@ -70,6 +71,7 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
             id: String(data.id || prev.id),
             name: data.name || prev.name,
             avatar: data.avatar || prev.avatar,
+            character_type: String(data.character_type || prev.character_type || ''),
             oneLinePersona: data.tagline || prev.oneLinePersona,
             personality: data.personality || prev.personality,
             profession: String(data.occupation || prev.profession || ''),
@@ -143,7 +145,7 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
             <div className="absolute bottom-12 left-6 right-6 z-10 text-white flex flex-col items-start space-y-1">
               <div className="flex items-center gap-3">
                 <h1 className="text-5xl font-bold tracking-wide">{latest.name}</h1>
-                <span className="bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] border border-white/30 text-white flex items-center gap-1"><span className="text-green-400">●</span> {latest.roleType || '原创角色'}</span>
+                <span className="bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] border border-white/30 text-white flex items-center gap-1"><span className="text-green-400">●</span> {latest.character_type || latest.roleType || '原创角色'}</span>
               </div>
               <div className="flex items-center text-white text-sm font-medium pl-1"><span>{latest.profession}</span><span className="mx-2 bg-white w-1 h-1 rounded-full"></span><span>{latest.age}</span></div>
               <div className="text-white text-xs font-medium pl-1">by {latest.creator}</div>

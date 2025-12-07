@@ -1,7 +1,10 @@
 import pool from '../db.js';
 import { audit } from '../utils/audit.js';
+import { createLogger } from '../utils/logger.js';
+const logger = createLogger({ area: 'admin', component: 'service.characters' });
 
 export const ensureCharacterSchema = async () => {
+  try {
   const [rows] = await pool.query(
     'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=?',
     [process.env.DB_NAME, 'characters']
@@ -18,6 +21,7 @@ export const ensureCharacterSchema = async () => {
   if (!names.has('occupation')) alters.push('ADD COLUMN occupation VARCHAR(128) NULL');
   if (!names.has('user_id')) alters.push('ADD COLUMN user_id BIGINT NULL');
   if (alters.length) {
+    logger.debug('characters.alter.sql', { alters });
     await pool.query(`ALTER TABLE characters ${alters.join(', ')}`);
   }
   const [fk] = await pool.query(
@@ -29,6 +33,9 @@ export const ensureCharacterSchema = async () => {
       await pool.query('ALTER TABLE characters ADD CONSTRAINT fk_characters_scene_template FOREIGN KEY (scene_template_id) REFERENCES templates(id) ON DELETE SET NULL');
     } catch {}
   }
+  } catch (err) {
+    logger.error('characters.ensureSchema.error', { message: err?.message, stack: err?.stack })
+  }
 };
 
 export const listCharacters = async (creatorRole) => {
@@ -36,7 +43,7 @@ export const listCharacters = async (creatorRole) => {
   await ensureCharacterSchema();
   const where = creatorRole ? 'WHERE c.creator_role = ?' : '';
   const params = creatorRole ? [creatorRole] : [];
-  const [rows] = await pool.query(
+  const sql =
     `SELECT c.id, c.name, c.gender, c.avatar, c.creator, c.creator_role, c.scene_template_id, c.identity, c.tagline,
             c.personality, c.relationship, c.plot_theme, c.plot_summary, c.opening_line,
             c.system_prompt, c.system_prompt_scene, c.prompt_model_id, c.prompt_temperature, c.scene_model_id, c.scene_temperature,
@@ -49,12 +56,13 @@ export const listCharacters = async (creatorRole) => {
      LEFT JOIN templates t2 ON t2.id = c.scene_template_id
      ${where}
      GROUP BY c.id
-     ORDER BY c.status='published' DESC, c.created_at ASC`,
-    params
-  );
+     ORDER BY c.status='published' DESC, c.created_at ASC`;
+  logger.debug('characters.list.sql', { sql, params })
+  const [rows] = await pool.query(sql, params);
   const ids = rows.map(r => r.id);
   let styleMap = new Map();
   if (ids.length) {
+    logger.debug('characters.list.styles.sql', { sql: 'SELECT character_id, idx, content FROM character_style_examples WHERE character_id IN (?) ORDER BY idx ASC', params: [ids] })
     const [sx] = await pool.query('SELECT character_id, idx, content FROM character_style_examples WHERE character_id IN (?) ORDER BY idx ASC', [ids]);
     sx.forEach(r => {
       const arr = styleMap.get(r.character_id) || [];
@@ -62,6 +70,7 @@ export const listCharacters = async (creatorRole) => {
       styleMap.set(r.character_id, arr);
     });
   }
+  logger.info('characters.list.result', { rowCount: rows.length })
   return rows.map(r => ({
     id: r.id,
     name: r.name,
@@ -98,11 +107,15 @@ export const listCharacters = async (creatorRole) => {
 
 export const getCharacter = async (id) => {
   audit('admin_service', { op: 'getCharacter', id })
+  logger.debug('characters.get.sql', { sql: 'SELECT * FROM characters WHERE id=?', params: [id] })
   const [rows] = await pool.query('SELECT * FROM characters WHERE id=?', [id]);
   if (!rows.length) return null;
   const c = rows[0];
+  logger.debug('characters.get.tpl.sql', { sql: 'SELECT name FROM templates WHERE id=?', params: [c.scene_template_id] })
   const [[tpl2]] = await pool.query('SELECT name FROM templates WHERE id=?', [c.scene_template_id]);
+  logger.debug('characters.get.tags.sql', { sql: 'SELECT tag FROM character_tags WHERE character_id=?', params: [id] })
   const [tags] = await pool.query('SELECT tag FROM character_tags WHERE character_id=?', [id]);
+  logger.debug('characters.get.styles.sql', { sql: 'SELECT idx, content FROM character_style_examples WHERE character_id=? ORDER BY idx ASC', params: [id] })
   const [styles] = await pool.query('SELECT idx, content FROM character_style_examples WHERE character_id=? ORDER BY idx ASC', [id]);
   return {
     ...c,
@@ -134,25 +147,28 @@ export const createCharacter = async (payload) => {
     hobbies = null, experiences = null, status = 'draft', tags = [], styleExamples = [],
     characterType = '原创角色', age = null, occupation = null,
   } = payload;
-  await pool.query(
-    `INSERT INTO characters (id, name, gender, avatar, creator, creator_role, scene_template_id, identity, tagline, personality,
+  const sqlIns = `INSERT INTO characters (id, name, gender, avatar, creator, creator_role, scene_template_id, identity, tagline, personality,
       relationship, plot_theme, plot_summary, opening_line, system_prompt, system_prompt_scene,
       prompt_model_id, prompt_temperature, scene_model_id, scene_temperature,
       hobbies, experiences, status, character_type, age, occupation)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [id, name, gender, avatar, creator, creatorRole, sceneTemplateId, identity, tagline, personality,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  const insParams = [id, name, gender, avatar, creator, creatorRole, sceneTemplateId, identity, tagline, personality,
      relationship, plotTheme, plotSummary, openingLine, systemPrompt, systemPromptScene,
      promptModelId, promptTemperature, sceneModelId, sceneTemperature,
      hobbies, experiences, status, characterType, age, occupation]
-  );
+  logger.debug('characters.create.sql', { sql: sqlIns, params: insParams })
+  await pool.query(sqlIns, insParams);
   if (tags && tags.length) {
     const values = tags.map(tag => [id, tag]);
+    logger.debug('characters.create.tags.sql', { sql: 'INSERT INTO character_tags (character_id, tag) VALUES ?', values })
     await pool.query('INSERT INTO character_tags (character_id, tag) VALUES ?', [values]);
   }
   if (styleExamples && styleExamples.length) {
     const values = styleExamples.map((content, idx) => [id, idx + 1, content || '']);
+    logger.debug('characters.create.examples.sql', { sql: 'INSERT INTO character_style_examples (character_id, idx, content) VALUES ?', values })
     await pool.query('INSERT INTO character_style_examples (character_id, idx, content) VALUES ?', [values]);
   }
+  logger.info('characters.create.result', { id })
   return id;
 };
 
@@ -167,25 +183,27 @@ export const updateCharacter = async (id, payload) => {
     hobbies = null, experiences = null, status, tags = [], styleExamples = [],
     characterType = '原创角色', age = null, occupation = null,
   } = payload;
-  await pool.query(
-    `UPDATE characters SET name=?, gender=?, avatar=?, creator=?, creator_role=?, scene_template_id=?, identity=?, tagline=?, personality=?,
+  const sqlUpd = `UPDATE characters SET name=?, gender=?, avatar=?, creator=?, creator_role=?, scene_template_id=?, identity=?, tagline=?, personality=?,
       relationship=?, plot_theme=?, plot_summary=?, opening_line=?, system_prompt=?, system_prompt_scene=?,
       prompt_model_id=?, prompt_temperature=?, scene_model_id=?, scene_temperature=?,
       hobbies=?, experiences=?, status=?, character_type=?, age=?, occupation=?
-     WHERE id=?`,
-    [name, gender, avatar, creator, creatorRole, sceneTemplateId, identity, tagline, personality,
+     WHERE id=?`;
+  const updParams = [name, gender, avatar, creator, creatorRole, sceneTemplateId, identity, tagline, personality,
      relationship, plotTheme, plotSummary, openingLine, systemPrompt, systemPromptScene,
      promptModelId, promptTemperature, sceneModelId, sceneTemperature,
      hobbies, experiences, status, characterType, age, occupation, id]
-  );
+  logger.debug('characters.update.sql', { sql: sqlUpd, params: updParams })
+  await pool.query(sqlUpd, updParams);
   await pool.query('DELETE FROM character_tags WHERE character_id=?', [id]);
   await pool.query('DELETE FROM character_style_examples WHERE character_id=?', [id]);
   if (tags && tags.length) {
     const values = tags.map(tag => [id, tag]);
+    logger.debug('characters.update.tags.sql', { sql: 'INSERT INTO character_tags (character_id, tag) VALUES ?', values })
     await pool.query('INSERT INTO character_tags (character_id, tag) VALUES ?', [values]);
   }
   if (styleExamples && styleExamples.length) {
     const values = styleExamples.map((content, idx) => [id, idx + 1, content || '']);
+    logger.debug('characters.update.examples.sql', { sql: 'INSERT INTO character_style_examples (character_id, idx, content) VALUES ?', values })
     await pool.query('INSERT INTO character_style_examples (character_id, idx, content) VALUES ?', [values]);
   }
   try {
@@ -198,6 +216,7 @@ export const updateCharacter = async (id, payload) => {
       updated_at: String(Date.now())
     })
   } catch {}
+  logger.info('characters.update.result', { id })
 };
 
 export const updateCharacterPreserveOwner = async (id, payload) => {
@@ -211,25 +230,27 @@ export const updateCharacterPreserveOwner = async (id, payload) => {
     hobbies = null, experiences = null, status, tags = [], styleExamples = [],
     characterType = '原创角色', age = null, occupation = null,
   } = payload;
-  await pool.query(
-    `UPDATE characters SET name=?, gender=?, avatar=?, scene_template_id=?, identity=?, tagline=?, personality=?,
+  const sqlUpd = `UPDATE characters SET name=?, gender=?, avatar=?, scene_template_id=?, identity=?, tagline=?, personality=?,
       relationship=?, plot_theme=?, plot_summary=?, opening_line=?, system_prompt=?, system_prompt_scene=?,
       prompt_model_id=?, prompt_temperature=?, scene_model_id=?, scene_temperature=?,
       hobbies=?, experiences=?, status=?, character_type=?, age=?, occupation=?
-     WHERE id=?`,
-    [name, gender, avatar, sceneTemplateId, identity, tagline, personality,
+     WHERE id=?`;
+  const updParams = [name, gender, avatar, sceneTemplateId, identity, tagline, personality,
      relationship, plotTheme, plotSummary, openingLine, systemPrompt, systemPromptScene,
      promptModelId, promptTemperature, sceneModelId, sceneTemperature,
      hobbies, experiences, status, characterType, age, occupation, id]
-  );
+  logger.debug('characters.updatePreserve.sql', { sql: sqlUpd, params: updParams })
+  await pool.query(sqlUpd, updParams);
   await pool.query('DELETE FROM character_tags WHERE character_id=?', [id]);
   await pool.query('DELETE FROM character_style_examples WHERE character_id=?', [id]);
   if (tags && tags.length) {
     const values = tags.map(tag => [id, tag]);
+    logger.debug('characters.updatePreserve.tags.sql', { sql: 'INSERT INTO character_tags (character_id, tag) VALUES ?', values })
     await pool.query('INSERT INTO character_tags (character_id, tag) VALUES ?', [values]);
   }
   if (styleExamples && styleExamples.length) {
     const values = styleExamples.map((content, idx) => [id, idx + 1, content || '']);
+    logger.debug('characters.updatePreserve.examples.sql', { sql: 'INSERT INTO character_style_examples (character_id, idx, content) VALUES ?', values })
     await pool.query('INSERT INTO character_style_examples (character_id, idx, content) VALUES ?', [values]);
   }
   try {
@@ -242,15 +263,31 @@ export const updateCharacterPreserveOwner = async (id, payload) => {
       updated_at: String(Date.now())
     })
   } catch {}
+  logger.info('characters.updatePreserve.result', { id })
 };
 
 export const deleteCharacter = async (id) => {
   audit('admin_service', { op: 'deleteCharacter', id })
-  const [res] = await pool.query('DELETE FROM characters WHERE id=?', [id]);
-  return res.affectedRows > 0;
+  try {
+    logger.debug('characters.delete.sql', { sql: 'DELETE FROM characters WHERE id=?', params: [id] })
+    const [res] = await pool.query('DELETE FROM characters WHERE id=?', [id]);
+    const ok = res.affectedRows > 0
+    logger.info('characters.delete.result', { id, ok })
+    return ok;
+  } catch (err) {
+    logger.error('characters.delete.error', { message: err?.message, stack: err?.stack, params: { id } })
+    return false
+  }
 };
 
 export const setCharacterStatus = async (id, status) => {
   audit('admin_service', { op: 'setCharacterStatus', id, status })
-  await pool.query('UPDATE characters SET status=? WHERE id=?', [status, id]);
+  try {
+    logger.debug('characters.status.sql', { sql: 'UPDATE characters SET status=? WHERE id=?', params: [status, id] })
+    await pool.query('UPDATE characters SET status=? WHERE id=?', [status, id]);
+    logger.info('characters.status.result', { id, status })
+  } catch (err) {
+    logger.error('characters.status.error', { message: err?.message, stack: err?.stack, params: { id, status } })
+    throw err
+  }
 };

@@ -36,10 +36,11 @@ const toCharacter = (item: any): PublishedCharacter => ({
   openingLine: item?.openingLine ?? item?.opening_line ?? '',
 });
 
-export const listCharacters = async (params?: { tag?: string; limit?: number }) => {
+export const listCharacters = async (params?: { tag?: string; limit?: number; offset?: number }) => {
   const qs = new URLSearchParams();
   if (params?.tag) qs.set('tag', params.tag);
   if (params?.limit) qs.set('limit', String(params.limit));
+  if (typeof params?.offset === 'number') qs.set('offset', String(params.offset));
   const { authFetch } = await import('./http')
   const res = await authFetch(`/characters/?${qs.toString()}`)
   if (!res.ok) throw new Error('failed');

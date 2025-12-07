@@ -9,21 +9,33 @@ const baseURL = process.env.LLM_BASE_URL || '';
 const client = new OpenAI({ apiKey, baseURL });
 
 const fetchSettings = async () => {
-  const row = await getSettings();
-  const selected = row?.selected_model || null;
-  const temperature = typeof row?.model_temperature === 'number' ? row.model_temperature : null;
-  const [m1] = await pool.query('SELECT model_id FROM models WHERE model_id=? OR model_name=? OR model_nickname=? LIMIT 1', [selected, selected, selected]);
-  if (m1.length) return { model: m1[0].model_id, temperature };
-  const [m2] = await pool.query('SELECT model_id FROM models ORDER BY created_at ASC LIMIT 1');
-  if (m2.length) return { model: m2[0].model_id, temperature };
-  throw new Error('no_model_available');
+  const logger = createLogger({ area: 'admin', component: 'service.sysprompt' })
+  try {
+    const row = await getSettings();
+    const selected = row?.selected_model || null;
+    const temperature = typeof row?.model_temperature === 'number' ? row.model_temperature : null;
+    const [m1] = await pool.query('SELECT model_id FROM models WHERE model_id=? OR model_name=? OR model_nickname=? LIMIT 1', [selected, selected, selected]);
+    if (m1.length) return { model: m1[0].model_id, temperature };
+    const [m2] = await pool.query('SELECT model_id FROM models ORDER BY created_at ASC LIMIT 1');
+    if (m2.length) return { model: m2[0].model_id, temperature };
+    throw new Error('no_model_available');
+  } catch (err) {
+    logger.error('sysprompt.fetchSettings.error', { message: err?.message, stack: err?.stack })
+    throw err
+  }
 };
 
 const validateModel = async (modelId) => {
-  const [rows] = await pool.query('SELECT model_id FROM models WHERE model_id=? OR model_name=? OR model_nickname=? LIMIT 1', [modelId, modelId, modelId]);
-  if (rows.length) return rows[0].model_id;
-  const { model } = await fetchSettings();
-  return model;
+  const logger = createLogger({ area: 'admin', component: 'service.sysprompt' })
+  try {
+    const [rows] = await pool.query('SELECT model_id FROM models WHERE model_id=? OR model_name=? OR model_nickname=? LIMIT 1', [modelId, modelId, modelId]);
+    if (rows.length) return rows[0].model_id;
+    const { model } = await fetchSettings();
+    return model;
+  } catch (err) {
+    logger.error('sysprompt.validateModel.error', { message: err?.message, stack: err?.stack, params: { modelId } })
+    throw err
+  }
 };
 
 const fillTemplateContent = (tpl, data) => {
@@ -95,11 +107,18 @@ export const generateRolePrompt = async (data, overrides = {}, log) => {
   const sysMsg = messages.find(m => m.role === 'system')?.content || '';
   const userMsg = messages.find(m => m.role === 'user')?.content || '';
   const logger = (log || createLogger({ component: 'admin', name: 'sysprompt' }))
-  logger.info('generateRolePrompt.start', { model: chosenModel, temperature: chosenTemp, sys_len: sysMsg.length, user_len: userMsg.length })
-  const resp = await client.chat.completions.create({ model: chosenModel, messages, temperature: chosenTemp });
-  const out = resp.choices?.[0]?.message?.content || '';
-  logger.info('generateRolePrompt.ok', { out_len: out.length })
-  return out;
+  try {
+    logger.info('generateRolePrompt.start', { model: chosenModel, temperature: chosenTemp, sys_len: sysMsg.length, user_len: userMsg.length })
+    logger.debug('generateRolePrompt.messages', { messages })
+    const resp = await client.chat.completions.create({ model: chosenModel, messages, temperature: chosenTemp });
+    const out = resp.choices?.[0]?.message?.content || '';
+    logger.info('generateRolePrompt.ok', { out_len: out.length })
+    logger.debug('generateRolePrompt.out', { content: out })
+    return out;
+  } catch (err) {
+    logger.error('generateRolePrompt.error', { message: err?.message, stack: err?.stack })
+    throw err
+  }
 };
 
 export const generateNoScenePrompt = async (sourcePrompt, overrides = {}, log) => {
@@ -135,11 +154,18 @@ A：无关紧要的人`;
     { role: 'user', content: sourcePrompt || '' },
   ];
   const logger = (log || createLogger({ component: 'admin', name: 'sysprompt' }))
-  logger.info('generateNoScenePrompt.start', { model: chosenModel, temperature: chosenTemp, src_len: (sourcePrompt || '').length })
-  const resp = await client.chat.completions.create({ model: chosenModel, messages, temperature: chosenTemp });
-  const out = resp.choices?.[0]?.message?.content || '';
-  logger.info('generateNoScenePrompt.ok', { out_len: out.length })
-  return out;
+  try {
+    logger.info('generateNoScenePrompt.start', { model: chosenModel, temperature: chosenTemp, src_len: (sourcePrompt || '').length })
+    logger.debug('generateNoScenePrompt.messages', { messages })
+    const resp = await client.chat.completions.create({ model: chosenModel, messages, temperature: chosenTemp });
+    const out = resp.choices?.[0]?.message?.content || '';
+    logger.info('generateNoScenePrompt.ok', { out_len: out.length })
+    logger.debug('generateNoScenePrompt.out', { content: out })
+    return out;
+  } catch (err) {
+    logger.error('generateNoScenePrompt.error', { message: err?.message, stack: err?.stack })
+    throw err
+  }
 };
 
 export default generateRolePrompt;

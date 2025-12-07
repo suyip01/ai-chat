@@ -76,6 +76,13 @@ export const fetchUserChatRoles = async (): Promise<Array<{ id: number; name: st
   return Array.isArray(data) ? data : []
 }
 
+export const deleteUserChatRole = async (id: number) => {
+  const { authFetch } = await import('./http')
+  const res = await authFetch(`/user/chat-role/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error('delete_role_failed')
+  return true
+}
+
 export const createChatSession = async (characterId: string|number, userChatRoleId?: number): Promise<{ sessionId: string; model?: { id: string; nickname: string }; temperature?: number }> => {
   const payload: any = { character_id: Number(characterId) }
   if (typeof userChatRoleId === 'number') payload.user_chat_role_id = userChatRoleId

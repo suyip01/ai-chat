@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
-import { ChevronLeft, CheckCircle, Plus } from 'lucide-react'
+import React, { useEffect, useState, useRef } from 'react'
+import { ChevronLeft, CheckCircle, Plus, Edit2, Trash2 } from 'lucide-react'
 import { UserPersona } from '../types'
-import { fetchUserChatRoles } from '../services/chatService'
+import { fetchUserChatRoles, deleteUserChatRole } from '../services/chatService'
 import { AnimatePresence, motion } from 'framer-motion'
 import { androidBottomSheet, fade } from '../animations'
 
@@ -11,6 +11,7 @@ interface Props {
   onClose: () => void
   onAdd: () => void
   onSelect: (persona: UserPersona, roleId?: number) => void
+  onEdit?: (persona: UserPersona, roleId: number) => void
 }
 
 const mapGender = (g?: string): 'male' | 'female' | 'secret' => {
@@ -19,9 +20,16 @@ const mapGender = (g?: string): 'male' | 'female' | 'secret' => {
   return 'secret'
 }
 
-export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona, onClose, onAdd, onSelect }) => {
+export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona, onClose, onAdd, onSelect, onEdit }) => {
   const [roles, setRoles] = useState<Array<{ id: number; name: string; age: number | null; gender: string; profession: string | null; basic_info: string | null; personality: string | null; avatar: string | null }>>([])
   const [selected, setSelected] = useState<number | null>(null)
+  const [offsets, setOffsets] = useState<Record<number, number>>({})
+  const startXRef = useRef<number>(0)
+  const startYRef = useRef<number>(0)
+  const activeIdRef = useRef<number | null>(null)
+  const initialOffsetRef = useRef<number>(0)
+  const [confirmId, setConfirmId] = useState<number | null>(null)
+  const isTouch = (navigator as any)?.maxTouchPoints > 0
 
   useEffect(() => {
     if (isOpen) {
@@ -32,6 +40,7 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
         } catch { }
       }
       load()
+      setOffsets({})
     }
   }, [isOpen])
 
@@ -56,6 +65,66 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
     try { localStorage.setItem('user_chat_role_id', String(r.id)) } catch { }
     onSelect(persona, r.id)
     onClose()
+  }
+
+  const handleEdit = (r: any) => {
+    closeSwipe(r.id)
+    const persona: UserPersona = {
+      name: r.name || '',
+      gender: mapGender(r.gender),
+      age: r.age ? String(r.age) : '',
+      profession: r.profession || '',
+      basicInfo: r.basic_info || '',
+      personality: r.personality || '',
+      avatar: r.avatar || undefined
+    }
+    if (onEdit) onEdit(persona, r.id)
+    onClose()
+  }
+
+  const onTouchStart = (e: React.TouchEvent, id: number) => {
+    startXRef.current = e.touches[0].clientX
+    startYRef.current = e.touches[0].clientY
+    activeIdRef.current = id
+    initialOffsetRef.current = offsets[id] || 0
+  }
+  const onTouchMove = (e: React.TouchEvent, id: number) => {
+    if (activeIdRef.current !== id) return
+    const dx = e.touches[0].clientX - startXRef.current
+    const dy = e.touches[0].clientY - startYRef.current
+    if (Math.abs(dy) > Math.abs(dx)) return
+    let next = 0
+    if (initialOffsetRef.current === 0) {
+      next = Math.max(-96, Math.min(96, dx))
+    } else if (initialOffsetRef.current > 0) {
+      next = Math.max(0, Math.min(96, initialOffsetRef.current + dx))
+    } else {
+      next = Math.min(0, Math.max(-96, initialOffsetRef.current + dx))
+    }
+    setOffsets(prev => ({ ...prev, [id]: next }))
+  }
+  const onTouchEnd = (id: number) => {
+    if (activeIdRef.current !== id) return
+    const current = offsets[id] || 0
+    let final = 0
+    if (initialOffsetRef.current === 0) {
+      final = current > 60 ? 96 : current < -60 ? -96 : 0
+    } else if (initialOffsetRef.current > 0) {
+      final = current > 60 ? 96 : 0
+    } else {
+      final = current < -60 ? -96 : 0
+    }
+    setOffsets(prev => ({ ...prev, [id]: final }))
+    activeIdRef.current = null
+  }
+  const closeSwipe = (id: number) => setOffsets(prev => ({ ...prev, [id]: 0 }))
+
+  const handleConfirmDelete = async (id: number) => {
+    setConfirmId(null)
+    try {
+      await deleteUserChatRole(id)
+      setRoles(prev => prev.filter(r => r.id !== id))
+    } catch { }
   }
 
   return (
@@ -89,15 +158,49 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
                 </div>
                 <div className="p-4 flex flex-col gap-3 max-h-[70vh] overflow-y-auto">
                   {roles.map(r => (
-                    <div key={r.id} onClick={() => handleSelect(r)} className={`p-4 bg白 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 active:scale-[0.98] transition-transform ${selected === r.id ? 'border-[#A855F7] bg-[#FBF5FF]' : ''}`}>
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-600 font-bold">
-                        {r.avatar ? <img src={r.avatar} alt={r.name} className="w-full h-full object-cover" /> : (r.name || '我')[0]}
+                    <div key={r.id} className="relative overflow-hidden rounded-xl">
+                      {(() => {
+                        const offset = offsets[r.id] || 0
+                        const revealRight = Math.min(96, Math.max(0, -offset))
+                        const revealLeft = Math.min(96, Math.max(0, offset))
+                        return (
+                          <>
+                            <div className="absolute right-0 top-0 bottom-0 bg-red-500 flex items-center justify-center rounded-r-xl shadow-sm" style={{ width: `${revealRight}px`, transition: 'width 120ms ease' }}>
+                              <button onClick={() => setConfirmId(r.id)} className="text-white font-bold drop-shadow-sm">删除</button>
+                            </div>
+                            <div className="absolute left-0 top-0 bottom-0 bg-indigo-500 flex items-center justify-center rounded-l-xl shadow-sm" style={{ width: `${revealLeft}px`, transition: 'width 120ms ease' }}>
+                              <button onClick={() => handleEdit(r)} className="text-white font-bold drop-shadow-sm">编辑</button>
+                            </div>
+                          </>
+                        )
+                      })()}
+                      <div
+                        onClick={() => { if ((offsets[r.id] || 0) === 0) handleSelect(r) }}
+                        onTouchStart={(e) => onTouchStart(e, r.id)}
+                        onTouchMove={(e) => onTouchMove(e, r.id)}
+                        onTouchEnd={() => onTouchEnd(r.id)}
+                        className={`${(offsets[r.id] || 0) < 0 ? 'rounded-l-xl rounded-r-none' : (offsets[r.id] || 0) > 0 ? 'rounded-l-none rounded-r-xl' : 'rounded-xl'} p-4 bg-white shadow-sm border flex items-center gap-3 active:scale-[0.98] transition-transform ${selected === r.id ? 'border-[#A855F7] shadow-[0_0_0_6px_rgba(168,85,247,0.18)]' : 'border-slate-100'}`}
+                        style={{ transform: `translateX(${offsets[r.id] || 0}px)`, transition: 'transform 180ms ease' }}
+                      >
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-600 font-bold">
+                          {r.avatar ? <img src={r.avatar} alt={r.name} className="w-full h-full object-cover" /> : (r.name || '我')[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-slate-800 truncate">{r.name}</div>
+                          <div className="text-xs text-slate-500 truncate">{r.profession || ''}{r.age ? ` · ${r.age}` : ''}</div>
+                        </div>
+                        {selected === r.id && <CheckCircle className="w-5 h-5 text-[#A855F7]" />}
+                        {!isTouch && (
+                          <div className="flex items-center gap-2 ml-2">
+                            <button onClick={() => handleEdit(r)} className="px-2 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100">
+                              <span className="inline-flex items-center gap-1"><Edit2 className="w-3 h-3" />编辑</span>
+                            </button>
+                            <button onClick={() => setConfirmId(r.id)} className="px-2 py-1 text-xs font-bold text-red-600 bg-red-50 rounded-md hover:bg-red-100">
+                              <span className="inline-flex items-center gap-1"><Trash2 className="w-3 h-3" />删除</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-slate-800 truncate">{r.name}</div>
-                        <div className="text-xs text-slate-500 truncate">{r.profession || ''}{r.age ? ` · ${r.age}` : ''}</div>
-                      </div>
-                      {selected === r.id && <CheckCircle className="w-5 h-5 text-[#A855F7]" />}
                     </div>
                   ))}
                   {!roles.length && (
@@ -112,6 +215,22 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
           </>
         )}
       </AnimatePresence>
+      {confirmId && (
+        <>
+          <div className="fixed inset-0 z-[95] bg-black/20"></div>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-[85%] max-w-sm">
+              <div className="px-6 py-5 text-center text-slate-800 font-bold">确认删除此角色？</div>
+              <div className="h-[1px] bg-slate-100"></div>
+              <div className="flex">
+                <button className="flex-1 py-4 text-slate-600 active:opacity-70" onClick={() => { if (confirmId != null) closeSwipe(confirmId); setConfirmId(null); }}>取消</button>
+                <div className="w-[1px] bg-slate-100"></div>
+                <button className="flex-1 py-4 text-red-600 font-bold active:opacity-70" onClick={() => { const id = confirmId as number; handleConfirmDelete(id) }}>确认删除</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -7,9 +7,10 @@ export type StoryPreview = {
   author?: string
 }
 
-export const listStories = async (params?: { limit?: number }) => {
+export const listStories = async (params?: { limit?: number; offset?: number }) => {
   const qs = new URLSearchParams()
   if (params?.limit) qs.set('limit', String(params.limit))
+  if (typeof params?.offset === 'number') qs.set('offset', String(params.offset))
   const { authFetch } = await import('./http')
   const res = await authFetch(`/stories/?${qs.toString()}`)
   if (!res.ok) throw new Error('failed')

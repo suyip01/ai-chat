@@ -37,6 +37,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserSettingsOpenLocal, setIsUserSettingsOpenLocal] = useState(false);
+  const [editingPersona, setEditingPersona] = useState<UserPersona | undefined>(undefined)
+  const [editingRoleId, setEditingRoleId] = useState<number | undefined>(undefined)
   const [isRoleSheetOpen, setIsRoleSheetOpen] = useState(false);
   const [isModelSheetOpen, setIsModelSheetOpen] = useState(false);
   const [modelId, setModelId] = useState<string | undefined>(undefined)
@@ -532,7 +534,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
         {isUserSettingsOpenLocal && (
           <UserCharacterSettings
-            currentPersona={undefined}
+            currentPersona={editingPersona}
+            roleId={editingRoleId}
             onBack={() => setIsUserSettingsOpenLocal(false)}
             onSave={(_) => {
               setIsUserSettingsOpenLocal(false);
@@ -546,8 +549,9 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           isOpen={isRoleSheetOpen}
           currentPersona={userPersona}
           onClose={() => setIsRoleSheetOpen(false)}
-          onAdd={() => { setIsRoleSheetOpen(false); setIsUserSettingsOpenLocal(true); }}
+          onAdd={() => { setIsRoleSheetOpen(false); setEditingPersona(undefined); setEditingRoleId(undefined); setIsUserSettingsOpenLocal(true); }}
           onSelect={(persona) => { setPersonaLocal(persona); try { localStorage.setItem(configKey, JSON.stringify({ chatMode, persona })); } catch { } }}
+          onEdit={(persona, roleId) => { setIsRoleSheetOpen(false); setEditingPersona(persona); setEditingRoleId(roleId); setIsUserSettingsOpenLocal(true) }}
         />
 
         <ModelSelectorSheet

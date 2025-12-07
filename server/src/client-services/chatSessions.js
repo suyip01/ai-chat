@@ -13,7 +13,8 @@ const pickModelAndTemp = (settings) => {
 
 export const createSession = async ({ userId, characterId, userRoleId, userRoleData = null, log }) => {
   const logger = (log || createLogger({ component: 'service', name: 'chatSessions', userId })).child({ characterId, userRoleId })
-  logger.info('createSession.start')
+  try {
+  logger.info('createSession.start', { userId, characterId, userRoleId })
   const r = await getRedis()
   const sid = crypto.randomUUID()
   const [[settingsRow]] = await pool.query('SELECT selected_chat_model, chat_temperature FROM settings ORDER BY id DESC LIMIT 1')
@@ -30,7 +31,7 @@ export const createSession = async ({ userId, characterId, userRoleId, userRoleD
     const [[mrow]] = await pool.query('SELECT model_id, COALESCE(model_nickname, model_name, model_id) AS nick FROM models WHERE model_id=? OR model_name=? OR model_nickname=? LIMIT 1', [model, model, model])
     modelId = mrow?.model_id || model || null
     modelNickname = mrow?.nick || model || ''
-  } catch {}
+  } catch (e) { logger.error('createSession.model.lookup.error', { message: e?.message, stack: e?.stack }) }
   logger.info('createSession.model', { model: modelId, nickname: modelNickname, temperature })
   const sessKey = keySess(sid)
   await r.hSet(sessKey, {
@@ -81,12 +82,21 @@ export const createSession = async ({ userId, characterId, userRoleId, userRoleD
   await r.expire(keySummary(sid), ttlSec)
   logger.info('createSession.ok', { sid })
   return { sid, model, temperature }
+  } catch (err) {
+    logger.error('createSession.error', { message: err?.message, stack: err?.stack, ctx: { userId, characterId, userRoleId } })
+    throw err
+  }
 }
 
 export const getSession = async (sid) => {
   const logger = createLogger({ component: 'service', name: 'chatSessions' })
-  logger.info('getSession.start', { sid })
-  const r = await getRedis()
-  const data = await r.hGetAll(keySess(sid))
-  return Object.keys(data).length ? data : null
+  try {
+    logger.info('getSession.start', { sid })
+    const r = await getRedis()
+    const data = await r.hGetAll(keySess(sid))
+    return Object.keys(data).length ? data : null
+  } catch (err) {
+    logger.error('getSession.error', { message: err?.message, stack: err?.stack, sid })
+    return null
+  }
 }

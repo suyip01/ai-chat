@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { TopBar } from './components/TopBar';
 import { BottomNav } from './components/BottomNav';
@@ -14,6 +14,7 @@ import { ToastProvider } from './components/Toast';
 import { ChatPreview, NavTab, CharacterStatus, MessageType, Message, Character, UserPersona, UserProfile, Story, StoryRole } from './types';
 import { MePage } from './components/MePage';
 import { listStories as listStoriesClient, StoryPreview, getStory as getStoryClient } from './services/storiesService';
+import { LazyImage } from './components/LazyImage'
 import { listUserStories as listMyStories, getUserStory as getMyStory } from './services/userStoriesService';
 import { StoryReader } from './components/StoryReader';
 import { listCharacters, getCharacter } from './services/charactersService';
@@ -23,16 +24,9 @@ import { createChatSession } from './services/chatService';
 // Mock Data
 const MOCK_CHATS: ChatPreview[] = [];
 
-const CharacterThumb: React.FC<{ char: Character }> = ({ char }) => {
-  const [imgError, setImgError] = useState(false)
+const CharacterThumb: React.FC<{ char: Character; root?: Element | null }> = ({ char, root }) => {
   return (
-    <div className="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-slate-100 relative group flex items-center justify-center">
-      {(!imgError && char.avatar) ? (
-        <img src={char.avatar} alt={char.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" onError={() => setImgError(true)} />
-      ) : (
-        <span className="text-2xl font-bold text-slate-500">{char.name?.[0] || '?'}</span>
-      )}
-    </div>
+    <LazyImage src={char.avatar} alt={char.name} root={root} placeholderChar={char.name?.[0] || '?'} className="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-slate-100 relative group flex items-center justify-center" />
   )
 }
 
@@ -70,6 +64,17 @@ const App: React.FC = () => {
   const [myUserCharacters, setMyUserCharacters] = useState<Character[]>([]);
   const [chatFromList, setChatFromList] = useState(false);
   const [viewportStyle, setViewportStyle] = useState<{ height: string | number; top: string | number }>({ height: '100%', top: 0 });
+  const [charOffset, setCharOffset] = useState(0);
+  const [hasMoreChars, setHasMoreChars] = useState(true);
+  const [isLoadingMoreChars, setIsLoadingMoreChars] = useState(false);
+  const charSentinelRef = useRef<HTMLDivElement | null>(null);
+  const charIoRef = useRef<IntersectionObserver | null>(null);
+  const scrollRootRef = useRef<HTMLDivElement | null>(null);
+  const [storyOffset, setStoryOffset] = useState(0);
+  const [hasMoreStories, setHasMoreStories] = useState(true);
+  const [isLoadingMoreStories, setIsLoadingMoreStories] = useState(false);
+  const storySentinelRef = useRef<HTMLDivElement | null>(null);
+  const storyIoRef = useRef<IntersectionObserver | null>(null);
   const handleLogout = () => {
     localStorage.removeItem('user_access_token');
     localStorage.removeItem('user_refresh_token');
@@ -107,14 +112,18 @@ const App: React.FC = () => {
     })()
       ; (async () => {
         try {
-          const items = await listStoriesClient({ limit: 12 })
+          const items = await listStoriesClient({ limit: 10, offset: 0 })
           setStories(items)
+          setStoryOffset(items.length)
+          setHasMoreStories(items.length === 10)
         } catch {
           setStories([])
+          setStoryOffset(0)
+          setHasMoreStories(false)
         }
       })()
     setLoadingCharacters(true);
-    listCharacters({ limit: 24 })
+    listCharacters({ limit: 10, offset: 0 })
       .then(items => {
         const mapped: Character[] = items.map(it => ({
           id: String(it.id),
@@ -136,6 +145,8 @@ const App: React.FC = () => {
           openingLine: it.openingLine || ''
         }));
         setCharacters(mapped);
+        setCharOffset(items.length);
+        setHasMoreChars(items.length === 10);
         // build chats from localStorage histories
         try {
           const previews: ChatPreview[] = []
@@ -222,6 +233,81 @@ const App: React.FC = () => {
         }
       })()
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (activeTab !== NavTab.HOME || homeTab !== 'stories') return;
+    if (!hasMoreStories || isLoadingMoreStories) return;
+    if (storyIoRef.current) { storyIoRef.current.disconnect(); storyIoRef.current = null; }
+    const el = storySentinelRef.current;
+    if (!el || stories.length < 7) return;
+    const io = new IntersectionObserver((entries) => {
+      const hit = entries.some(e => e.isIntersecting);
+      if (!hit) return;
+      if (isLoadingMoreStories) return;
+      setIsLoadingMoreStories(true);
+      (async () => {
+        try {
+          const items = await listStoriesClient({ limit: 10, offset: storyOffset })
+          if (items.length) setStories(prev => [...prev, ...items])
+          setStoryOffset(prev => prev + items.length)
+          setHasMoreStories(items.length === 10)
+        } catch {
+        } finally {
+          setIsLoadingMoreStories(false)
+        }
+      })()
+    }, { threshold: 0.1, root: scrollRootRef.current || undefined });
+    storyIoRef.current = io;
+    io.observe(el);
+    return () => { try { io.disconnect(); } catch {} };
+  }, [stories, hasMoreStories, isLoadingMoreStories, storyOffset, activeTab, homeTab])
+
+  useEffect(() => {
+    if (activeTab !== NavTab.HOME || homeTab !== 'characters') return;
+    if (!hasMoreChars || isLoadingMoreChars) return;
+    if (charIoRef.current) { charIoRef.current.disconnect(); charIoRef.current = null; }
+    const el = charSentinelRef.current;
+    if (!el || characters.length < 7) return;
+    const io = new IntersectionObserver((entries) => {
+      const hit = entries.some(e => e.isIntersecting);
+      if (!hit) return;
+      if (isLoadingMoreChars) return;
+      setIsLoadingMoreChars(true);
+      (async () => {
+        try {
+          const items = await listCharacters({ limit: 10, offset: charOffset });
+          const mapped: Character[] = items.map(it => ({
+            id: String(it.id),
+            name: it.name || '未知',
+            avatar: it.avatar || '',
+            profileImage: it.profileImage || '',
+            status: CharacterStatus.ONLINE,
+            bio: it.bio || '',
+            tags: Array.isArray(it.tags) ? it.tags : [],
+            creator: it.creator || '',
+            oneLinePersona: it.oneLinePersona || '',
+            personality: it.personality || '',
+            profession: it.profession || '',
+            age: it.age || '',
+            roleType: it.roleType || '',
+            currentRelationship: it.currentRelationship || '',
+            plotTheme: it.plotTheme || '',
+            plotDescription: it.plotDescription || '',
+            openingLine: it.openingLine || ''
+          }));
+          if (mapped.length) setCharacters(prev => [...prev, ...mapped]);
+          setCharOffset(prev => prev + mapped.length);
+          setHasMoreChars(mapped.length === 10);
+        } catch {
+        } finally {
+          setIsLoadingMoreChars(false);
+        }
+      })();
+    }, { threshold: 0.1, root: scrollRootRef.current || undefined });
+    charIoRef.current = io;
+    io.observe(el);
+    return () => { try { io.disconnect(); } catch {} };
+  }, [characters, hasMoreChars, isLoadingMoreChars, charOffset, activeTab, homeTab]);
 
 
 
@@ -451,9 +537,10 @@ const App: React.FC = () => {
           <div className="px-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {homeTab === 'stories' ? (
               <div className="space-y-6 mt-2">
-                {stories.map(story => (
+                {stories.map((story, idx) => (
                   <div
                     key={story.id}
+                    ref={idx === stories.length - 3 ? (el) => { storySentinelRef.current = el } : undefined}
                     className="group relative bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer border border-transparent hover:border-primary-100 hover:-translate-y-0.5 duration-200"
                     onClick={async () => {
                       try {
@@ -494,7 +581,7 @@ const App: React.FC = () => {
                     }}
                   >
                     <div className="h-40 overflow-hidden relative">
-                      <img src={story.image || '/uploads/covers/default_storyimg.jpg'} alt={story.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      <LazyImage src={story.image || '/uploads/covers/default_storyimg.jpg'} alt={story.title} root={scrollRootRef.current} className="w-full h-full" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent"></div>
                       <div className="absolute bottom-4 left-4">
                         <h3 className="text-xl font-bold text-white">{story.title}</h3>
@@ -525,9 +612,10 @@ const App: React.FC = () => {
                 {loadingCharacters && (
                   <div className="text-center text-xs text-slate-400">加载中...</div>
                 )}
-                {!loadingCharacters && characters.map(char => (
+                {!loadingCharacters && characters.map((char, idx) => (
                   <div
                     key={char.id}
+                    ref={idx === characters.length - 3 ? (el) => { charSentinelRef.current = el } : undefined}
                     className="bg白 rounded-2xl p-4 shadow-sm flex gap-4 hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-primary-100"
                     onClick={() => {
                       setIsProfileFromChat(false);
@@ -535,7 +623,7 @@ const App: React.FC = () => {
                       setViewingProfile(char);
                     }}
                   >
-                    <CharacterThumb char={char} />
+                    <CharacterThumb char={char} root={scrollRootRef.current} />
 
                     <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
                       <div>
@@ -1040,7 +1128,7 @@ const App: React.FC = () => {
                 showAdd={activeTab === NavTab.HOME}
               />
               <AnimatePresence initial={false}>
-                <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth min-h-0">
+                <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth min-h-0" ref={scrollRootRef}>
                   {renderContent()}
                 </div>
               </AnimatePresence>

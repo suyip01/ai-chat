@@ -33,11 +33,13 @@ router.post('/generate', async (req, res) => {
       systemTemplate: body.templateContent,
     };
     req.log.info('sysprompt.generate.start', { tags_len: data.tags.length, style_len: data.styleExamples.length, model: overrides.model })
+    req.log.debug('sysprompt.generate.params', { data, overrides })
     const text = await generateRolePrompt(data, overrides, req.log);
     req.log.info('sysprompt.generate.ok', { out_len: (text || '').length })
+    req.log.debug('sysprompt.generate.out', { prompt: text })
     res.json({ prompt: text });
   } catch (e) {
-    req.log.error('sysprompt.generate.error', { error: e?.message || e })
+    req.log.error('sysprompt.generate.error', { message: e?.message || String(e), stack: e?.stack, ctx: { body: req.body } })
     res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' });
   }
 });
@@ -50,11 +52,13 @@ router.post('/generate-noscene', async (req, res) => {
       temperature: typeof body.temperature === 'number' ? body.temperature : undefined,
     };
     req.log.info('sysprompt.generateNoScene.start', { model: overrides.model })
+    req.log.debug('sysprompt.generateNoScene.params', { source_len: (body.sourcePrompt || '').length, overrides })
     const text = await generateNoScenePrompt(body.sourcePrompt || '', overrides, req.log);
     req.log.info('sysprompt.generateNoScene.ok', { out_len: (text || '').length })
+    req.log.debug('sysprompt.generateNoScene.out', { prompt: text })
     res.json({ prompt: text });
   } catch (e) {
-    req.log.error('sysprompt.generateNoScene.error', { error: e?.message || e })
+    req.log.error('sysprompt.generateNoScene.error', { message: e?.message || String(e), stack: e?.stack, ctx: { body: req.body } })
     res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' });
   }
 });

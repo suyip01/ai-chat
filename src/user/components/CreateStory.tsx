@@ -4,6 +4,7 @@ import { ChevronLeft, Camera, Plus, ChevronRight, X, ChevronDown, Save, Send, Tr
 import { Story, Character, StoryRole } from '../types';
 import { ImageCropper } from './ImageCropper';
 import { useToast } from './Toast';
+import { LazyImage } from './LazyImage'
 
 interface CreateStoryProps {
   onBack: () => void;
@@ -146,6 +147,8 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
   }, [showRoleTips])
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pageScrollRef = useRef<HTMLDivElement | null>(null);
+  const importScrollRef = useRef<HTMLDivElement | null>(null);
 
   const dataUrlToBlob = (dataUrl: string) => {
     const parts = dataUrl.split(',');
@@ -418,7 +421,7 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-28 px-4 space-y-6">
+        <div className="flex-1 overflow-y-auto no-scrollbar pb-28 px-4 space-y-6" ref={pageScrollRef}>
 
           {/* 1. Cover Image */}
           <section className="flex flex-col items-center py-2">
@@ -523,14 +526,8 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
             ) : (
               <div className="flex flex-col divide-y divide-slate-200">
                 {form.roles.map((role) => (
-                  <div key={role.name} className="flex items-center gap-3 bg-white/60 py-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden">
-                      {role.avatar ? (
-                        <img src={role.avatar} alt={role.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-sm font-bold text-slate-500">{(role.name || '?')[0]}</span>
-                      )}
-                    </div>
+                  <div key={role.name} className="flex items-center gap-3 bg白/60 py-3">
+                    <LazyImage src={role.avatar} alt={role.name} root={pageScrollRef.current} placeholderChar={(role.name || '?')[0]} className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden" />
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-slate-700 text-sm">{role.name}</div>
                       <div className="text-[10px] text-slate-500 truncate">{role.description}</div>
@@ -642,23 +639,21 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
                 <h3 className="text-lg font-bold text-purple-900 font-kosugi">选择角色导入</h3>
                 <button onClick={() => setShowRoleModal(false)} className="p-2 bg-slate-100 rounded-full"><X size={16} /></button>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3" ref={importScrollRef}>
                 {(localImportableRoles || [])
                   .filter(item => !form.roles.some(r => r.name === item.name))
-                  .sort((a, b) => (a.isPrivate === b.isPrivate ? 0 : a.isPrivate ? -1 : 1))
+                  .sort((a, b) => {
+                    const rank = (x: any) => (x.isPrivate && x.isMine ? 0 : (!x.isPrivate && x.isMine ? 1 : 2))
+                    const ra = rank(a), rb = rank(b)
+                    return ra === rb ? 0 : (ra < rb ? -1 : 1)
+                  })
                   .map(item => (
                     <div
                       key={`imp_${item.id || item.name}`}
                       onClick={() => handleAddRole({ name: item.name, avatar: item.avatar, oneLinePersona: item.desc, bio: item.desc } as any)}
                       className="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-2xl shadow-sm active:scale-[0.98] transition cursor-pointer hover:border-purple-200"
                     >
-                      <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden">
-                        {item.avatar ? (
-                          <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-base font-bold text-slate-500">{(item.name || '?')[0]}</span>
-                        )}
-                      </div>
+                      <LazyImage src={item.avatar} alt={item.name} root={importScrollRef.current} placeholderChar={(item.name || '?')[0]} className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden" />
                       <div className="flex-1 min-w-0">
                         <div className="font-bold text-slate-800">{item.name}</div>
                         <div className="text-xs text-slate-400 truncate w-48">{item.desc}</div>

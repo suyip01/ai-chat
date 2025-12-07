@@ -34,7 +34,7 @@ router.post('/avatar', upload.single('avatar'), async (req, res) => {
     req.log.info('uploads.avatar.ok', { url: urlPath })
     res.json({ url: urlPath });
   } catch (e) {
-    req.log.error('uploads.avatar.error', { error: e?.message || e })
+    req.log.error('uploads.avatar.error', { message: e?.message || String(e), stack: e?.stack, ctx: { filename: req.body?.filename, mimetype: req.file?.mimetype, size: req.file?.size } })
     res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' });
   }
 });
@@ -61,7 +61,7 @@ router.post('/cover', upload.single('cover'), async (req, res) => {
     req.log?.info?.('uploads.cover.ok', { url: urlPath })
     res.json({ url: urlPath });
   } catch (e) {
-    req.log?.error?.('uploads.cover.error', { error: e?.message || e })
+    req.log?.error?.('uploads.cover.error', { message: e?.message || String(e), stack: e?.stack, ctx: { filename: req.body?.filename, mimetype: req.file?.mimetype, size: req.file?.size } })
     res.status(500).json({ error: 'server_error', message: e?.message || 'unknown_error' });
   }
 });
