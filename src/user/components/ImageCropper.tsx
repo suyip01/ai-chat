@@ -16,6 +16,10 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [normalizedSrc, setNormalizedSrc] = useState(imageSrc);
+  const [delayPassed, setDelayPassed] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
+  const [overlayMount, setOverlayMount] = useState(true);
   
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,6 +45,43 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
     window.addEventListener('resize', recalc);
     return () => window.removeEventListener('resize', recalc);
   }, [ratio]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDelayPassed(true), 500);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const show = !delayPassed || !imageReady;
+    if (show) {
+      setOverlayMount(true);
+      return;
+    }
+    const t = setTimeout(() => setOverlayMount(false), 300);
+    return () => clearTimeout(t);
+  }, [delayPassed, imageReady]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext('2d');
+      if (!ctx) { if (!cancelled) setNormalizedSrc(imageSrc); return; }
+      ctx.drawImage(img, 0, 0);
+      try {
+        const data = c.toDataURL('image/jpeg', 0.92);
+        if (!cancelled) setNormalizedSrc(data);
+      } catch (_) {
+        if (!cancelled) setNormalizedSrc(imageSrc);
+      }
+    };
+    img.onerror = () => { if (!cancelled) setNormalizedSrc(imageSrc); };
+    img.src = imageSrc;
+    return () => { cancelled = true; };
+  }, [imageSrc]);
 
   // Handle Dragging
   const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
@@ -102,7 +143,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
       
       {/* Top Bar */}
       <div className="absolute top-0 w-full p-4 flex justify-between items-center z-20 text-white">
-          <button onClick={onCancel} className="p-2 bg-white/10 rounded-full backdrop-blur-md">
+          <button onClick={onCancel} className="p-2 bg-white/10 rounded-full">
             <X size={24} />
           </button>
           <h3 className="font-bold text-lg tracking-wider">调整图片</h3>
@@ -115,6 +156,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
       <div 
         ref={containerRef}
         className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center touch-none select-none"
+        style={{ isolation: 'isolate' }}
         onMouseDown={handlePointerDown}
         onMouseMove={handlePointerMove}
         onMouseUp={handlePointerUp}
@@ -126,40 +168,44 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
           {/* The Image */}
           <img 
             ref={imgRef}
-            src={imageSrc} 
+            src={normalizedSrc} 
             alt="Crop target" 
             className="absolute max-w-none transition-transform duration-75 ease-linear pointer-events-none"
             style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) translateZ(0)`,
                 //height: cropH,
                 height: 'auto',
-                width: cropW
+                width: cropW,
+                willChange: 'transform',
+                backfaceVisibility: 'hidden'
                 //width: 'auto'
             }}
+            onLoad={() => setImageReady(true)}
             draggable={false}
           />
 
-          {/* Overlay Mask - UPDATED: Removed the inner bg-black/60 so image is clear */}
-          <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
-             {/* The Cutout - Shadow does the dimming outside */}
-             <div 
-                ref={cropRef}
-                className="absolute border-2 border-white box-content shadow-[0_0_0_9999px_rgba(0,0,0,0.8)]"
-                style={{ width: cropW, height: cropH }}
-             >
-                {/* Grid Lines */}
-                <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-30">
-                   <div className="border-r border-white"></div>
-                   <div className="border-r border-white"></div>
-                   <div className="border-b border-white col-span-3 row-start-1"></div>
-                   <div className="border-b border-white col-span-3 row-start-2"></div>
-                </div>
-             </div>
+          <div className="absolute inset-0 pointer-events-none z-10">
+            <div className="absolute top-0 left-0 right-0 bg-black/80" style={{ height: `calc(50% - ${cropH / 2}px)` }} />
+            <div className="absolute bottom-0 left-0 right-0 bg-black/80" style={{ height: `calc(50% - ${cropH / 2}px)` }} />
+            <div className="absolute left-0 bg-black/80" style={{ top: `calc(50% - ${cropH / 2}px)`, bottom: `calc(50% - ${cropH / 2}px)`, width: `calc(50% - ${cropW / 2}px)` }} />
+            <div className="absolute right-0 bg-black/80" style={{ top: `calc(50% - ${cropH / 2}px)`, bottom: `calc(50% - ${cropH / 2}px)`, width: `calc(50% - ${cropW / 2}px)` }} />
+            <div 
+              ref={cropRef}
+              className="absolute border-2 border-white box-content"
+              style={{ width: cropW, height: cropH, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+            >
+              <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-30">
+                <div className="border-r border-white"></div>
+                <div className="border-r border-white"></div>
+                <div className="border-b border-white col-span-3 row-start-1"></div>
+                <div className="border-b border-white col-span-3 row-start-2"></div>
+              </div>
+            </div>
           </div>
       </div>
 
       {/* Controls */}
-      <div className="absolute bottom-0 w-full bg-slate-900/80 backdrop-blur-md p-6 pb-10 flex flex-col gap-4 z-20">
+      <div className="absolute bottom-0 w-full bg-slate-900/80 p-6 pb-10 flex flex-col gap-4 z-20">
          <div className="flex items-center gap-4 text-white justify-center">
              <Minus size={20} className="text-slate-400" />
              <input 
@@ -177,6 +223,17 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
       
       {/* Hidden Canvas for Processing */}
       <canvas ref={canvasRef} className="hidden" />
+      {overlayMount && (
+        <div
+          className={`fixed inset-0 z-[120] bg-black flex items-center justify-center transition-opacity duration-300 ${(!delayPassed || !imageReady) ? 'opacity-100' : 'opacity-0'}`}
+          style={{ pointerEvents: (!delayPassed || !imageReady) ? 'auto' : 'none' }}
+        >
+          <div className="flex flex-col items-center gap-4 text-white">
+            <div className="h-10 w-10 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+            <div className="text-sm tracking-wide">正在处理图片...</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

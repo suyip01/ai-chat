@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ChevronDown, ChevronUp, Heart, MessageCircle } from 'lucide-react';
 import { Character } from '../types';
-import { useToast } from './Toast';
+import { useToast } from '../components/Toast';
 
 interface CharacterProfileProps {
   character: Character;

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChatPreview } from '../types';
-import { ChatItem } from './ChatItem';
+import { ChatItem } from '../components/ChatItem';
 
 interface ChatListProps {
   chats: ChatPreview[];

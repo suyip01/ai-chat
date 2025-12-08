@@ -3,9 +3,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArrowLeft, Send, MoreVertical, X, ChevronRight, User as UserIcon, MessageSquare, Cpu } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion'
 import { androidSlideRight, fade } from '../animations'
-import { UserCharacterSettings } from './UserCharacterSettings';
-import { UserRoleSelectorSheet } from './UserRoleSelectorSheet';
-import { ModelSelectorSheet } from './ModelSelectorSheet';
+import { UserCharacterSettings } from '../components/UserCharacterSettings';
+import { UserRoleSelectorSheet } from '../components/UserRoleSelectorSheet';
+import { ModelSelectorSheet } from '../components/ModelSelectorSheet';
 import { Character, Message, MessageType, UserPersona } from '../types';
 import { createChatSession, connectChatWs, updateSessionConfig, getSessionInfo } from '../services/chatService';
 

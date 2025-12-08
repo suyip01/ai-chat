@@ -24,6 +24,7 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
   const [personality, setPersonality] = useState(currentPersona?.personality || '');
   const [avatar, setAvatar] = useState<string | undefined>(currentPersona?.avatar);
   const [tempAvatar, setTempAvatar] = useState<string | null>(null);
+  const [preMountLoading, setPreMountLoading] = useState(false);
   const [saving, setSaving] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,9 +92,11 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPreMountLoading(true);
       const reader = new FileReader();
       reader.onloadend = () => {
         setTempAvatar(reader.result as string);
+        setPreMountLoading(false);
       };
       reader.readAsDataURL(file);
     }
@@ -135,7 +138,7 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
       <div className="mx-auto w-full max-w-md bg-white p-4 space-y-3 pb-10 rounded-none md:rounded-b-3xl md:shadow-2xl">
         
         {/* Avatar Section */}
-        <div className="flex justify-center py-6">
+      <div className="flex justify-center py-6">
            <div 
              onClick={handleAvatarClick}
              className="relative group cursor-pointer active:scale-95 transition-transform"
@@ -159,6 +162,15 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
               />
            </div>
         </div>
+
+        {preMountLoading && (
+          <div className="fixed inset-0 z-[90] bg-black flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4 text-white">
+              <div className="h-10 w-10 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+              <div className="text-sm tracking-wide">正在读取头像...</div>
+            </div>
+          </div>
+        )}
 
         {/* Gender */}
         <div className="bg-white rounded-xl p-5 shadow-sm">
@@ -248,7 +260,7 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
 
         </div>
 
-      </motion.div>
-    </div>
-  );
+    </motion.div>
+  </div>
+);
 };

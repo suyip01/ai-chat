@@ -2,9 +2,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, Camera, Plus, ChevronRight, X, ChevronDown, Save, Send, Trash2, AlertCircle } from 'lucide-react';
 import { Story, Character, StoryRole } from '../types';
-import { ImageCropper } from './ImageCropper';
-import { useToast } from './Toast';
-import { LazyImage } from './LazyImage'
+import { ImageCropper } from '../components/ImageCropper';
+import { useToast } from '../components/Toast';
+import { LazyImage } from '../components/LazyImage'
 
 interface CreateStoryProps {
   onBack: () => void;
@@ -61,6 +61,7 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [customTagInput, setCustomTagInput] = useState('');
   const [tempImage, setTempImage] = useState<string | null>(null);
+  const [preMountLoading, setPreMountLoading] = useState(false);
   const [showRoleTips, setShowRoleTips] = useState(false);
   const roleTipsRef = useRef<HTMLDivElement | null>(null);
   const [localImportableRoles, setLocalImportableRoles] = useState(importableRoles);
@@ -176,9 +177,11 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPreMountLoading(true);
       const reader = new FileReader();
       reader.onloadend = () => {
         setTempImage(reader.result as string);
+        setPreMountLoading(false);
       };
       reader.readAsDataURL(file);
     }
@@ -424,7 +427,7 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
 
         <div className="flex-1 overflow-y-auto no-scrollbar pb-28 px-4 space-y-6" ref={pageScrollRef}>
 
-          {/* 1. Cover Image */}
+        {/* 1. Cover Image */}
           <section className="flex flex-col items-center py-2">
             <div
               onClick={handleImageClick}
@@ -444,6 +447,15 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
             </div>
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
           </section>
+
+          {preMountLoading && (
+            <div className="fixed inset-0 z-[90] bg-black flex items-center justify-center">
+              <div className="flex flex-col items-center gap-4 text-white">
+                <div className="h-10 w-10 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+                <div className="text-sm tracking-wide">正在读取封面...</div>
+              </div>
+            </div>
+          )}
 
           {/* 2. Basic Info */}
           <section className="glass-card p-6 space-y-4">

@@ -4,7 +4,7 @@ import { ChevronRight, LogOut, Camera, Edit2, Mail, PenTool, Trash2, Plus } from
 import { Character, UserProfile, Story } from '../types';
 import { deleteUserStory } from '../services/userStoriesService';
 import { deleteUserCharacter } from '../services/userCharactersService';
-import { ImageCropper } from './ImageCropper';
+import { ImageCropper } from '../components/ImageCropper';
 
 const MyCharacterAvatar: React.FC<{ avatar?: string; name: string }> = ({ avatar, name }) => {
   const [err, setErr] = useState(false)
@@ -56,6 +56,7 @@ export const MePage: React.FC<MePageProps> = ({
   const [tempName, setTempName] = useState(userProfile.nickname);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [tempAvatar, setTempAvatar] = useState<string | null>(null);
+  const [preMountLoading, setPreMountLoading] = useState(false);
   const [userImgError, setUserImgError] = useState(false);
   const isTouch = (navigator as any)?.maxTouchPoints > 0;
 
@@ -117,9 +118,11 @@ export const MePage: React.FC<MePageProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPreMountLoading(true);
       const reader = new FileReader();
       reader.onloadend = () => {
         setTempAvatar(reader.result as string);
+        setPreMountLoading(false);
       };
       reader.readAsDataURL(file);
     }
@@ -322,11 +325,11 @@ export const MePage: React.FC<MePageProps> = ({
                 <span className="text-xl font-bold text-slate-500">{userProfile.nickname?.[0] || '?'}</span>
               )}
             </div>
-            <div className="absolute bottom-0 right-0 bg-primary-500 p-1.5 rounded-full text-white border-2 border-white shadow-sm">
-              <Camera size={10} />
-            </div>
-            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+          <div className="absolute bottom-0 right-0 bg-primary-500 p-1.5 rounded-full text-white border-2 border-white shadow-sm">
+            <Camera size={10} />
           </div>
+          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+        </div>
 
           {/* Name & Edit */}
           <div className="flex items-center gap-2 mb-1">
@@ -583,6 +586,15 @@ export const MePage: React.FC<MePageProps> = ({
             </div>
           </div>
         </>
+      )}
+
+      {preMountLoading && (
+        <div className="fixed inset-0 z-[90] bg-black flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4 text-white">
+            <div className="h-10 w-10 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+            <div className="text-sm tracking-wide">正在读取头像...</div>
+          </div>
+        </div>
       )}
 
       {/* Context Menu */}

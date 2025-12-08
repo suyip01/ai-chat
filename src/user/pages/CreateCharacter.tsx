@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, Camera, Plus, ChevronRight, X, ChevronDown, ChevronUp, Globe, Lock, Info, AlertCircle } from 'lucide-react';
 import { Character, CharacterStatus } from '../types';
-import { ImageCropper } from './ImageCropper';
+import { ImageCropper } from '../components/ImageCropper';
 import { createCharacter, createUserCharacterDraft, updateUserCharacter, updateUserCharacterDraft, getUserCharacter } from '../services/userCharactersService'
 
 interface CreateCharacterProps {
@@ -49,6 +49,7 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
   
   // Cropping State
   const [tempAvatar, setTempAvatar] = useState<string | null>(null);
+  const [preMountLoading, setPreMountLoading] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -140,10 +141,12 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPreMountLoading(true);
       const reader = new FileReader();
       reader.onloadend = () => {
         // Set tempAvatar to trigger Cropper
         setTempAvatar(reader.result as string);
+        setPreMountLoading(false);
       };
       reader.readAsDataURL(file);
     }
@@ -468,6 +471,15 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                 <p className="mt-2 text-xs text-purple-400 font-bold tracking-wide font-kosugi">上传头像</p>
             </section>
+
+            {preMountLoading && (
+              <div className="fixed inset-0 z-[90] bg-black flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4 text-white">
+                  <div className="h-10 w-10 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+                  <div className="text-sm tracking-wide">正在读取头像...</div>
+                </div>
+              </div>
+            )}
 
             {/* 3. Basic Settings */}
             <section className="glass-card p-6 space-y-6">
