@@ -108,9 +108,33 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     }
   };
 
+  const resizeTextarea = () => {
+    const ta = textareaRef.current
+    if (!ta) return
+    try {
+      const styles = window.getComputedStyle(ta)
+      const lineHeight = parseFloat(styles.lineHeight || '22') || 22
+      const maxH = parseFloat(styles.maxHeight || '0') || (lineHeight * 4)
+      ta.style.height = 'auto'
+      const sc = ta.scrollHeight
+      const next = Math.min(sc, maxH)
+      ta.style.height = `${Math.max(next, 22)}px`
+    } catch {
+      ta.style.height = 'auto'
+      const sc = ta.scrollHeight
+      ta.style.height = `${Math.max(Math.min(sc, 96), 22)}px`
+    }
+  }
+
   useEffect(() => {
     scrollToBottom();
+    resizeTextarea();
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => resizeTextarea())
+    return () => cancelAnimationFrame(raf)
+  }, [input])
 
   const [viewportStyle, setViewportStyle] = useState<{ height: string | number; top: string | number }>({ height: '100%', top: 0 });
 
@@ -251,7 +275,19 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         setInput('');
       }
     }
-    try { localStorage.setItem(configKey, JSON.stringify({ chatMode: mode, persona: userPersona || undefined })); } catch { }
+    try {
+      let nextPersona: UserPersona | undefined = personaLocal || userPersona || undefined
+      if (!nextPersona) {
+        try {
+          const raw = localStorage.getItem(configKey)
+          if (raw) {
+            const cfg = JSON.parse(raw) as { chatMode?: 'daily' | 'scene'; persona?: UserPersona }
+            if (cfg && cfg.persona) nextPersona = cfg.persona
+          }
+        } catch {}
+      }
+      localStorage.setItem(configKey, JSON.stringify({ chatMode: mode, persona: nextPersona }))
+    } catch { }
   };
 
   const handleSend = async () => {
@@ -325,7 +361,6 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
               {/* Header Name - Clickable */}
               <div
                 className="flex items-center cursor-pointer active:opacity-70 transition-opacity"
-                onClick={onShowProfile}
               >
                 <h2 className="font-bold text-slate-800 text-lg">
                   {isTyping ? '对方正在输入中...' : character.name}
@@ -432,10 +467,10 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                     handleSend();
                   }
                 }}
-                onFocus={() => { scrollToBottom(); setTimeout(scrollToBottom, 150); setTimeout(scrollToBottom, 300); }}
+                onFocus={() => { scrollToBottom(); setTimeout(scrollToBottom, 150); setTimeout(scrollToBottom, 300); resizeTextarea(); setTimeout(resizeTextarea, 0); }}
                 onBlur={() => wsRef.current?.sendTyping(false)}
                 placeholder=""
-                className="w-full bg-transparent border-none outline-none focus:ring-0 text-slate-700 text-sm p-0 resize-none max-h-24 overflow-y-auto leading-5 placeholder:text-slate-400"
+                className="w-full bg-transparent border-none outline-none focus:ring-0 text-slate-700 text-sm p-0 resize-none max-h-24 overflow-y-auto no-scrollbar leading-5 placeholder:text-slate-400"
                 rows={1}
                 style={{ minHeight: '22px' }}
               />
@@ -465,13 +500,13 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
                 <div className="p-2">
                   {/* My Character Settings */}
-                  <button
-                    onClick={() => {
-                      setIsSettingsOpen(false);
-                      setIsRoleSheetOpen(true);
-                    }}
-                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
-                  >
+                <button
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    setIsRoleSheetOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+                >
                     <div className="flex items-center gap-3 text-slate-700">
                       <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
                         <UserIcon size={18} />
@@ -548,7 +583,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
         <UserRoleSelectorSheet
           isOpen={isRoleSheetOpen}
-          currentPersona={userPersona}
+          currentPersona={personaLocal || userPersona}
+          characterId={character.id}
           onClose={() => setIsRoleSheetOpen(false)}
           onAdd={() => { setIsRoleSheetOpen(false); setEditingPersona(undefined); setEditingRoleId(undefined); setIsUserSettingsOpenLocal(true); }}
           onSelect={(persona) => { setPersonaLocal(persona); try { localStorage.setItem(configKey, JSON.stringify({ chatMode, persona })); } catch { } }}

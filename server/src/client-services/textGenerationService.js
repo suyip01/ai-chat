@@ -41,7 +41,7 @@ export class TextGenerationService {
     const wlog = createLogger({ component: 'llm' })
     wlog.info('llm.request', { userId: context.userId, sid: context.sid, messageCount: messages.length })
     wlog.debug('llm.messages.full', { messages })
-    try { console.log('\x1b[31mLLM REQUEST MESSAGES\x1b[0m', JSON.stringify(messages)); } catch {}
+    // try { console.log('\x1b[31mLLM REQUEST MESSAGES\x1b[0m', JSON.stringify(messages)); } catch {}
     const model = modelOverride || process.env.LLM_MODEL;
     const temperature = typeof temperatureOverride === 'number' ? temperatureOverride : 0.2;
     wlog.info('llm.params', { userId: context.userId, sid: context.sid, model, temperature })
@@ -60,7 +60,7 @@ export class TextGenerationService {
         const durMs = Number(process.hrtime.bigint() - t0) / 1e6
         wlog.info('llm.success', { userId: context.userId, sid: context.sid, attempt: i + 1, duration_ms: Math.round(durMs), rawLen: String(out).length })
         wlog.debug('llm.success.full', { userId: context.userId, sid: context.sid, content: out })
-        try { console.log('\x1b[31mLLM OUTPUT CONTENT\x1b[0m', out); } catch {}
+        // try { console.log('\x1b[31mLLM OUTPUT CONTENT\x1b[0m', out); } catch {}
         this.lastAttempts = i + 1;
         if (String(out).trim().length === 0) throw new Error('llm_empty');
         return out;

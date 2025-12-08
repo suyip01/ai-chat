@@ -12,6 +12,7 @@ interface Props {
   onAdd: () => void
   onSelect: (persona: UserPersona, roleId?: number) => void
   onEdit?: (persona: UserPersona, roleId: number) => void
+  characterId?: number | string
 }
 
 const mapGender = (g?: string): 'male' | 'female' | 'secret' => {
@@ -20,7 +21,7 @@ const mapGender = (g?: string): 'male' | 'female' | 'secret' => {
   return 'secret'
 }
 
-export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona, onClose, onAdd, onSelect, onEdit }) => {
+export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona, onClose, onAdd, onSelect, onEdit, characterId }) => {
   const [roles, setRoles] = useState<Array<{ id: number; name: string; age: number | null; gender: string; profession: string | null; basic_info: string | null; personality: string | null; avatar: string | null }>>([])
   const [selected, setSelected] = useState<number | null>(null)
   const [offsets, setOffsets] = useState<Record<number, number>>({})
@@ -47,23 +48,25 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
 
   useEffect(() => {
     if (!roles.length) return
-    let rid: number | null = null
-    try {
-      const ridRaw = localStorage.getItem('user_chat_role_id')
-      if (ridRaw) {
-        const n = parseInt(ridRaw)
-        if (!isNaN(n)) rid = n
+    let cfgPersona: UserPersona | undefined
+    if (characterId !== undefined && characterId !== null) {
+      try {
+        const raw = localStorage.getItem(`chat_config_${String(characterId)}`)
+        if (raw) {
+          const cfg = JSON.parse(raw) as { chatMode?: 'daily' | 'scene'; persona?: UserPersona }
+          if (cfg && cfg.persona) cfgPersona = cfg.persona
+        }
+      } catch {}
+    }
+    const pn = cfgPersona?.name
+    if (pn) {
+      const byName = roles.find(r => r.name === pn)
+      if (byName) {
+        setSelected(byName.id); return
       }
-    } catch {}
-    if (rid !== null) {
-      const byId = roles.find(r => r.id === rid)
-      if (byId) { setSelected(byId.id); return }
     }
-    if (currentPersona) {
-      const byName = roles.find(r => r.name === currentPersona.name)
-      if (byName) setSelected(byName.id)
-    }
-  }, [roles, currentPersona])
+    setSelected(null)
+  }, [roles, characterId])
 
   const handleSelect = (r: any) => {
     setSelected(r.id)

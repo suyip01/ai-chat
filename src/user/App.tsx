@@ -88,6 +88,13 @@ const App: React.FC = () => {
     setIsLoggedIn(false);
   };
   useEffect(() => {
+    if (!selectedChat) return
+    try {
+      const raw = localStorage.getItem(`chat_config_${selectedChat.character.id}`)
+      const cfg = raw ? JSON.parse(raw) as { chatMode?: 'daily' | 'scene'; persona?: UserPersona } : null
+    } catch {}
+  }, [selectedChat])
+  useEffect(() => {
     if (!isLoggedIn) return;
     (async () => {
       try {
@@ -232,7 +239,7 @@ const App: React.FC = () => {
         } catch {
           setMyStories([])
         }
-      })()
+    })()
   }, [isLoggedIn]);
 
   useEffect(() => {
