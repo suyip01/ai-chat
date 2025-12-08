@@ -59,6 +59,7 @@ export const startChatWs = (server) => {
   const wsBySid = new Map()
   const sendQueues = new Map()
   const sendingSids = new Set()
+  const resetCountTimers = new Map()
 
   const scheduleGenerate = (sid, job, baseDelay = 2000) => {
     const prev = pendingJobs.get(sid)
@@ -80,6 +81,8 @@ export const startChatWs = (server) => {
   }
 
   const enqueueSend = (sid, batch) => {
+    const tPrev = resetCountTimers.get(sid)
+    if (tPrev) { clearTimeout(tPrev); resetCountTimers.delete(sid) }
     const q = sendQueues.get(sid) || []
     q.push(batch)
     sendQueues.set(sid, q)
@@ -87,7 +90,22 @@ export const startChatWs = (server) => {
     const runNext = async () => {
       const queue = sendQueues.get(sid) || []
       const next = queue.shift()
-      if (!next) { sendingSids.delete(sid); sendQueues.set(sid, queue); return }
+      if (!next) {
+        sendingSids.delete(sid)
+        sendQueues.set(sid, queue)
+        const t2 = resetCountTimers.get(sid)
+        if (t2) clearTimeout(t2)
+        const timer = setTimeout(() => {
+          const stillQueue = (sendQueues.get(sid) || []).length
+          const isSending = sendingSids.has(sid)
+          if (!isSending && stillQueue === 0) {
+            llmCounts.set(sid, 0)
+          }
+          resetCountTimers.delete(sid)
+        }, 2000)
+        resetCountTimers.set(sid, timer)
+        return
+      }
       sendQueues.set(sid, queue)
       sendingSids.add(sid)
       const wlog = createLogger({ component: 'ws' })

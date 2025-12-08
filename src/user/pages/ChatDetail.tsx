@@ -432,6 +432,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                     handleSend();
                   }
                 }}
+                onFocus={() => { scrollToBottom(); setTimeout(scrollToBottom, 150); setTimeout(scrollToBottom, 300); }}
                 onBlur={() => wsRef.current?.sendTyping(false)}
                 placeholder=""
                 className="w-full bg-transparent border-none outline-none focus:ring-0 text-slate-700 text-sm p-0 resize-none max-h-24 overflow-y-auto leading-5 placeholder:text-slate-400"

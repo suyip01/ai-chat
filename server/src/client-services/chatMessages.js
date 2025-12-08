@@ -41,7 +41,7 @@ export const getMessages = async (sid, limit = 100) => {
     const start = Math.max(0, total - limit)
   const raw = await r.lRange(keyMsgs(sid), start, total - 1)
   const msgs = raw.map(deserialize).filter(Boolean)
-  logger.info('getMessages', { sid, total, limit, messages: msgs.slice(-3) })
+  logger.info('getMessages', { sid, total, limit, messages: msgs.slice(-8) })
   return msgs
   } catch (err) {
     logger.error('getMessages.error', { message: err?.message, stack: err?.stack, sid, limit })
