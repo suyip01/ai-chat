@@ -2,7 +2,7 @@ import { WebSocketServer } from 'ws'
 import pool from '../db.js'
 import { getSession } from './chatSessions.js'
 import { appendUserMessage, appendAssistantMessage, getMessages } from './chatMessages.js'
-import { getRedis, keySummary, keyRole, keyCharacter } from './redis.js'
+import { getRedis, keySummary, keyRole, keyCharacter, keySess } from './redis.js'
 import { maybeSummarizeSession } from './chatSummary.js'
 import TextGenerationService from './textGenerationService.js'
 import { createLogger } from '../utils/logger.js'
@@ -57,6 +57,8 @@ export const startChatWs = (server) => {
   const pendingJobs = new Map()
   const llmCounts = new Map()
   const wsBySid = new Map()
+  const sendQueues = new Map()
+  const sendingSids = new Set()
 
   const scheduleGenerate = (sid, job, baseDelay = 2000) => {
     const prev = pendingJobs.get(sid)
@@ -76,6 +78,56 @@ export const startChatWs = (server) => {
     }, wait)
     pendingJobs.set(sid, { timer, job })
   }
+
+  const enqueueSend = (sid, batch) => {
+    const q = sendQueues.get(sid) || []
+    q.push(batch)
+    sendQueues.set(sid, q)
+    if (sendingSids.has(sid)) return
+    const runNext = async () => {
+      const queue = sendQueues.get(sid) || []
+      const next = queue.shift()
+      if (!next) { sendingSids.delete(sid); sendQueues.set(sid, queue); return }
+      sendQueues.set(sid, queue)
+      sendingSids.add(sid)
+      const wlog = createLogger({ component: 'ws' })
+      const { chunks, includeQuote, quote, model, temperature, ws, userId } = next
+      for (let i = 0; i < chunks.length; i++) {
+        const piece = chunks[i]
+        await appendAssistantMessage(sid, piece, { model, temperature, chunkIndex: i + 1, chunkTotal: chunks.length, withQuote: includeQuote && i === 0, quote: includeQuote && i === 0 ? quote : undefined })
+        const withQuote = includeQuote && i === 0
+        const payloadOut = withQuote ? { type: 'assistant_message', content: piece, quote, chunkIndex: i + 1, chunkTotal: chunks.length } : { type: 'assistant_message', content: piece, chunkIndex: i + 1, chunkTotal: chunks.length }
+        const target = wsBySid.get(sid) || ws
+        try {
+          target.send(JSON.stringify(payloadOut))
+          wlog.info('reply.send', { userId, sid, chunkIndex: i + 1, chunkTotal: chunks.length, len: String(piece).length, preview: String(piece).slice(0, 100), withQuote })
+        } catch (e) {
+          wlog.error('reply.send.error', { userId, sid, chunkIndex: i + 1, error: e?.message || e })
+        }
+        if (i < chunks.length - 1) {
+          await new Promise(res => setTimeout(res, 2000))
+        }
+      }
+      await maybeSummarizeSession(sid)
+      try {
+        wlog.info('usage.increment.start', { userId })
+        const [[urow]] = await pool.query('SELECT id FROM users WHERE id=?', [userId])
+        wlog.debug('usage.user.exists', { exists: !!urow })
+        const [res] = await pool.query('UPDATE users SET used_count = COALESCE(used_count,0) + 1 WHERE id=?', [userId])
+        wlog.info('usage.increment.ok', { userId, column: 'used_count', affectedRows: res?.affectedRows })
+        if (!res || !res.affectedRows) {
+          const [res2] = await pool.query('UPDATE users SET used = COALESCE(used,0) + 1 WHERE id=?', [userId])
+          wlog.info('usage.increment.legacy', { userId, column: 'used', affectedRows: res2?.affectedRows })
+        }
+      } catch (e) {
+        wlog.error('usage.increment.error', { error: e?.message || e })
+      }
+      llmCounts.set(sid, Math.max(0, (llmCounts.get(sid) || 1) - 1))
+      sendingSids.delete(sid)
+      if ((sendQueues.get(sid) || []).length) runNext()
+    }
+    runNext()
+  }
   wss.on('connection', (ws) => {
     ws.on('message', async (raw) => {
       const wlog = createLogger({ component: 'ws' })
@@ -93,8 +145,30 @@ export const startChatWs = (server) => {
       const sess = await getSession(sid)
       if (!sess) return
       wlog.info('user.message', { userId: sess.userId, sid, textLen: String(payload.text).length, textPreview: String(payload.text).slice(0, 100) })
-      await appendUserMessage(sid, payload.text)
-      llmCounts.set(sid, 0)
+      {
+        const modelOverride = typeof payload.model_id === 'string' ? payload.model_id : undefined
+        const tempOverride = payload.temperature !== undefined ? Number(payload.temperature) : undefined
+        const model = modelOverride || sess.model || sess.model_id || undefined
+        const temperature = tempOverride !== undefined ? tempOverride : Number(sess.temperature || 0.2)
+        const meta = {
+          mode,
+          model,
+          temperature,
+          roleOverride: roleOverride ? {
+            name: roleOverride.name,
+            gender: roleOverride.gender,
+            age: roleOverride.age,
+            profession: roleOverride.profession
+          } : undefined
+        }
+        await appendUserMessage(sid, payload.text, meta)
+        try {
+          const r = await getRedis()
+          await r.hSet(keySess(sid), { last_chat_mode: mode, last_model: String(model || ''), last_temperature: String(temperature) })
+        } catch {}
+      }
+      llmCounts.set(sid, (llmCounts.get(sid) || 0) + 1)
+      const triggerText = String(payload.text || '')
       const job = async () => {
         const svc = new TextGenerationService()
         const sys = await buildSystem(sess, mode, roleOverride)
@@ -107,8 +181,7 @@ export const startChatWs = (server) => {
           sysLen: String(sys || '').length,
           sysPreview: String(sys || '').slice(0, 160)
         })
-        const lastUser = [...history].reverse().find(m => m && m.role === 'user')
-        const quote = lastUser ? String(lastUser.content || '') : ''
+        const quote = triggerText
         const modelOverride = typeof payload.model_id === 'string' ? payload.model_id : undefined
         const tempOverride = payload.temperature !== undefined ? Number(payload.temperature) : undefined
         const model = modelOverride || sess.model || sess.model_id || undefined
@@ -129,41 +202,11 @@ export const startChatWs = (server) => {
         const content = mode === 'daily' ? String(reply || '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '') : String(reply || '')
         wlog.info('reply.len', { userId: sess.userId, sid, len: String(content).length })
         const chunks = content.split('\n').map(s => s.trim()).filter(s => s.length)
-        const count = llmCounts.get(sid) || 0
-        const includeQuote = (count >= 1) || ((svc.lastAttempts || 1) > 1)
-        wlog.info('llm.count', { userId: sess.userId, sid, count, includeQuote, quotePreview: quote ? String(quote).slice(0, 30) : '' })
+        const currentCount = llmCounts.get(sid) || 0
+        const includeQuote = (currentCount > 1) || ((svc.lastAttempts || 1) > 1)
+        wlog.info('llm.count', { userId: sess.userId, sid, count: currentCount, includeQuote, quotePreview: quote ? String(quote).slice(0, 30) : '' })
         wlog.info('reply.chunks', { userId: sess.userId, sid, total: chunks.length, chunkPreviews: chunks.slice(0, 5).map(c => String(c).slice(0, 80)) })
-        for (let i = 0; i < chunks.length; i++) {
-          const piece = chunks[i]
-          await appendAssistantMessage(sid, piece)
-          const withQuote = includeQuote && i === 0
-          const payloadOut = withQuote ? { type: 'assistant_message', content: piece, quote, chunkIndex: i + 1, chunkTotal: chunks.length } : { type: 'assistant_message', content: piece, chunkIndex: i + 1, chunkTotal: chunks.length }
-          const target = wsBySid.get(sid) || ws
-          try {
-            target.send(JSON.stringify(payloadOut))
-            wlog.info('reply.send', { userId: sess.userId, sid, chunkIndex: i + 1, chunkTotal: chunks.length, len: String(piece).length, preview: String(piece).slice(0, 100), withQuote })
-          } catch (e) {
-            wlog.error('reply.send.error', { userId: sess.userId, sid, chunkIndex: i + 1, error: e?.message || e })
-          }
-          if (i < chunks.length - 1) {
-            await new Promise(res => setTimeout(res, 2000))
-          }
-        }
-        await maybeSummarizeSession(sid)
-        try {
-          wlog.info('usage.increment.start', { userId: sess.userId })
-          const [[urow]] = await pool.query('SELECT id FROM users WHERE id=?', [sess.userId])
-          wlog.debug('usage.user.exists', { exists: !!urow })
-          const [res] = await pool.query('UPDATE users SET used_count = COALESCE(used_count,0) + 1 WHERE id=?', [sess.userId])
-          wlog.info('usage.increment.ok', { userId: sess.userId, column: 'used_count', affectedRows: res?.affectedRows })
-          if (!res || !res.affectedRows) {
-            const [res2] = await pool.query('UPDATE users SET used = COALESCE(used,0) + 1 WHERE id=?', [sess.userId])
-            wlog.info('usage.increment.legacy', { userId: sess.userId, column: 'used', affectedRows: res2?.affectedRows })
-          }
-        } catch (e) {
-          wlog.error('usage.increment.error', { error: e?.message || e })
-        }
-        llmCounts.set(sid, count + 1)
+        enqueueSend(sid, { chunks, includeQuote, quote, model, temperature, ws, userId: sess.userId })
       }
       scheduleGenerate(sid, job)
     })

@@ -7,12 +7,12 @@ const deserialize = (s) => {
   try { return JSON.parse(s) } catch { return null }
 }
 
-export const appendUserMessage = async (sid, content) => {
+export const appendUserMessage = async (sid, content, meta) => {
   try {
     const r = await getRedis()
     const msg = { role: 'user', content, ts: Date.now() }
     await r.rPush(keyMsgs(sid), serialize(msg))
-    logger.info('appendUser', { sid, contentLen: String(content||'').length, content })
+    logger.info('appendUser', { sid, contentLen: String(content||'').length, content, meta })
     return msg
   } catch (err) {
     logger.error('appendUser.error', { message: err?.message, stack: err?.stack, sid })
@@ -20,10 +20,11 @@ export const appendUserMessage = async (sid, content) => {
   }
 }
 
-export const appendAssistantMessage = async (sid, content) => {
+export const appendAssistantMessage = async (sid, content, meta) => {
   try {
     const r = await getRedis()
-    const msg = { role: 'assistant', content, ts: Date.now() }
+    const base = { role: 'assistant', content, ts: Date.now() }
+    const msg = (meta && meta.withQuote && meta.quote) ? { ...base, quote: String(meta.quote) } : base
     await r.rPush(keyMsgs(sid), serialize(msg))
     logger.info('appendAssistant', { sid, contentLen: String(content||'').length, content })
     return msg
