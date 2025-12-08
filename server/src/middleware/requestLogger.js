@@ -31,9 +31,28 @@ export const requestLogger = (req, _res, next) => {
           if (Buffer.isBuffer(body)) preview = body.toString('utf8')
           else if (typeof body === 'string') preview = body
           else preview = JSON.stringify(body)
-          // 不裁剪响应内容，完整记录
           _res.locals = _res.locals || {}
-          _res.locals.__resp_preview = preview
+          if (req.method === 'GET' || req.method === 'DELETE') {
+            try {
+              let parsed
+              if (typeof body === 'string') parsed = JSON.parse(preview)
+              else parsed = body
+              let summary = null
+              if (parsed && typeof parsed === 'object') {
+                const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed.items) ? parsed.items : null
+                if (items) {
+                  const top = items.slice(0, 3)
+                  const ids = top.map((it) => (typeof it === 'object' ? it.id : it))
+                  summary = { count: Array.isArray(items) ? items.length : undefined, ids }
+                }
+              }
+              _res.locals.__resp_preview = summary ? JSON.stringify(summary) : (preview.length > 200 ? `${preview.slice(0, 200)}...` : preview)
+            } catch {
+              _res.locals.__resp_preview = (preview.length > 200 ? `${preview.slice(0, 200)}...` : preview)
+            }
+          } else {
+            _res.locals.__resp_preview = preview
+          }
         }
       } catch {}
       return originalSend(body)

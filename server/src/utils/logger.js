@@ -57,6 +57,35 @@ const write = (level, payload) => {
   } catch {}
 }
 
+const pad = (n) => (n < 10 ? `0${n}` : `${n}`)
+const fmtDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const rotateLogs = () => {
+  const now = new Date()
+  const prev = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+  const suffix = fmtDate(prev)
+  const keys = Object.keys(streams)
+  for (const key of keys) {
+    const s = streams[key]
+    const base = path.join(LOG_DIR, `${key}.log`)
+    const rotated = path.join(LOG_DIR, `${key}.${suffix}.log`)
+    try {
+      s.end(() => {
+        try {
+          if (fs.existsSync(base)) fs.renameSync(base, rotated)
+        } catch {}
+      })
+    } catch {}
+    delete streams[key]
+  }
+}
+const scheduleNextRotation = () => {
+  const now = new Date()
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0)
+  const ms = next.getTime() - now.getTime()
+  setTimeout(() => { rotateLogs(); scheduleNextRotation() }, ms)
+}
+try { scheduleNextRotation() } catch {}
+
 export const createLogger = (context = {}) => {
   const base = redact(context)
   const log = (level, msg, meta) => {

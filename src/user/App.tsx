@@ -147,29 +147,30 @@ const App: React.FC = () => {
         setCharacters(mapped);
         setCharOffset(items.length);
         setHasMoreChars(items.length === 10);
-        // build chats from localStorage histories
+        // 先构建部分预览，后续 useEffect 会补全缺失角色
         try {
-          const previews: ChatPreview[] = []
+          const previewsMap = new Map<string, ChatPreview>()
           const uid = localStorage.getItem('user_id') || '0'
-          if (!uid || uid === '0') { setChats([]); return }
           const allKeys = Object.keys(localStorage)
-          const keys = allKeys.filter(k => k.startsWith(`chat_history_${uid}_`))
-          keys.forEach(k => {
-            const cid = k.replace(`chat_history_${uid}_`, '')
-            const char = mapped.find(c => String(c.id) === String(cid))
-            if (!char) return
-            const raw = localStorage.getItem(k)
-            if (!raw) return
-            const arr = JSON.parse(raw) as Array<{ id: string; senderId: string; text: string; ts: number; type: string }>
-            if (!arr.length) return
-            const hasSession = !!localStorage.getItem(`chat_session_${uid}_${cid}`)
-            if (!hasSession) return
-            const last = arr[arr.length - 1]
-            const lastMsg: Message = { id: last.id, senderId: last.senderId, text: last.text, timestamp: new Date(last.ts), type: last.type as MessageType }
-            previews.push({ characterId: String(cid), character: char, lastMessage: lastMsg, unreadCount: 0 })
+          const keysUid = allKeys.filter(k => k.startsWith(`chat_history_${uid}_`))
+          const parseArr = (raw: string) => JSON.parse(raw) as Array<{ id: string; senderId: string; text: string; ts: number; type: string }>
+          keysUid.forEach(k => {
+            try {
+              const cid = k.replace(`chat_history_${uid}_`, '')
+              const raw = localStorage.getItem(k)
+              if (!raw) return
+              const arr = parseArr(raw)
+              if (!arr.length) return
+              const char = mapped.find(c => String(c.id) === String(cid))
+              if (!char) return
+              const last = arr[arr.length - 1]
+              const lastMsg: Message = { id: last.id, senderId: last.senderId, text: last.text, timestamp: new Date(last.ts), type: last.type as MessageType }
+              previewsMap.set(String(cid), { characterId: String(cid), character: char, lastMessage: lastMsg, unreadCount: 0 })
+            } catch {}
           })
+          const previews = Array.from(previewsMap.values())
           if (previews.length) setChats(previews)
-        } catch { }
+        } catch {}
       })
       .catch(() => setCharacters([]))
       .finally(() => setLoadingCharacters(false));
@@ -233,6 +234,74 @@ const App: React.FC = () => {
         }
       })()
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    const rebuild = async () => {
+      try {
+        const uid = localStorage.getItem('user_id') || '0'
+        const allKeys = Object.keys(localStorage)
+        const keysUid = allKeys.filter(k => k.startsWith(`chat_history_${uid}_`))
+        const parseArr = (raw: string) => JSON.parse(raw) as Array<{ id: string; senderId: string; text: string; ts: number; type: string }>
+        const previewsMap = new Map<string, ChatPreview>()
+        const findChar = (cid: string|number): Character | undefined => {
+          const s = String(cid)
+          return characters.find(c => String(c.id) === s) || myUserCharacters.find(c => String(c.id) === s)
+        }
+        const missing: Array<string> = []
+        keysUid.forEach(k => {
+          try {
+            const cid = k.replace(`chat_history_${uid}_`, '')
+            const raw = localStorage.getItem(k)
+            if (!raw) return
+            const arr = parseArr(raw)
+            if (!arr.length) return
+            const char = findChar(cid)
+            if (!char) { missing.push(cid); return }
+            const last = arr[arr.length - 1]
+            const lastMsg: Message = { id: last.id, senderId: last.senderId, text: last.text, timestamp: new Date(last.ts), type: last.type as MessageType }
+            previewsMap.set(String(cid), { characterId: String(cid), character: char, lastMessage: lastMsg, unreadCount: 0 })
+          } catch {}
+        })
+        if (missing.length) {
+          const toFetch = missing.slice(0, 20)
+          const fetched = await Promise.all(toFetch.map(async (cid) => {
+            try { const full = await getCharacter(cid); if (full && full.id) {
+              const mapped: Character = {
+                id: String(full.id), name: full.name || '', avatar: full.avatar || '', profileImage: full.profileImage || '', status: CharacterStatus.ONLINE,
+                bio: full.bio || '', tags: Array.isArray(full.tags) ? full.tags : [], creator: full.creator || '', oneLinePersona: full.oneLinePersona || '', personality: full.personality || '', profession: (full as any).occupation || '', age: (full as any).age || ''
+              } as any
+              return mapped
+            } } catch {}
+            try { const data = await getUserCharacter(cid); if (data && (data as any).id) {
+              const mapped: Character = {
+                id: String(cid), name: (data as any).name || '', avatar: (data as any).avatar || '', profileImage: '', status: CharacterStatus.ONLINE,
+                bio: (data as any).tagline || '', tags: Array.isArray((data as any).tags) ? (data as any).tags : [], creator: userProfile.nickname || '我', oneLinePersona: (data as any).tagline || '', personality: (data as any).personality || '', profession: (data as any).occupation || '', age: (data as any).age ? String((data as any).age) : ''
+              } as any
+              return mapped
+            } } catch {}
+            return undefined
+          }))
+          fetched.forEach((char, idx) => {
+            const cid = toFetch[idx]
+            if (!char) return
+            const raw = localStorage.getItem(`chat_history_${uid}_${cid}`)
+            if (!raw) return
+            try {
+              const arr = parseArr(raw)
+              if (!arr.length) return
+              const last = arr[arr.length - 1]
+              const lastMsg: Message = { id: last.id, senderId: last.senderId, text: last.text, timestamp: new Date(last.ts), type: last.type as MessageType }
+              previewsMap.set(String(cid), { characterId: String(cid), character: char, lastMessage: lastMsg, unreadCount: 0 })
+            } catch {}
+          })
+        }
+        const previews = Array.from(previewsMap.values())
+        if (previews.length) setChats(previews)
+      } catch {}
+    }
+    rebuild()
+  }, [characters, myUserCharacters, isLoggedIn])
 
   useEffect(() => {
     if (activeTab !== NavTab.HOME || homeTab !== 'stories') return;
@@ -835,6 +904,12 @@ const App: React.FC = () => {
                   const uid = localStorage.getItem('user_id') || '0'
                   localStorage.removeItem(`chat_session_${uid}_${characterId}`);
                   localStorage.removeItem(`chat_history_${uid}_${characterId}`);
+                  localStorage.removeItem(`chat_config_${characterId}`);
+                  localStorage.removeItem(`chat_model_${characterId}`);
+                  localStorage.removeItem(`chat_temp_${characterId}`);
+                  localStorage.removeItem(`chat_model_name_${characterId}`);
+                  localStorage.removeItem(`chat_history_${characterId}`);
+                  localStorage.removeItem(`chat_session_${characterId}`);
                   if (selectedChat?.characterId === characterId) setSelectedChat(null);
                 }}
                 isDetailOpen={chatFromList && !!selectedChat}
@@ -1151,3 +1226,20 @@ export default App;
   const upsertById = <T extends { id: any }>(list: T[], item: T): T[] => {
     return [item, ...list.filter(it => String(it.id) !== String(item.id))]
   }
+  // 调试内容，检查本地的key存储
+  ;(function(){
+    const listLocalChatKeys = () => {
+      const uid = localStorage.getItem('user_id') || '0'
+      const keys = Object.keys(localStorage)
+      const historiesUid = keys.filter(k => k.startsWith(`chat_history_${uid}_`))
+      const sessionsUid = keys.filter(k => k.startsWith(`chat_session_${uid}_`))
+      const legacyHistories = keys.filter(k => /^chat_history_\d+$/.test(k))
+      const legacySessions = keys.filter(k => /^chat_session_\d+$/.test(k))
+      const cfg = keys.filter(k => /^chat_config_\d+$/.test(k))
+      const models = keys.filter(k => /^chat_model_\d+$/.test(k))
+      const temps = keys.filter(k => /^chat_temp_\d+$/.test(k))
+      const names = keys.filter(k => /^chat_model_name_\d+$/.test(k))
+      return { uid, historiesUid, sessionsUid, legacyHistories, legacySessions, cfg, models, temps, names }
+    }
+    try { (window as any).__listLocalChatKeys = listLocalChatKeys } catch {}
+  })()

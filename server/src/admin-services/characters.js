@@ -70,7 +70,8 @@ export const listCharacters = async (creatorRole) => {
       styleMap.set(r.character_id, arr);
     });
   }
-  logger.info('characters.list.result', { rowCount: rows.length })
+  const ids3 = rows.map(r => r.id).slice(0, 3)
+  logger.info('characters.list.result', { rowCount: rows.length, ids: ids3 })
   return rows.map(r => ({
     id: r.id,
     name: r.name,

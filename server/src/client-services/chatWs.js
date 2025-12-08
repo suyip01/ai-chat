@@ -2,7 +2,7 @@ import { WebSocketServer } from 'ws'
 import pool from '../db.js'
 import { getSession } from './chatSessions.js'
 import { appendUserMessage, appendAssistantMessage, getMessages } from './chatMessages.js'
-import { getRedis, keySummary, keyRole } from './redis.js'
+import { getRedis, keySummary, keyRole, keyCharacter } from './redis.js'
 import { maybeSummarizeSession } from './chatSummary.js'
 import TextGenerationService from './textGenerationService.js'
 import { createLogger } from '../utils/logger.js'
@@ -13,14 +13,24 @@ const buildSystem = async (sess, mode, roleOverride) => {
     const r = await getRedis()
     const summary = await r.get(keySummary(sess.sid))
     const parts = []
-    const base = mode === 'scene' ? sess.system_prompt_scene : sess.system_prompt
+    let charPrompt = null
+    try {
+      const ck = keyCharacter(sess.characterId)
+      const updatedAt = await r.hGet(ck, 'updated_at')
+      const sessCreated = Number(sess.created_at || 0)
+      if (updatedAt && Number(updatedAt) > sessCreated) {
+        const fields = await r.hmGet(ck, 'system_prompt', 'system_prompt_scene')
+        charPrompt = mode === 'scene' ? (fields?.[1] || '') : (fields?.[0] || '')
+      }
+    } catch {}
+    const base = mode === 'scene' ? (charPrompt || sess.system_prompt_scene) : (charPrompt || sess.system_prompt)
     if (base) parts.push(base)
     if (summary) parts.push(`历史记忆：${summary}`)
     let role = roleOverride || null
     if (!role) role = await r.hGetAll(keyRole(sess.userId, sess.userRoleId))
     if (role && Object.keys(role).length) {
       const info = []
-      info.push('### 我的个人资料如下：')
+      info.push('### 用户个人资料如下：')
       info.push(`- 名字：${role.name || ''}`)
       info.push(`- 性别：${role.gender || ''}`)
       info.push(`- 年龄：${role.age || ''}`)

@@ -18,7 +18,7 @@ export const createSession = async ({ userId, characterId, userRoleId, userRoleD
   const r = await getRedis()
   const sid = crypto.randomUUID()
   const [[settingsRow]] = await pool.query('SELECT selected_chat_model, chat_temperature FROM settings ORDER BY id DESC LIMIT 1')
-  const [[characterRow]] = await pool.query('SELECT id, system_prompt, system_prompt_scene, plot_summary, opening_line FROM characters WHERE id = ?', [characterId])
+  const [[characterRow]] = await pool.query('SELECT id, name, system_prompt, system_prompt_scene, plot_summary, opening_line FROM characters WHERE id = ?', [characterId])
   let roleRow = userRoleData || null
   if (!roleRow && userRoleId) {
     const [[dbRole]] = await pool.query('SELECT id, name, age, gender, profession, basic_info, personality, avatar FROM user_chat_role WHERE id = ? AND user_id = ?', [userRoleId, userId])
@@ -72,7 +72,8 @@ export const createSession = async ({ userId, characterId, userRoleId, userRoleD
     })
     const mk = keyMsgs(sid)
     if (characterRow.plot_summary) {
-      await r.rPush(mk, JSON.stringify({ role: 'assistant', content: characterRow.plot_summary, ts: Date.now() }))
+      const prefix = `[系统标记：这是当前场景的剧情背景。文中的“你/妳/ni”指代用户，“他/她/ta/${characterRow.name || 'AI'}”指代AI。请基于此背景，代入角色进行互动。]\n`
+      await r.rPush(mk, JSON.stringify({ role: 'assistant', content: `${prefix}${characterRow.plot_summary}`, ts: Date.now() }))
     }
     if (characterRow.opening_line) {
       await r.rPush(mk, JSON.stringify({ role: 'assistant', content: characterRow.opening_line, ts: Date.now() }))

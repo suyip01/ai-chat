@@ -46,9 +46,22 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
   }, [isOpen])
 
   useEffect(() => {
+    if (!roles.length) return
+    let rid: number | null = null
+    try {
+      const ridRaw = localStorage.getItem('user_chat_role_id')
+      if (ridRaw) {
+        const n = parseInt(ridRaw)
+        if (!isNaN(n)) rid = n
+      }
+    } catch {}
+    if (rid !== null) {
+      const byId = roles.find(r => r.id === rid)
+      if (byId) { setSelected(byId.id); return }
+    }
     if (currentPersona) {
-      const m = roles.find(r => r.name === currentPersona.name)
-      if (m) setSelected(m.id)
+      const byName = roles.find(r => r.name === currentPersona.name)
+      if (byName) setSelected(byName.id)
     }
   }, [roles, currentPersona])
 

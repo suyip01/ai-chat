@@ -29,9 +29,10 @@ export const listPublishedCharacters = async ({ tag = null, limit = 24, offset =
        WHERE ${whereBase} ${whereTag}
        ORDER BY c.created_at DESC
        LIMIT ? OFFSET ?`;
-    logger.debug('service.characters.list.sql', { sql, params });
+    logger.debug('service.characters.list.sql', { sql, paramsShape: { visibility, limit, offset, hasTag: !!tag } });
     const [rows] = await pool.query(sql, params);
-    logger.info('service.characters.list.result', { rowCount: rows.length, rows });
+    const ids = Array.isArray(rows) ? rows.map(r => r.id).slice(0, 3) : [];
+    logger.info('service.characters.list.result', { rowCount: rows.length, ids });
     return rows.map(r => ({
       id: r.id,
       name: r.name,
