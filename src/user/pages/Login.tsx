@@ -46,7 +46,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   useEffect(() => {
     try {
       const uid = localStorage.getItem('user_id') || '0'
-      identifyUser({ userId: uid, pageId: 'LOGIN', name: '登录' })
+      const uname = localStorage.getItem('user_username') || uid
+      const nickname = localStorage.getItem('user_nickname') || null
+      identifyUser({ userId: uname, pageId: 'LOGIN', name: nickname })
       setTag('页面', '登录')
     } catch {}
   }, [])
@@ -64,6 +66,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const data = await userAuthAPI.login(username.trim(), password.trim());
       if (data?.access_token) try { localStorage.setItem('user_access_token', data.access_token) } catch { }
       if (data?.refresh_token) try { localStorage.setItem('user_refresh_token', data.refresh_token) } catch { }
+      try { localStorage.setItem('user_username', username.trim()) } catch {}
       onLogin();
     } catch {
       setError('登录失败，请检查账号或密码');

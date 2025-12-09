@@ -58,7 +58,9 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
   useEffect(() => {
     try {
       const uid = localStorage.getItem('user_id') || '0'
-      identifyUser({ userId: uid, pageId: 'READ_STORY', name: '阅读故事' })
+      const uname = localStorage.getItem('user_username') || uid
+      const nickname = localStorage.getItem('user_nickname') || '我'
+      identifyUser({ userId: uname, pageId: 'READ_STORY', name: nickname })
       setTag('页面', '阅读故事')
       setTag('故事标题', story?.title || '')
     } catch {}

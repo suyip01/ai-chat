@@ -76,6 +76,7 @@ const App: React.FC = () => {
   const [isLoadingMoreStories, setIsLoadingMoreStories] = useState(false);
   const storySentinelRef = useRef<HTMLDivElement | null>(null);
   const storyIoRef = useRef<IntersectionObserver | null>(null);
+  const rebuildOnceRef = useRef<boolean>(false);
   const handleLogout = () => {
     localStorage.removeItem('user_access_token');
     localStorage.removeItem('user_refresh_token');
@@ -94,7 +95,9 @@ const App: React.FC = () => {
       const raw = localStorage.getItem(`chat_config_${selectedChat.character.id}`)
       const cfg = raw ? JSON.parse(raw) as { chatMode?: 'daily' | 'scene'; persona?: UserPersona } : null
       const uid = localStorage.getItem('user_id') || '0'
-      identifyUser({ userId: uid, sessionId: localStorage.getItem(`chat_session_${uid}_${selectedChat.character.id}`) || undefined, pageId: 'CHAT', name: '聊天' })
+      const uname = localStorage.getItem('user_username') || uid
+      const nickname = localStorage.getItem('user_nickname') || '我'
+      identifyUser({ userId: uname, sessionId: localStorage.getItem(`chat_session_${uid}_${selectedChat.character.id}`) || undefined, pageId: 'CHAT', name: nickname })
       setTag('页面', '聊天')
       setTag('角色ID', String(selectedChat.character.id))
       if (cfg?.chatMode) setTag('聊天模式', cfg.chatMode === 'scene' ? '场景' : '日常')
@@ -119,8 +122,8 @@ const App: React.FC = () => {
             if (avatar) localStorage.setItem('user_avatar', avatar)
             const uidFromApi = (data?.id ?? data?.user_id ?? data?.uid)
             if (uidFromApi !== undefined && uidFromApi !== null) localStorage.setItem('user_id', String(uidFromApi))
-            const uid = localStorage.getItem('user_id') || String(uidFromApi || '')
-            if (uid) identifyUser({ userId: uid })
+            const uname = localStorage.getItem('user_username') || String((data as any)?.username || '')
+            identifyUser({ userId: uname || (localStorage.getItem('user_id') || String(uidFromApi || '')), name: nick })
           } catch { }
         }
       } catch { }
@@ -252,6 +255,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!isLoggedIn) return
+    if (rebuildOnceRef.current) return
     const rebuild = async () => {
       try {
         const uid = localStorage.getItem('user_id') || '0'
@@ -316,7 +320,8 @@ const App: React.FC = () => {
       } catch {}
     }
     rebuild()
-  }, [characters, myUserCharacters, isLoggedIn])
+    rebuildOnceRef.current = true
+  }, [isLoggedIn])
 
   useEffect(() => {
     if (activeTab !== NavTab.HOME || homeTab !== 'stories') return;
@@ -397,7 +402,9 @@ const App: React.FC = () => {
     if (activeTab !== NavTab.ME) return
     try {
       const uid = localStorage.getItem('user_id') || '0'
-      identifyUser({ userId: uid, pageId: 'ME', name: '我的' })
+      const uname = localStorage.getItem('user_username') || uid
+      const nickname = localStorage.getItem('user_nickname') || '我'
+      identifyUser({ userId: uname, pageId: 'ME', name: nickname })
       setTag('页面', '我的')
     } catch {}
   }, [activeTab])

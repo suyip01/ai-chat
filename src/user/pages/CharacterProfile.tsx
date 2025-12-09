@@ -21,7 +21,9 @@ export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, o
   useEffect(() => {
     try {
       const uid = localStorage.getItem('user_id') || '0'
-      identifyUser({ userId: uid, pageId: 'CHAR_DETAIL', name: '角色详情' })
+      const uname = localStorage.getItem('user_username') || uid
+      const nickname = localStorage.getItem('user_nickname') || '我'
+      identifyUser({ userId: uname, pageId: 'CHAR_DETAIL', name: nickname })
       setTag('页面', '角色详情')
       setTag('角色ID', String((character as any)?.id ?? ''))
       setTag('角色名', (character as any)?.name ?? '')

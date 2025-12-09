@@ -25,7 +25,9 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
   useEffect(() => {
     try {
       const uid = localStorage.getItem('user_id') || '0'
-      identifyUser({ userId: uid, pageId: 'CHAT_LIST', name: '聊天列表' })
+      const uname = localStorage.getItem('user_username') || uid
+      const nickname = localStorage.getItem('user_nickname') || '我'
+      identifyUser({ userId: uname, pageId: 'CHAT_LIST', name: nickname })
       setTag('页面', '聊天列表')
     } catch {}
   }, [])

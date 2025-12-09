@@ -70,7 +70,9 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
   useEffect(() => {
     try {
       const uid = localStorage.getItem('user_id') || '0'
-      identifyUser({ userId: uid, pageId: 'CREATE_STORY', name: initialStory ? '编辑故事' : '创作故事' })
+      const uname = localStorage.getItem('user_username') || uid
+      const nickname = localStorage.getItem('user_nickname') || '我'
+      identifyUser({ userId: uname, pageId: 'CREATE_STORY', name: nickname })
       setTag('页面', initialStory ? '编辑故事' : '创作故事')
     } catch {}
   }, [initialStory])

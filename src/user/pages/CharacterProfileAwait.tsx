@@ -21,7 +21,9 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
   useEffect(() => {
     try {
       const uid = localStorage.getItem('user_id') || '0'
-      identifyUser({ userId: uid, pageId: 'CHAR_AWAIT', name: '角色详情(创建中)' })
+      const uname = localStorage.getItem('user_username') || uid
+      const nickname = localStorage.getItem('user_nickname') || '我'
+      identifyUser({ userId: uname, pageId: 'CHAR_AWAIT', name: nickname })
       setTag('页面', '角色详情(创建中)')
       setTag('角色ID', String(createdId))
       setTag('角色名', latest?.name || '')

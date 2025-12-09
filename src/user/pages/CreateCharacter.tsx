@@ -67,7 +67,9 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
   useEffect(() => {
     try {
       const uid = localStorage.getItem('user_id') || '0'
-      identifyUser({ userId: uid, pageId: 'CREATE_CHAR', name: isEdit ? '编辑角色' : '创建角色' })
+      const uname = localStorage.getItem('user_username') || uid
+      const nickname = localStorage.getItem('user_nickname') || '我'
+      identifyUser({ userId: uname, pageId: 'CREATE_CHAR', name: nickname })
       setTag('页面', isEdit ? '编辑角色' : '创建角色')
       if (characterId !== undefined && characterId !== null) setTag('角色ID', String(characterId))
     } catch {}
