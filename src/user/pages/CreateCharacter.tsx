@@ -4,6 +4,7 @@ import { ChevronLeft, Camera, Plus, ChevronRight, X, ChevronDown, ChevronUp, Glo
 import { Character, CharacterStatus } from '../types';
 import { ImageCropper } from '../components/ImageCropper';
 import { createCharacter, createUserCharacterDraft, updateUserCharacter, updateUserCharacterDraft, getUserCharacter } from '../services/userCharactersService'
+import { identifyUser, setTag } from '../services/analytics'
 
 interface CreateCharacterProps {
   onBack: () => void;
@@ -63,6 +64,14 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
     return new Blob([u8], { type: mime });
   };
 
+  useEffect(() => {
+    try {
+      const uid = localStorage.getItem('user_id') || '0'
+      identifyUser({ userId: uid, pageId: 'CREATE_CHAR', name: isEdit ? '编辑角色' : '创建角色' })
+      setTag('页面', isEdit ? '编辑角色' : '创建角色')
+      if (characterId !== undefined && characterId !== null) setTag('角色ID', String(characterId))
+    } catch {}
+  }, [isEdit, characterId])
   useEffect(() => {
     if (initial) {
       setForm(prev => ({

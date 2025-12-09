@@ -5,6 +5,7 @@ import { Character, UserProfile, Story } from '../types';
 import { deleteUserStory } from '../services/userStoriesService';
 import { deleteUserCharacter } from '../services/userCharactersService';
 import { ImageCropper } from '../components/ImageCropper';
+import { identifyUser, setTag } from '../services/analytics'
 
 const MyCharacterAvatar: React.FC<{ avatar?: string; name: string }> = ({ avatar, name }) => {
   const [err, setErr] = useState(false)
@@ -647,3 +648,10 @@ export const MePage: React.FC<MePageProps> = ({
     </div>
   );
 };
+  useEffect(() => {
+    try {
+      const uid = localStorage.getItem('user_id') || '0'
+      identifyUser({ userId: uid, pageId: 'ME', name: '我的' })
+      setTag('页面', '我的')
+    } catch {}
+  }, [])

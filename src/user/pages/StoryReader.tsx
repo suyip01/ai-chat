@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Check, ArrowRight, Info } from 'lucide-react';
 import { Story, StoryRole } from '../types';
+import { identifyUser, setTag } from '../services/analytics'
 
 interface StoryReaderProps {
   story: Story;
@@ -53,6 +54,15 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ story, onBack, onStart
       const currentScrollRatio = scrollTop / maxScrollTop;
       setThumbTop(currentScrollRatio * maxThumbTop);
   }, []);
+
+  useEffect(() => {
+    try {
+      const uid = localStorage.getItem('user_id') || '0'
+      identifyUser({ userId: uid, pageId: 'READ_STORY', name: '阅读故事' })
+      setTag('页面', '阅读故事')
+      setTag('故事标题', story?.title || '')
+    } catch {}
+  }, [story?.title])
 
   useEffect(() => {
       const observer = new ResizeObserver(() => {

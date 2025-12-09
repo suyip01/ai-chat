@@ -5,6 +5,7 @@ import { Story, Character, StoryRole } from '../types';
 import { ImageCropper } from '../components/ImageCropper';
 import { useToast } from '../components/Toast';
 import { LazyImage } from '../components/LazyImage'
+import { identifyUser, setTag } from '../services/analytics'
 
 interface CreateStoryProps {
   onBack: () => void;
@@ -66,6 +67,13 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
   const roleTipsRef = useRef<HTMLDivElement | null>(null);
   const [localImportableRoles, setLocalImportableRoles] = useState(importableRoles);
   const combineRequestedRef = useRef(false)
+  useEffect(() => {
+    try {
+      const uid = localStorage.getItem('user_id') || '0'
+      identifyUser({ userId: uid, pageId: 'CREATE_STORY', name: initialStory ? '编辑故事' : '创作故事' })
+      setTag('页面', initialStory ? '编辑故事' : '创作故事')
+    } catch {}
+  }, [initialStory])
   useEffect(() => {
     setLocalImportableRoles(importableRoles || []);
   }, [importableRoles]);

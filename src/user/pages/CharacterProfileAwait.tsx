@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, ChevronDown, ChevronUp, Heart, MessageCircle } from 'lucide-react'
 import { Character } from '../types'
 import { getUserCharacter } from '../services/userCharactersService'
+import { identifyUser, setTag } from '../services/analytics'
 
 interface Props {
   character: Character
@@ -17,6 +18,15 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
   const [latest, setLatest] = useState<Character>(character)
   const [isDraft, setIsDraft] = useState(false)
   const [imgError, setImgError] = useState(false)
+  useEffect(() => {
+    try {
+      const uid = localStorage.getItem('user_id') || '0'
+      identifyUser({ userId: uid, pageId: 'CHAR_AWAIT', name: '角色详情(创建中)' })
+      setTag('页面', '角色详情(创建中)')
+      setTag('角色ID', String(createdId))
+      setTag('角色名', latest?.name || '')
+    } catch {}
+  }, [createdId, latest?.name])
   useEffect(() => {
     let mounted = true
     let iv: any

@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ChevronDown, ChevronUp, Heart, MessageCircle } from 'lucide-react';
 import { Character } from '../types';
 import { useToast } from '../components/Toast';
+import { identifyUser, setTag } from '../services/analytics'
 
 interface CharacterProfileProps {
   character: Character;
@@ -17,6 +18,15 @@ export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, o
   const [showAllTags, setShowAllTags] = useState(false);
   const { showToast, showCenter } = useToast();
   const [imgError, setImgError] = useState(false);
+  useEffect(() => {
+    try {
+      const uid = localStorage.getItem('user_id') || '0'
+      identifyUser({ userId: uid, pageId: 'CHAR_DETAIL', name: '角色详情' })
+      setTag('页面', '角色详情')
+      setTag('角色ID', String((character as any)?.id ?? ''))
+      setTag('角色名', (character as any)?.name ?? '')
+    } catch {}
+  }, [character])
 
   // Logic: Show first 4 initially. If showAllTags is true, show all.
   const visibleTags = showAllTags ? character.tags : character.tags.slice(0, 4);

@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChatPreview } from '../types';
 import { ChatItem } from '../components/ChatItem';
+import { identifyUser, setTag } from '../services/analytics'
 
 interface ChatListProps {
   chats: ChatPreview[];
@@ -21,6 +22,13 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
   const startYRef = useRef<number>(0);
   const activeIdRef = useRef<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; id: string | null }>({ visible: false, x: 0, y: 0, id: null });
+  useEffect(() => {
+    try {
+      const uid = localStorage.getItem('user_id') || '0'
+      identifyUser({ userId: uid, pageId: 'CHAT_LIST', name: '聊天列表' })
+      setTag('页面', '聊天列表')
+    } catch {}
+  }, [])
 
   const onTouchStart = (e: React.TouchEvent, id: string) => {
     startXRef.current = e.touches[0].clientX;

@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { userAuthAPI } from '../api';
+import { identifyUser, setTag } from '../services/analytics'
 
 interface LoginProps {
   onLogin: () => void;
@@ -40,6 +41,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         window.visualViewport.removeEventListener('scroll', handleVisualViewport);
       }
     }
+  }, [])
+
+  useEffect(() => {
+    try {
+      const uid = localStorage.getItem('user_id') || '0'
+      identifyUser({ userId: uid, pageId: 'LOGIN', name: '登录' })
+      setTag('页面', '登录')
+    } catch {}
   }, [])
 
   useEffect(() => {
