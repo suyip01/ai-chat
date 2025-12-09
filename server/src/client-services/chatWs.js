@@ -100,9 +100,10 @@ export const startChatWs = (server) => {
           const isSending = sendingSids.has(sid)
           if (!isSending && stillQueue === 0) {
             llmCounts.set(sid, 0)
+            try { console.log('\x1b[31mLLM COUNT RESET\x1b[0m', { sid, count: llmCounts.get(sid) }) } catch {}
           }
           resetCountTimers.delete(sid)
-        }, 2000)
+        }, 1200)
         resetCountTimers.set(sid, timer)
         return
       }
@@ -123,7 +124,7 @@ export const startChatWs = (server) => {
           wlog.error('reply.send.error', { userId, sid, chunkIndex: i + 1, error: e?.message || e })
         }
         if (i < chunks.length - 1) {
-          await new Promise(res => setTimeout(res, 2000))
+          await new Promise(res => setTimeout(res, 1000))
         }
       }
       await maybeSummarizeSession(sid)
@@ -141,6 +142,7 @@ export const startChatWs = (server) => {
         wlog.error('usage.increment.error', { error: e?.message || e })
       }
       llmCounts.set(sid, Math.max(0, (llmCounts.get(sid) || 1) - 1))
+      try { console.log('\x1b[31mLLM COUNT --\x1b[0m', { sid, count: llmCounts.get(sid) }) } catch {}
       sendingSids.delete(sid)
       if ((sendQueues.get(sid) || []).length) runNext()
     }
@@ -185,9 +187,10 @@ export const startChatWs = (server) => {
           await r.hSet(keySess(sid), { last_chat_mode: mode, last_model: String(model || ''), last_temperature: String(temperature) })
         } catch {}
       }
-      llmCounts.set(sid, (llmCounts.get(sid) || 0) + 1)
       const triggerText = String(payload.text || '')
       const job = async () => {
+        llmCounts.set(sid, (llmCounts.get(sid) || 0) + 1)
+        try { console.log('\x1b[31mLLM COUNT ++\x1b[0m', { sid, count: llmCounts.get(sid) }) } catch {}
         const svc = new TextGenerationService()
         const sys = await buildSystem(sess, mode, roleOverride)
         const history = await getMessages(sid, 80)
