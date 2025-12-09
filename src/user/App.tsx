@@ -391,6 +391,15 @@ const App: React.FC = () => {
     return () => { try { io.disconnect(); } catch {} };
   }, [characters, hasMoreChars, isLoadingMoreChars, charOffset, activeTab, homeTab]);
 
+  useEffect(() => {
+    if (activeTab !== NavTab.ME) return
+    try {
+      const uid = localStorage.getItem('user_id') || '0'
+      identifyUser({ userId: uid, pageId: 'ME', name: '我的' })
+      setTag('页面', '我的')
+    } catch {}
+  }, [activeTab])
+
 
 
   useEffect(() => {
