@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { ChevronLeft, Plus } from 'lucide-react';
 
 const UserCreateView = ({ onCancel, onSave, notify }) => {
-  const [formData, setFormData] = useState({ username: '', nickname: '', email: '', password: '', chatLimit: 0 });
-  const handleChange = (e) => { const { name, value } = e.target; setFormData((prev) => ({ ...prev, [name]: name === 'chatLimit' ? parseInt(value) || 0 : value })); };
+  const [formData, setFormData] = useState({ username: '', nickname: '', email: '', password: '', chatLimit: 0, expireAfterMinutes: 60 });
+  const handleChange = (e) => { const { name, value } = e.target; setFormData((prev) => ({ ...prev, [name]: ['chatLimit','expireAfterMinutes'].includes(name) ? (parseInt(value) || 0) : value })); };
   const handleSave = () => {
     if (!formData.username || !formData.password) { notify && notify('创建失败：请填写用户名和密码', 'error'); return; }
-    const newUser = { username: formData.username, nickname: formData.nickname || null, email: formData.email || `${formData.username.toLowerCase()}@example.com`, password: formData.password, chatLimit: formData.chatLimit };
+    const newUser = { username: formData.username, nickname: formData.nickname || null, email: formData.email || `${formData.username.toLowerCase()}@example.com`, password: formData.password, chatLimit: formData.chatLimit, expireAfterMinutes: formData.expireAfterMinutes };
     onSave(newUser);
   };
   return (
@@ -18,7 +18,7 @@ const UserCreateView = ({ onCancel, onSave, notify }) => {
           <p className="text-gray-400 text-xs">分配后台登录权限和聊天额度</p>
         </div>
         <div className="ml-auto flex gap-3">
-          <button onClick={onCancel} className="px-6 py-2.5 rounded-xl bg-white text-gray-500 font-bold text-sm shadow-sm hover:bg-gray-50">取消</button>
+          <button onClick={onCancel} className="px-6 py-2.5 rounded-xl bg白 text-gray-500 font-bold text-sm shadow-sm hover:bg-gray-50">取消</button>
           <button onClick={handleSave} className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-pink-600 text白 font-bold text-sm shadow-lg shadow-pink-200 flex items-center gap-2"><Plus size={16} /> 创建用户</button>
         </div>
       </div>
@@ -44,6 +44,11 @@ const UserCreateView = ({ onCancel, onSave, notify }) => {
           <label className="block text-xs font-bold text-pink-800 mb-2">聊天额度 (次数)</label>
           <input type="number" name="chatLimit" value={formData.chatLimit} onChange={handleChange} className="dream-input w-full px-4 py-3 rounded-xl text-sm font-bold text-gray-700" placeholder="0 表示默认无额度" min="0" />
           <p className="text-xs text-gray-400 mt-1">设置用户默认可用的聊天次数，0 次表示用户初始无额度。</p>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-pink-800 mb-2">登录后禁用时间 (分钟)</label>
+          <input type="number" name="expireAfterMinutes" value={formData.expireAfterMinutes} onChange={handleChange} className="dream-input w-full px-4 py-3 rounded-xl text-sm font-bold text-gray-700" placeholder="例如 60，表示首次登录后 1 小时禁用；0 表示不限制" min="0" />
+          <p className="text-xs text-gray-400 mt-1">用于测试账号：首次登录成功后，达到该分钟数后自动禁用账号。默认 60 分钟，数字按分钟填写。</p>
         </div>
       </div>
     </div>

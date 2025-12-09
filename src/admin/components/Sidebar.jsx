@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { adminsAPI } from '../api.js';
-import { Sparkles, LogOut, FileText, Users, UserCog, Settings, ChevronDown, ChevronRight, Bot, User, Cpu, Database, Shield } from 'lucide-react';
+import { Sparkles, LogOut, FileText, Users, UserCog, Settings, ChevronDown, ChevronRight, Bot, User, Cpu, Database, Shield, Book } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab, onLogout, username, onEditProfile }) => {
   const [expandedMenus, setExpandedMenus] = useState(['characters', 'settings']);
 
   const menuItems = [
-    { id: 'stories', label: '故事管理', icon: FileText },
+    { id: 'stories', label: '故事管理', icon: Book },
     { id: 'templates', label: '提示词模版', icon: FileText },
     {
       id: 'characters',

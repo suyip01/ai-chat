@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import pool from '../db.js';
 import { pruneRefreshTokens } from '../client-services/tokens.js';
 import { getPublicKeyPem } from '../crypto.js';
+import { markFirstLogin } from '../admin-services/users.js'
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.post('/auth/login', async (req, res) => {
     const refreshToken = jwt.sign({ id: rows[0].id, username: rows[0].username, type: 'refresh' }, process.env.JWT_SECRET, { expiresIn: refreshExp });
     await pool.query('INSERT INTO user_refresh_tokens (user_id, token, issued_at, expires_at, revoked) VALUES (?,?,NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 0)', [rows[0].id, refreshToken]);
     await pruneRefreshTokens(rows[0].id, 2);
+    await markFirstLogin(rows[0].id);
     userLog.info('auth.login.ok', { userId: rows[0].id })
     return res.json({ access_token: accessToken, refresh_token: refreshToken, expires_in: accessExp, user: { id: rows[0].id, username: rows[0].username, email: rows[0].email } });
   } catch (e) {
@@ -47,6 +49,11 @@ router.post('/auth/refresh', async (req, res) => {
     const userId = payload.id
     const [[row]] = await pool.query('SELECT id, revoked FROM user_refresh_tokens WHERE user_id=? AND token=? LIMIT 1', [userId, rt]);
     if (!row || row.revoked === 1) return res.status(401).json({ error: 'revoked_refresh_token' });
+    const [[u]] = await pool.query('SELECT is_active FROM users WHERE id=? LIMIT 1', [userId])
+    if (!u || u.is_active !== 1) {
+      await pool.query('UPDATE user_refresh_tokens SET revoked=1 WHERE user_id=? AND token=?', [userId, rt])
+      return res.status(401).json({ error: 'invalid_account' })
+    }
     const accessExp = process.env.ACCESS_EXPIRES || process.env.TOKEN_EXPIRES || '30m';
     const accessToken = jwt.sign({ id: userId, username: payload.username, type: 'access' }, process.env.JWT_SECRET, { expiresIn: accessExp });
     rlog.info('auth.refresh.ok', { userId })

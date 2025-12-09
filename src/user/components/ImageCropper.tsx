@@ -48,7 +48,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
   }, [ratio]);
 
   useEffect(() => {
-    const t = setTimeout(() => setDelayPassed(true), 500);
+    const t = setTimeout(() => setDelayPassed(true), 400);
     return () => clearTimeout(t);
   }, []);
 
@@ -58,7 +58,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
       setOverlayMount(true);
       return;
     }
-    const t = setTimeout(() => setOverlayMount(false), 300);
+    const t = setTimeout(() => setOverlayMount(false), 200);
     return () => clearTimeout(t);
   }, [delayPassed, imageReady]);
 

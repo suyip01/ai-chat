@@ -19,6 +19,8 @@ export const ensureUsersSchema = async () => {
         used_count INT DEFAULT 0,
         chat_limit INT DEFAULT 0,
         is_active TINYINT DEFAULT 1,
+        first_login_at DATETIME NULL,
+        expire_after_login_minutes INT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`
     );
@@ -35,6 +37,8 @@ export const ensureUsersSchema = async () => {
     if (!names.has('used_count')) alters.push('ADD COLUMN used_count INT DEFAULT 0');
     if (!names.has('chat_limit')) alters.push('ADD COLUMN chat_limit INT DEFAULT 0');
     if (!names.has('is_active')) alters.push('ADD COLUMN is_active TINYINT DEFAULT 1');
+    if (!names.has('first_login_at')) alters.push('ADD COLUMN first_login_at DATETIME NULL');
+    if (!names.has('expire_after_login_minutes')) alters.push('ADD COLUMN expire_after_login_minutes INT NULL');
     if (alters.length) await pool.query(`ALTER TABLE users ${alters.join(', ')}`);
   }
 };
@@ -45,33 +49,55 @@ export const listUsers = async (q) => {
   const where = q ? 'WHERE username LIKE ? OR email LIKE ?' : '';
   const params = q ? [`%${q}%`, `%${q}%`] : [];
   const [rows] = await pool.query(
-    `SELECT id, username, nickname, avatar, email, used_count AS used, chat_limit AS chatLimit, is_active, created_at
+    `SELECT 
+        id,
+        username,
+        nickname,
+        avatar,
+        email,
+        used_count AS used,
+        chat_limit AS chatLimit,
+        is_active AS isActive,
+        created_at,
+        expire_after_login_minutes AS expireMinutes
      FROM users ${where} ORDER BY created_at ASC`,
     params
   );
   return rows;
 };
 
-export const createUser = async ({ username, nickname = null, avatar = null, email = null, password, chatLimit = 0 }) => {
+export const createUser = async ({ username, nickname = null, avatar = null, email = null, password, chatLimit = 0, expireAfterMinutes = null }) => {
   audit('admin_service', { op: 'createUser', username, email })
   await ensureUsersSchema();
   const id = Date.now();
   const hash = password ? bcrypt.hashSync(password, 10) : null;
-  if (typeof avatar === 'string' && avatar.length) {
-    await pool.query(
-      'INSERT INTO users (id, username, nickname, avatar, email, password_hash, chat_limit, used_count, is_active) VALUES (?,?,?,?,?,?,?,0,1)',
-      [id, username, nickname, avatar, email, hash, chatLimit]
-    );
-  } else {
-    await pool.query(
-      'INSERT INTO users (id, username, nickname, email, password_hash, chat_limit, used_count, is_active) VALUES (?,?,?,?,?,?,0,1)',
-      [id, username, nickname, email, hash, chatLimit]
-    );
+  try {
+    if (typeof avatar === 'string' && avatar.length) {
+      await pool.query(
+        'INSERT INTO users (id, username, nickname, avatar, email, password_hash, chat_limit, used_count, is_active, expire_after_login_minutes) VALUES (?,?,?,?,?,?,?,0,1,?)',
+        [id, username, nickname, avatar, email, hash, chatLimit, (typeof expireAfterMinutes === 'number' ? expireAfterMinutes : null)]
+      );
+    } else {
+      await pool.query(
+        'INSERT INTO users (id, username, nickname, email, password_hash, chat_limit, used_count, is_active, expire_after_login_minutes) VALUES (?,?,?,?,?,?,0,1,?)',
+        [id, username, nickname, email, hash, chatLimit, (typeof expireAfterMinutes === 'number' ? expireAfterMinutes : null)]
+      );
+    }
+  } catch (e) {
+    if (e && e.code === 'ER_DUP_ENTRY') {
+      const err = new Error('duplicate_username')
+      err.code = e.code
+      throw err
+    }
+    const err = new Error('db_error')
+    err.code = e?.code
+    err.message = e?.message || String(e)
+    throw err
   }
   return id;
 };
 
-export const updateUser = async (id, { nickname, avatar, email, chatLimit, isActive }) => {
+export const updateUser = async (id, { nickname, avatar, email, chatLimit, isActive, expireAfterMinutes }) => {
   audit('admin_service', { op: 'updateUser', id })
   await ensureUsersSchema();
   const sets = [];
@@ -81,6 +107,7 @@ export const updateUser = async (id, { nickname, avatar, email, chatLimit, isAct
   if (typeof email === 'string') { sets.push('email=?'); params.push(email); }
   if (typeof chatLimit === 'number') { sets.push('chat_limit=?'); params.push(chatLimit); }
   if (typeof isActive === 'number') { sets.push('is_active=?'); params.push(isActive); }
+  if (typeof expireAfterMinutes === 'number') { sets.push('expire_after_login_minutes=?'); params.push(expireAfterMinutes); }
   if (!sets.length) return false;
   params.push(id);
   const [res] = await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id=?`, params);
@@ -100,4 +127,42 @@ export const changePassword = async (id, password) => {
   const hash = bcrypt.hashSync(password, 10);
   const [res] = await pool.query('UPDATE users SET password_hash=? WHERE id=?', [hash, id]);
   return res.affectedRows > 0;
+};
+
+// 标记首次登录时间（需在用户首次登录成功时调用）
+export const markFirstLogin = async (id) => {
+  await ensureUsersSchema();
+  await pool.query('UPDATE users SET first_login_at = COALESCE(first_login_at, CURRENT_TIMESTAMP) WHERE id=?', [id]);
+};
+
+// 定时任务：自动禁用已到期的测试用户
+export const startAutoDeactivate = () => {
+  const intervalMs = 60 * 1000; // 每分钟检查一次
+  const tick = async () => {
+    try {
+      await ensureUsersSchema();
+      // 如果系统未在登录流程中显式标记首次登录，可在用户产生使用行为后补记首次登录时间
+      const [mark] = await pool.query(`UPDATE users
+                   SET first_login_at = COALESCE(first_login_at, NOW())
+                   WHERE expire_after_login_minutes IS NOT NULL
+                     AND expire_after_login_minutes > 0
+                     AND first_login_at IS NULL
+                     AND used_count > 0`);
+      if (mark && mark.affectedRows) audit('auto_deactivate_mark_first_login', { affectedRows: mark.affectedRows });
+      const sql = `UPDATE users
+                   SET is_active = 0
+                   WHERE is_active = 1
+                     AND expire_after_login_minutes IS NOT NULL
+                     AND expire_after_login_minutes > 0
+                     AND first_login_at IS NOT NULL
+                     AND TIMESTAMPDIFF(MINUTE, first_login_at, NOW()) >= expire_after_login_minutes`;
+      const [res] = await pool.query(sql);
+      if (res && res.affectedRows) audit('auto_deactivate', { affectedRows: res.affectedRows });
+    } catch (e) {
+      audit('auto_deactivate_error', { message: e?.message || String(e) });
+    }
+  };
+  // 立即执行一次，然后按间隔执行
+  tick();
+  setInterval(tick, intervalMs);
 };

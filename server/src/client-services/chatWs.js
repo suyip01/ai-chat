@@ -191,6 +191,8 @@ export const startChatWs = (server) => {
       const job = async () => {
         llmCounts.set(sid, (llmCounts.get(sid) || 0) + 1)
         try { console.log('\x1b[31mLLM COUNT ++\x1b[0m', { sid, count: llmCounts.get(sid) }) } catch {}
+        const includeQuoteStart = (llmCounts.get(sid) || 0) > 1
+        try { console.log('\x1b[31mINCLUDE QUOTE START\x1b[0m', { sid, includeQuote: includeQuoteStart, count: llmCounts.get(sid) }) } catch {}
         const svc = new TextGenerationService()
         const sys = await buildSystem(sess, mode, roleOverride)
         const history = await getMessages(sid, 80)
@@ -223,9 +225,8 @@ export const startChatWs = (server) => {
         const content = mode === 'daily' ? String(reply || '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '') : String(reply || '')
         wlog.info('reply.len', { userId: sess.userId, sid, len: String(content).length })
         const chunks = content.split('\n').map(s => s.trim()).filter(s => s.length)
-        const currentCount = llmCounts.get(sid) || 0
-        const includeQuote = (currentCount > 1) || ((svc.lastAttempts || 1) > 1)
-        wlog.info('llm.count', { userId: sess.userId, sid, count: currentCount, includeQuote, quotePreview: quote ? String(quote).slice(0, 30) : '' })
+        const includeQuote = includeQuoteStart || ((svc.lastAttempts || 1) > 1)
+        wlog.info('llm.count', { userId: sess.userId, sid, countStart: llmCounts.get(sid) || 0, includeQuote, quotePreview: quote ? String(quote).slice(0, 30) : '' })
         wlog.info('reply.chunks', { userId: sess.userId, sid, total: chunks.length, chunkPreviews: chunks.slice(0, 5).map(c => String(c).slice(0, 80)) })
         enqueueSend(sid, { chunks, includeQuote, quote, model, temperature, ws, userId: sess.userId })
       }
