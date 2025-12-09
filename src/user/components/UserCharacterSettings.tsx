@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { ChevronLeft, Pencil, User as UserIcon } from 'lucide-react';
+import { trackEvent } from '../services/analytics'
 import { ensureUserChatRole, updateUserChatRole } from '../services/chatService'
 import { UserPersona } from '../types';
 import { ImageCropper } from './ImageCropper';
@@ -81,6 +82,7 @@ export const UserCharacterSettings: React.FC<UserCharacterSettingsProps> = ({ cu
       personality,
       avatar: avatarUrl,
     });
+    try { trackEvent('角色设置.保存', { 角色名: name }) } catch {}
     setSaving(false)
     onBack();
   };

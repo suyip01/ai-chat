@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { trackEvent, setTag } from '../services/analytics'
 import { ChevronLeft, CheckCircle, Plus, Edit2, Trash2 } from 'lucide-react'
 import { UserPersona } from '../types'
 import { fetchUserChatRoles, deleteUserChatRole } from '../services/chatService'
@@ -80,6 +81,7 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
       avatar: r.avatar || undefined
     }
     try { localStorage.setItem('user_chat_role_id', String(r.id)) } catch { }
+    try { trackEvent('角色.选择', { 角色名: persona.name, 角色ID: r.id }); setTag('角色名', persona.name) } catch {}
     onSelect(persona, r.id)
     onClose()
   }
@@ -95,6 +97,7 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
       personality: r.personality || '',
       avatar: r.avatar || undefined
     }
+    try { trackEvent('角色.编辑', { 角色ID: r.id, 角色名: persona.name }) } catch {}
     if (onEdit) onEdit(persona, r.id)
     onClose()
   }

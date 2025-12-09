@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { trackEvent } from '../services/analytics'
 import { X, Check, Minus, Plus } from 'lucide-react';
 
 interface ImageCropperProps {
@@ -135,6 +136,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
     ctx.scale(fitScale, fitScale);
     ctx.drawImage(img, -nw / 2, -nh / 2);
 
+    try { trackEvent('头像裁剪.确认') } catch {}
     onCrop(canvas.toDataURL('image/jpeg', 0.9));
   };
 
@@ -143,7 +145,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
       
       {/* Top Bar */}
       <div className="absolute top-0 w-full p-4 flex justify-between items-center z-20 text-white">
-          <button onClick={onCancel} className="p-2 bg-white/10 rounded-full">
+          <button onClick={() => { try { trackEvent('头像裁剪.取消') } catch {}; onCancel() }} className="p-2 bg-white/10 rounded-full">
             <X size={24} />
           </button>
           <h3 className="font-bold text-lg tracking-wider">调整图片</h3>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { trackEvent, setTag } from '../services/analytics'
 import { ChevronLeft, CheckCircle } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { androidBottomSheet, fade } from '../animations'
@@ -42,14 +43,14 @@ export const ModelSelectorSheet: React.FC<Props> = ({ isOpen, currentModelId, on
                 <button onClick={onClose} className="flex items-center gap-2"><ChevronLeft className="w-6 h-6" /><span className="font-bold text-lg">我的模型</span></button>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-slate-700">温度</span>
-                  <input value={temp} onChange={e => { const v = parseFloat(e.target.value || '0'); setTemp(isNaN(v) ? 0 : v); onTempChange?.(isNaN(v) ? 0 : v) }} type="number" step="0.1" min="0" max="2" className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-sm" />
+                  <input value={temp} onChange={e => { const v = parseFloat(e.target.value || '0'); setTemp(isNaN(v) ? 0 : v); onTempChange?.(isNaN(v) ? 0 : v); try { trackEvent('模型温度.调整', { 温度: isNaN(v) ? 0 : v }) } catch {} }} type="number" step="0.1" min="0" max="2" className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-sm" />
                 </div>
               </div>
               <div className="p-4 flex flex-col gap-3 max-h-[70vh] overflow-y-auto">
                 {models.map(m => (
                   <div
                     key={m.id}
-                    onClick={() => { setSelected(m.id); onSelect(m.id, m.nickname); onClose() }}
+                    onClick={() => { setSelected(m.id); onSelect(m.id, m.nickname); try { trackEvent('模型.选择', { 模型: m.id, 显示名: m.nickname }) ; setTag('模型', m.nickname || m.id) } catch {} ; onClose() }}
                     className={`relative p-4 rounded-xl shadow-sm border active:scale-[0.98] transition-transform flex items-center justify-center ${selected === m.id ? 'bg-[#F3E8FF] border-[#A855F7]' : 'bg-white border-slate-100'}`}
                   >
                     <div className="w-full text-center font-bold text-slate-800 truncate">{m.nickname || m.id}</div>

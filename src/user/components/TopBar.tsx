@@ -1,4 +1,5 @@
 import React from 'react';
+import { trackEvent, setTag } from '../services/analytics'
 import { Plus } from 'lucide-react';
 
 interface TopBarProps {
@@ -18,8 +19,8 @@ export const TopBar: React.FC<TopBarProps> = ({ title, onFilterClick, showAdd = 
       <div className={isOverlay ? 'flex gap-4 opacity-0' : 'flex gap-4'}>
         {showAdd && (
           <button 
-            onClick={onFilterClick}
-            className="p-2 rounded-full bg-white text-primary-500 shadow-sm hover:shadow-md transition-all active:scale-95"
+            onClick={() => { try { trackEvent('顶部栏.操作', { 动作: '添加' }) } catch {}; onFilterClick?.() }}
+            className="p-2 rounded-full bg白 text-primary-500 shadow-sm hover:shadow-md transition-all active:scale-95"
             aria-label="添加"
           >
             <Plus size={20} />

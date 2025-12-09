@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { identifyUser, setTag } from './services/analytics'
 import { AnimatePresence } from 'framer-motion';
 import { TopBar } from './components/TopBar';
 import { BottomNav } from './components/BottomNav';
@@ -92,6 +93,11 @@ const App: React.FC = () => {
     try {
       const raw = localStorage.getItem(`chat_config_${selectedChat.character.id}`)
       const cfg = raw ? JSON.parse(raw) as { chatMode?: 'daily' | 'scene'; persona?: UserPersona } : null
+      const uid = localStorage.getItem('user_id') || '0'
+      identifyUser({ userId: uid, sessionId: localStorage.getItem(`chat_session_${uid}_${selectedChat.character.id}`) || undefined, pageId: 'CHAT', name: '聊天' })
+      setTag('页面', '聊天')
+      setTag('角色ID', String(selectedChat.character.id))
+      if (cfg?.chatMode) setTag('聊天模式', cfg.chatMode === 'scene' ? '场景' : '日常')
     } catch {}
   }, [selectedChat])
   useEffect(() => {

@@ -8,6 +8,7 @@ import { UserRoleSelectorSheet } from '../components/UserRoleSelectorSheet';
 import { ModelSelectorSheet } from '../components/ModelSelectorSheet';
 import { Character, Message, MessageType, UserPersona } from '../types';
 import { createChatSession, connectChatWs, updateSessionConfig, getSessionInfo } from '../services/chatService';
+import { trackEvent, setTag } from '../services/analytics'
 
 interface ChatDetailProps {
   character: Character;
@@ -287,6 +288,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         } catch {}
       }
       localStorage.setItem(configKey, JSON.stringify({ chatMode: mode, persona: nextPersona }))
+      trackEvent('聊天模式.切换', { 目标模式: mode === 'scene' ? '场景' : '日常' })
+      setTag('聊天模式', mode === 'scene' ? '场景' : '日常')
     } catch { }
   };
 
@@ -309,6 +312,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     // Reset input based on mode
     setInput(chatMode === 'scene' ? '（）' : '');
     setIsTyping(true);
+    try { trackEvent('聊天.发送', { 文本长度: input.length, 聊天模式: chatMode === 'scene' ? '场景' : '日常' }) } catch {}
 
     try {
       if (!sessionId) {
