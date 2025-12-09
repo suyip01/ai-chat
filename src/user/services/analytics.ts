@@ -4,7 +4,11 @@ declare global { interface Window { clarity?: (...args: any[]) => void } }
 const safe = () => typeof window !== 'undefined' && typeof window.clarity === 'function'
 
 export const identifyUser = (info: { userId?: string | number; sessionId?: string; pageId?: string; name?: string }) => {
-  try { if (!safe()) return; window.clarity!('identify', info.userId, info.sessionId, info.pageId, info.name) } catch {}
+  try {
+    if (!safe()) return;
+    if (info.userId === undefined || info.userId === null) return;
+    window.clarity!('identify', String(info.userId))
+  } catch {}
 }
 
 export const setTag = (key: string, value: any) => { try { if (!safe()) return; window.clarity!('set', key, value) } catch {} }

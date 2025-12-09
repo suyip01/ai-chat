@@ -119,6 +119,8 @@ const App: React.FC = () => {
             if (avatar) localStorage.setItem('user_avatar', avatar)
             const uidFromApi = (data?.id ?? data?.user_id ?? data?.uid)
             if (uidFromApi !== undefined && uidFromApi !== null) localStorage.setItem('user_id', String(uidFromApi))
+            const uid = localStorage.getItem('user_id') || String(uidFromApi || '')
+            if (uid) identifyUser({ userId: uid })
           } catch { }
         }
       } catch { }
