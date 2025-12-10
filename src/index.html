@@ -8,7 +8,8 @@
     <script type="text/javascript">
       (function(){
         var isLocal = /^(localhost|127\.0\.0\.1)$/i.test(location.hostname)
-        if (isLocal) {
+        var isAdmin = /^\/super-admin/.test(location.pathname)
+        if (isLocal || isAdmin) {
           window.clarity = window.clarity || function(){ (window.clarity.q = window.clarity.q || []).push(arguments) }
           return
         }

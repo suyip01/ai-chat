@@ -637,6 +637,16 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                         const key = `chat_session_${uid}_${character.id}`
                         try { localStorage.removeItem(key) } catch {}
                         localStorage.setItem(key, sid);
+                        try { localStorage.removeItem(histKey) } catch {}
+                        {
+                          const opener = character.openingLine || character.oneLinePersona || ''
+                          const mid = `msg_${Date.now()}`
+                          const record = { id: mid, senderId: character.id, text: opener, ts: Date.now(), type: MessageType.TEXT }
+                          try { localStorage.setItem(histKey, JSON.stringify([record])) } catch {}
+                          const newMsg: Message = { id: mid, senderId: character.id, text: opener, timestamp: new Date(), type: MessageType.TEXT }
+                          setMessages([newMsg])
+                          try { setTimeout(() => onUpdateLastMessage(newMsg), 0) } catch {}
+                        }
                         setSessionId(sid);
                         setIsSessionInvalid(false);
                         if (created.model?.id) { setModelId(created.model.id); try { localStorage.setItem(modelKey, created.model.id) } catch { } }

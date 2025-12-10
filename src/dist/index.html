@@ -8,7 +8,8 @@
     <script type="text/javascript">
       (function(){
         var isLocal = /^(localhost|127\.0\.0\.1)$/i.test(location.hostname)
-        if (isLocal) {
+        var isAdmin = /^\/super-admin/.test(location.pathname)
+        if (isLocal || isAdmin) {
           window.clarity = window.clarity || function(){ (window.clarity.q = window.clarity.q || []).push(arguments) }
           return
         }
@@ -28,7 +29,7 @@
       gtag('js', new Date());
       gtag('config', 'G-0FQS2380CC');
     </script>
-    <script type="module" crossorigin src="/assets/index-DDccgC5w.js"></script>
+    <script type="module" crossorigin src="/assets/index-C1XDOG98.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-Xa0po1AH.css">
   </head>
   <body class="h-screen w-screen">
