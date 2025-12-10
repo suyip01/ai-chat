@@ -238,7 +238,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           if (info?.temperature !== undefined) { setModelTemp(info.temperature as number); try { localStorage.setItem(tempKey, String(info.temperature)) } catch { } }
           const conn = connectChatWs(sid, (text, quote, meta) => {
             appendAssistantWithRead(text, quote, meta);
-          }, (_payload) => { setShowDisabledPrompt(true) });
+          }, (payload) => { if (payload && payload.type === 'force_logout') setShowDisabledPrompt(true) });
           wsRef.current = conn;
           return;
         } catch (e: any) {
@@ -261,7 +261,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch { } }
         const conn = connectChatWs(sid, (text, quote, meta) => {
           appendAssistantWithRead(text, quote, meta);
-        }, (_payload) => { setShowDisabledPrompt(true) });
+        }, (payload) => { if (payload && payload.type === 'force_logout') setShowDisabledPrompt(true) });
         wsRef.current = conn;
       } catch { }
     };
@@ -651,7 +651,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                         setIsSessionInvalid(false);
                         if (created.model?.id) { setModelId(created.model.id); try { localStorage.setItem(modelKey, created.model.id) } catch { } }
                         if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch { } }
-                        const conn = connectChatWs(sid, (text, quote, meta) => { appendAssistantWithRead(text, quote, meta) }, (_payload) => { setShowDisabledPrompt(true) });
+                        const conn = connectChatWs(sid, (text, quote, meta) => { appendAssistantWithRead(text, quote, meta) }, (payload) => { if (payload && payload.type === 'force_logout') setShowDisabledPrompt(true) });
                         wsRef.current = conn;
                       } catch { }
                     }}

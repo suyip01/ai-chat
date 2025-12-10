@@ -19,7 +19,7 @@ const buildSystem = async (sess, mode, roleOverride) => {
       const ck = keyCharacter(sess.characterId)
       const updatedAt = await r.hGet(ck, 'updated_at')
       const sessCreated = Number(sess.created_at || 0)
-      if (updatedAt && Number(updatedAt) > sessCreated) {
+      if (updatedAt && Number(updatedAt) >= sessCreated) {
         const fields = await r.hmGet(ck, 'system_prompt', 'system_prompt_scene')
         charPrompt = mode === 'scene' ? (fields?.[1] || '') : (fields?.[0] || '')
       }
@@ -154,9 +154,9 @@ export const startChatWs = (server) => {
       const p = req.headers['sec-websocket-protocol']
       if (p) {
         const arr = String(p).split(',').map(s => s.trim())
-        const b = arr.find(s => s.startsWith('Bearer '))
-        if (b) return b.slice(7)
-        if (arr.length) return arr[0]
+        const b = arr.find(s => /^Bearer\s+/.test(s))
+        if (b) return b.replace(/^Bearer\s+/, '')
+        // do not fall back to arbitrary subprotocol value
       }
       try {
         const proto = String(req.headers['x-forwarded-proto'] || (req.socket && req.socket.encrypted ? 'https' : 'http'))
@@ -170,8 +170,16 @@ export const startChatWs = (server) => {
       return h.startsWith('Bearer ') ? h.slice(7) : null
     }
     const tok = getToken()
-    if (!tok) { try { ws.close(1008, 'unauthorized') } catch {}; return }
-    try { await verifyAccessActive(tok) } catch { try { ws.close(1008, 'unauthorized') } catch {}; return }
+    if (!tok) { try { createLogger({ component: 'ws' }).info('auth.missing') } catch {}; try { ws.close(1008, 'unauthorized') } catch {}; return }
+    try {
+      await verifyAccessActive(tok)
+      try { createLogger({ component: 'ws' }).info('auth.ok') } catch {}
+      try { ws.send(JSON.stringify({ type: 'ws_ready' })) } catch {}
+    } catch (e) {
+      try { createLogger({ component: 'ws' }).info('auth.fail', { error: e?.message || e }) } catch {}
+      try { ws.close(1008, 'unauthorized') } catch {}
+      return
+    }
     ws.on('message', async (raw) => {
       const wlog = createLogger({ component: 'ws' })
       wlog.debug('message', { rawPreview: String(raw).slice(0, 60) })
@@ -183,11 +191,22 @@ export const startChatWs = (server) => {
       const mode = typeof payload.chatMode === 'string' ? payload.chatMode : 'daily'
       const roleOverride = payload.userRole && typeof payload.userRole === 'object' ? payload.userRole : null
       wlog.info('payload', { sid, mode, roleOverride: !!roleOverride })
-      if (payload.type === 'typing') { lastTypingAt.set(sid, Date.now()); return }
-      if (!payload.text) return
+      wlog.info('message.parsed', { sid, type: payload.type || 'text', hasText: !!payload.text })
+      if (payload.type === 'typing') { wlog.info('message.typing', { sid }); lastTypingAt.set(sid, Date.now()); return }
+      if (!payload.text) { wlog.info('message.no_text', { sid }); return }
       const sess = await getSession(sid)
-      if (!sess) return
-      try { await verifyAccessActive(tok) } catch { try { ws.send(JSON.stringify({ type: 'force_logout' })) } catch {}; try { ws.close(1008, 'account_disabled') } catch {}; return }
+      if (!sess) { wlog.info('session.not_found', { sid }); return }
+      try { wlog.info('auth.recheck.start', { sid }); await verifyAccessActive(tok); wlog.info('auth.recheck.ok', { sid }) } catch (e) {
+        const m = e?.message || ''
+        if (m === 'account_disabled') {
+          try { ws.send(JSON.stringify({ type: 'force_logout' })) } catch {}
+          try { ws.close(1008, 'account_disabled') } catch {}
+        } else {
+          try { ws.send(JSON.stringify({ type: 'refresh_required' })) } catch {}
+          try { ws.close(1008, 'unauthorized') } catch {}
+        }
+        return
+      }
       wlog.info('user.message', { userId: sess.userId, sid, textLen: String(payload.text).length, textPreview: String(payload.text).slice(0, 100) })
       {
         const modelOverride = typeof payload.model_id === 'string' ? payload.model_id : undefined

@@ -124,6 +124,10 @@ export const connectChatWs = (sessionId: string, onAssistantMessage: (text: stri
   let backoff = 1000
   const maxBackoff = 10000
   const queue: any[] = []
+  let lastPayload: any = null
+  let needResendLast = false
+  let serverReady = false
+  let readyTimer: any = null
 
   const open = () => {
     const tk = token()
@@ -134,18 +138,34 @@ export const connectChatWs = (sessionId: string, onAssistantMessage: (text: stri
         const data = JSON.parse(String(ev.data))
         if (data && data.type === 'assistant_message' && typeof data.content === 'string') onAssistantMessage(data.content, data.quote, { chunkIndex: data.chunkIndex, chunkTotal: data.chunkTotal })
         else if (data && data.type === 'force_logout') { try { onControl && onControl(data) } catch {} ; manualClose = true ; try { ws?.close(1008, 'account_disabled') } catch {} }
+        else if (data && data.type === 'refresh_required') { try { onControl && onControl(data) } catch {} ; needResendLast = true; try { console.log('[ws] refresh_required, will resend last') } catch {} }
+        else if (data && data.type === 'ws_ready') {
+          serverReady = true
+          if (readyTimer) { try { clearTimeout(readyTimer) } catch {} ; readyTimer = null }
+          while (queue.length) {
+            const p = queue.shift()
+            try { ws?.send(JSON.stringify(p)) } catch {}
+          }
+          if (needResendLast && lastPayload) { try { console.log('[ws] resend last payload (ws_ready)', lastPayload) } catch {} ; try { ws?.send(JSON.stringify(lastPayload)) } catch {} ; needResendLast = false }
+        }
       } catch {}
     }
     ws.onerror = (e) => { console.error('[ws] error', e) }
     ws.onopen = () => {
       console.log('[ws] open')
       backoff = 1000
-      while (queue.length) {
-        const p = queue.shift()
-        try { ws?.send(JSON.stringify(p)) } catch {}
-      }
       const typingFalse = { type: 'typing', sessionId, typing: false }
       try { ws?.send(JSON.stringify(typingFalse)) } catch {}
+      serverReady = false
+      if (readyTimer) { try { clearTimeout(readyTimer) } catch {} ; readyTimer = null }
+      readyTimer = setTimeout(() => {
+        if (serverReady) return
+        while (queue.length) {
+          const p = queue.shift()
+          try { ws?.send(JSON.stringify(p)) } catch {}
+        }
+        if (needResendLast && lastPayload) { try { console.log('[ws] resend last payload (timeout)', lastPayload) } catch {} ; try { ws?.send(JSON.stringify(lastPayload)) } catch {} ; needResendLast = false }
+      }, 300)
     }
     ws.onclose = async (ev) => {
       console.log('[ws] closed')
@@ -153,6 +173,7 @@ export const connectChatWs = (sessionId: string, onAssistantMessage: (text: stri
       const needRefresh = ev && (ev.code === 1008 || String(ev.reason || '').toLowerCase().includes('unauthorized'))
       if (needRefresh) {
         const ok = await refreshAccessToken()
+        if (lastPayload) needResendLast = true
         if (ok) { backoff = 1000; open(); return }
         try { localStorage.removeItem('user_access_token'); localStorage.removeItem('user_refresh_token') } catch {}
         try { window.location.reload() } catch {}
@@ -178,8 +199,9 @@ export const connectChatWs = (sessionId: string, onAssistantMessage: (text: stri
     }
     if (modelId) payload.model_id = modelId
     if (typeof temperature === 'number') payload.temperature = temperature
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload))
-    else queue.push(payload)
+    lastPayload = payload
+    if (ws && ws.readyState === WebSocket.OPEN) { try { console.log('[ws] send payload', payload) } catch {} ; ws.send(JSON.stringify(payload)) }
+    else { try { console.log('[ws] queue payload (ws not open)', payload) } catch {} ; queue.push(payload) }
   }
   const sendTyping = (typing: boolean) => {
     const payload = { type: 'typing', sessionId, typing }

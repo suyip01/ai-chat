@@ -507,6 +507,16 @@ export const MePage: React.FC<MePageProps> = ({
 
 
 
+        {/* Survey Link */}
+        <div className="bg-indigo-50 rounded-3xl shadow-sm p-2">
+          <button
+            onClick={() => { try { window.open('https://demo.linksurge.ai', '_blank', 'noopener,noreferrer') } catch {} }}
+            className="w-full flex items-center justify-center p-2 rounded-2xl"
+          >
+            <span className="text-center font-bold text-indigo-600 text-base">调查问卷</span>
+          </button>
+        </div>
+
         {/* System Menu - Only Logout */}
         <div className="bg-white rounded-3xl shadow-sm p-2">
           <button
@@ -517,6 +527,7 @@ export const MePage: React.FC<MePageProps> = ({
               <LogOut size={16} />
             </div>
             <span className="text-center font-bold text-slate-700 text-sm group-hover:text-red-500">退出登录</span>
+            <div className="w-8 h-8 opacity-0"></div>
           </button>
         </div>
 

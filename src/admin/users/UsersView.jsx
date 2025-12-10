@@ -111,11 +111,14 @@ const UsersViewContent = () => {
       </div>
     </div>
   );
-  const filteredUsers = users.filter((user) => (
-    user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.nickname ? user.nickname.toLowerCase().includes(searchTerm.toLowerCase()) : false) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  ));
+  const filteredUsers = users.filter((user) => {
+    const term = (searchTerm || '').trim().toLowerCase();
+    if (!term) return true;
+    const uname = String(user.username || '').toLowerCase();
+    const email = String(user.email || '').toLowerCase();
+    const nick = String(user.nickname || '').toLowerCase();
+    return uname.includes(term) || email.includes(term) || nick.includes(term);
+  });
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const pagedUsers = filteredUsers.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize);
   const jumpTo = (n) => { const t = Math.max(1, Math.min(totalPages, parseInt(n) || 1)); setPageIndex(t - 1); };
@@ -133,7 +136,7 @@ const UsersViewContent = () => {
         </div>
         <div className="flex gap-3">
           <div className="relative">
-            <input type="text" placeholder="搜索用户名/邮箱..." className="dream-input pl-10 pr-4 py-2 rounded-xl text-sm w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder="搜索用户名/邮箱..." className="dream-input pl-10 pr-4 py-2 rounded-xl text-sm w-64" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPageIndex(0); }} />
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-300" />
           </div>
           <button onClick={() => setView('import')} className="bg-white text-pink-600 px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-pink-50 transition-colors flex items-center gap-2 text-sm"><Upload size={16} /> 批量添加</button>
