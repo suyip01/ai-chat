@@ -510,7 +510,7 @@ export const MePage: React.FC<MePageProps> = ({
         {/* Survey Link */}
         <div className="bg-indigo-50 rounded-3xl shadow-sm p-2">
           <button
-            onClick={() => { try { window.open('https://demo.linksurge.ai', '_blank', 'noopener,noreferrer') } catch {} }}
+            onClick={() => { try { window.open('https://v.wjx.cn/vm/rW80AcK.aspx#', '_blank', 'noopener,noreferrer') } catch {} }}
             className="w-full flex items-center justify-center p-2 rounded-2xl"
           >
             <span className="text-center font-bold text-indigo-600 text-base">调查问卷</span>
