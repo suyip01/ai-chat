@@ -2,6 +2,22 @@ import { BASE_URL } from '../api'
 import { Message, MessageType, UserPersona } from '../types'
 
 const token = () => localStorage.getItem('user_access_token') || ''
+const refreshToken = () => localStorage.getItem('user_refresh_token') || ''
+const refreshAccessToken = async (): Promise<boolean> => {
+  const rt = refreshToken()
+  if (!rt) return false
+  try {
+    const rf = await fetch(`${BASE_URL}/auth/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) })
+    if (!rf.ok) return false
+    const data = await rf.json()
+    const at = data?.access_token || ''
+    if (!at) return false
+    try { localStorage.setItem('user_access_token', at) } catch {}
+    return true
+  } catch {
+    return false
+  }
+}
 
 const genderMap = (g?: 'male'|'female'|'secret') => {
   if (g === 'male') return '男'
@@ -98,7 +114,7 @@ export const fetchHistory = async (_sessionId: string, _limit = 100): Promise<Me
   return []
 }
 
-export const connectChatWs = (sessionId: string, onAssistantMessage: (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => void) => {
+export const connectChatWs = (sessionId: string, onAssistantMessage: (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => void, onControl?: (payload: any) => void) => {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
   const wsOrigin = `${proto}://${location.host}`
   const url = `${wsOrigin}/ws/chat`
@@ -110,11 +126,14 @@ export const connectChatWs = (sessionId: string, onAssistantMessage: (text: stri
   const queue: any[] = []
 
   const open = () => {
-    ws = new WebSocket(url)
+    const tk = token()
+    const withQuery = tk ? `${url}?token=${encodeURIComponent(tk)}` : url
+    ws = new WebSocket(withQuery)
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(String(ev.data))
         if (data && data.type === 'assistant_message' && typeof data.content === 'string') onAssistantMessage(data.content, data.quote, { chunkIndex: data.chunkIndex, chunkTotal: data.chunkTotal })
+        else if (data && data.type === 'force_logout') { try { onControl && onControl(data) } catch {} ; manualClose = true ; try { ws?.close(1008, 'account_disabled') } catch {} }
       } catch {}
     }
     ws.onerror = (e) => { console.error('[ws] error', e) }
@@ -128,12 +147,19 @@ export const connectChatWs = (sessionId: string, onAssistantMessage: (text: stri
       const typingFalse = { type: 'typing', sessionId, typing: false }
       try { ws?.send(JSON.stringify(typingFalse)) } catch {}
     }
-    ws.onclose = () => {
+    ws.onclose = async (ev) => {
       console.log('[ws] closed')
-      if (!manualClose) {
-        setTimeout(open, backoff)
-        backoff = Math.min(backoff * 2, maxBackoff)
+      if (manualClose) return
+      const needRefresh = ev && (ev.code === 1008 || String(ev.reason || '').toLowerCase().includes('unauthorized'))
+      if (needRefresh) {
+        const ok = await refreshAccessToken()
+        if (ok) { backoff = 1000; open(); return }
+        try { localStorage.removeItem('user_access_token'); localStorage.removeItem('user_refresh_token') } catch {}
+        try { window.location.reload() } catch {}
+        return
       }
+      setTimeout(open, backoff)
+      backoff = Math.min(backoff * 2, maxBackoff)
     }
   }
   open()
@@ -185,7 +211,14 @@ export const updateSessionConfig = async (sessionId: string, cfg: { modelId?: st
 export const getSessionInfo = async (sessionId: string): Promise<{ model?: { id: string; nickname: string }; temperature?: number }> => {
   const { authFetch } = await import('./http')
   const res = await authFetch(`/chat/sessions/${sessionId}`, { method: 'GET' })
-  if (!res.ok) throw new Error('get_session_failed')
+  if (!res.ok) {
+    if (res.status === 404) {
+      const err: any = new Error('session_not_found')
+      err.status = 404
+      throw err
+    }
+    throw new Error('get_session_failed')
+  }
   const data = await res.json()
   const sess = data?.session || {}
   return { model: sess?.model, temperature: sess?.temperature }

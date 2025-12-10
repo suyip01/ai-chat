@@ -6,6 +6,7 @@ import { getRedis, keySummary, keyRole, keyCharacter, keySess } from './redis.js
 import { maybeSummarizeSession } from './chatSummary.js'
 import TextGenerationService from './textGenerationService.js'
 import { createLogger } from '../utils/logger.js'
+import { verifyAccessActive } from '../middleware/userAuth.js'
 
 const buildSystem = async (sess, mode, roleOverride) => {
   const wlog = createLogger({ component: 'ws' })
@@ -148,7 +149,29 @@ export const startChatWs = (server) => {
     }
     runNext()
   }
-  wss.on('connection', (ws) => {
+  wss.on('connection', async (ws, req) => {
+    const getToken = () => {
+      const p = req.headers['sec-websocket-protocol']
+      if (p) {
+        const arr = String(p).split(',').map(s => s.trim())
+        const b = arr.find(s => s.startsWith('Bearer '))
+        if (b) return b.slice(7)
+        if (arr.length) return arr[0]
+      }
+      try {
+        const proto = String(req.headers['x-forwarded-proto'] || (req.socket && req.socket.encrypted ? 'https' : 'http'))
+        const host = String(req.headers['x-forwarded-host'] || req.headers.host || 'localhost')
+        const base = `${proto}://${host}`
+        const u = new URL(req.url, base)
+        const tk = u.searchParams.get('token')
+        if (tk) return tk
+      } catch {}
+      const h = req.headers.authorization || ''
+      return h.startsWith('Bearer ') ? h.slice(7) : null
+    }
+    const tok = getToken()
+    if (!tok) { try { ws.close(1008, 'unauthorized') } catch {}; return }
+    try { await verifyAccessActive(tok) } catch { try { ws.close(1008, 'unauthorized') } catch {}; return }
     ws.on('message', async (raw) => {
       const wlog = createLogger({ component: 'ws' })
       wlog.debug('message', { rawPreview: String(raw).slice(0, 60) })
@@ -164,6 +187,7 @@ export const startChatWs = (server) => {
       if (!payload.text) return
       const sess = await getSession(sid)
       if (!sess) return
+      try { await verifyAccessActive(tok) } catch { try { ws.send(JSON.stringify({ type: 'force_logout' })) } catch {}; try { ws.close(1008, 'account_disabled') } catch {}; return }
       wlog.info('user.message', { userId: sess.userId, sid, textLen: String(payload.text).length, textPreview: String(payload.text).slice(0, 100) })
       {
         const modelOverride = typeof payload.model_id === 'string' ? payload.model_id : undefined

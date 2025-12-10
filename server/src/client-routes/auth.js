@@ -12,12 +12,12 @@ router.post('/auth/login', async (req, res) => {
   const { username, password } = req.body || {};
   const userLog = (req.log || { info:()=>{} })
   userLog.info('auth.login.start', { username })
-  if (!username || !password) return res.status(400).json({ error: 'missing_credentials' });
+  if (!username || !password) { userLog.info('auth.login.fail', { username, reason: 'missing_credentials' }); return res.status(400).json({ error: 'missing_credentials', reason: 'missing_credentials' }); }
   try {
     const [rows] = await pool.query('SELECT id, username, email, password_hash, is_active FROM users WHERE username=?', [username]);
-    if (rows.length === 0 || rows[0].is_active !== 1) return res.status(401).json({ error: 'invalid_account' });
+    if (rows.length === 0 || rows[0].is_active !== 1) { userLog.info('auth.login.fail', { username, reason: 'invalid_account', exists: rows.length > 0, is_active: rows[0]?.is_active }); return res.status(401).json({ error: 'invalid_account', reason: 'invalid_account', exists: rows.length > 0, is_active: rows[0]?.is_active }); }
     const ok = rows[0].password_hash ? bcrypt.compareSync(password, rows[0].password_hash) : false;
-    if (!ok) return res.status(401).json({ error: 'invalid_password' });
+    if (!ok) { userLog.info('auth.login.fail', { username, reason: 'invalid_password' }); return res.status(401).json({ error: 'invalid_password', reason: 'invalid_password', exists: true, is_active: rows[0].is_active }); }
     const accessExp = process.env.ACCESS_EXPIRES || process.env.TOKEN_EXPIRES || '30m';
     const refreshExp = process.env.REFRESH_EXPIRES || '7d';
     const accessToken = jwt.sign({ id: rows[0].id, username: rows[0].username, type: 'access' }, process.env.JWT_SECRET, { expiresIn: accessExp });

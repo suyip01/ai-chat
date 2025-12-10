@@ -7,8 +7,8 @@ export const userAuthAPI = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
-    if (!res.ok) throw new Error('login_failed');
-    return res.json();
+    let data = null;
+    try { data = await res.json(); } catch { data = null }
+    return { ok: res.ok, status: res.status, data };
   },
 };
-

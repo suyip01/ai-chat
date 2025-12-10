@@ -63,11 +63,19 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     if (!username.trim() || !password.trim()) { setError('请输入账号和密码'); return; }
     setLoading(true);
     try {
-      const data = await userAuthAPI.login(username.trim(), password.trim());
-      if (data?.access_token) try { localStorage.setItem('user_access_token', data.access_token) } catch { }
-      if (data?.refresh_token) try { localStorage.setItem('user_refresh_token', data.refresh_token) } catch { }
-      try { localStorage.setItem('user_username', username.trim()) } catch {}
-      onLogin();
+      const resp: any = await (userAuthAPI as any).login(username.trim(), password.trim());
+      if (resp && resp.ok && resp.data) {
+        const data = resp.data
+        if (data?.access_token) try { localStorage.setItem('user_access_token', data.access_token) } catch { }
+        if (data?.refresh_token) try { localStorage.setItem('user_refresh_token', data.refresh_token) } catch { }
+        try { localStorage.setItem('user_username', username.trim()) } catch {}
+        onLogin();
+      } else {
+        const d = (resp && resp.data) ? resp.data : {}
+        if (d && d.exists === false) setError('登录失败，账号不存在')
+        else if (d && d.is_active === 0) setError('登录失败，此帐号已暂停使用')
+        else setError('登录失败，请检查账号或密码')
+      }
     } catch {
       setError('登录失败，请检查账号或密码');
     } finally {

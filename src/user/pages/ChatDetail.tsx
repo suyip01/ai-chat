@@ -50,6 +50,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const [personaLocal, setPersonaLocal] = useState<UserPersona | undefined>(undefined)
   const [charImgError, setCharImgError] = useState(false)
   const [userImgError, setUserImgError] = useState(false)
+  const [isSessionInvalid, setIsSessionInvalid] = useState(false)
+  const [showDisabledPrompt, setShowDisabledPrompt] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -234,12 +236,18 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         try {
           const info = await getSessionInfo(sid)
           if (info?.temperature !== undefined) { setModelTemp(info.temperature as number); try { localStorage.setItem(tempKey, String(info.temperature)) } catch { } }
-        } catch { }
-        const conn = connectChatWs(sid, (text, quote, meta) => {
-          appendAssistantWithRead(text, quote, meta);
-        });
-        wsRef.current = conn;
-        return;
+          const conn = connectChatWs(sid, (text, quote, meta) => {
+            appendAssistantWithRead(text, quote, meta);
+          }, (_payload) => { setShowDisabledPrompt(true) });
+          wsRef.current = conn;
+          return;
+        } catch (e: any) {
+          const msg = String(e?.message || '')
+          if (msg === 'session_not_found' || e?.status === 404) {
+            setIsSessionInvalid(true)
+            return
+          }
+        }
       }
       try {
         const ridRaw = localStorage.getItem('user_chat_role_id');
@@ -253,7 +261,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch { } }
         const conn = connectChatWs(sid, (text, quote, meta) => {
           appendAssistantWithRead(text, quote, meta);
-        });
+        }, (_payload) => { setShowDisabledPrompt(true) });
         wsRef.current = conn;
       } catch { }
     };
@@ -522,7 +530,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
                   <div className="h-[1px] bg-slate-50 mx-4"></div>
 
-                  {/* Model */}
+                  {/*
                   <button
                     onClick={() => { setIsSettingsOpen(false); setIsModelSheetOpen(true) }}
                     className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
@@ -538,6 +546,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                       <ChevronRight size={16} className="text-slate-300" />
                     </div>
                   </button>
+                  */}
 
                   <div className="h-[1px] bg-slate-50 mx-4"></div>
 
@@ -595,6 +604,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           onEdit={(persona, roleId) => { setIsRoleSheetOpen(false); setEditingPersona(persona); setEditingRoleId(roleId); setIsUserSettingsOpenLocal(true) }}
         />
 
+        {/**
         <ModelSelectorSheet
           isOpen={isModelSheetOpen}
           currentModelId={modelId}
@@ -603,6 +613,75 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           temperature={modelTemp}
           onTempChange={(t) => { setModelTemp(t); setHasTempOverride(true); try { localStorage.setItem(tempKey, String(t)) } catch { } }}
         />
+        */}
+
+        {isSessionInvalid && (
+          <>
+            <div className="fixed inset-0 z-[80] bg-black/20"></div>
+            <div className="fixed inset-0 z-[90] flex items-center justify-center">
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-[85%] max-w-sm">
+                <div className="px-6 py-5 text-center text-slate-800 font-bold">该会话已失效，请新建会话。</div>
+                <div className="h-[1px] bg-slate-100"></div>
+                <div className="flex">
+                  <button className="flex-1 py-3 text-slate-600 active:opacity-70" onClick={() => { setIsSessionInvalid(false); onBack(); }}>返回列表</button>
+                  <div className="w-[1px] bg-slate-100"></div>
+                  <button
+                    className="flex-1 py-3 text-primary-600 font-bold active:opacity-70"
+                    onClick={async () => {
+                      try {
+                        const ridRaw = localStorage.getItem('user_chat_role_id');
+                        const rid = ridRaw ? parseInt(ridRaw) : undefined;
+                        const created = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
+                        const sid = created.sessionId;
+                        const uid = localStorage.getItem('user_id') || '0'
+                        const key = `chat_session_${uid}_${character.id}`
+                        try { localStorage.removeItem(key) } catch {}
+                        localStorage.setItem(key, sid);
+                        setSessionId(sid);
+                        setIsSessionInvalid(false);
+                        if (created.model?.id) { setModelId(created.model.id); try { localStorage.setItem(modelKey, created.model.id) } catch { } }
+                        if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch { } }
+                        const conn = connectChatWs(sid, (text, quote, meta) => { appendAssistantWithRead(text, quote, meta) }, (_payload) => { setShowDisabledPrompt(true) });
+                        wsRef.current = conn;
+                      } catch { }
+                    }}
+                  >新建会话</button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {showDisabledPrompt && (
+          <>
+            <div className="fixed inset-0 z-[80] bg-black/30"></div>
+            <div className="fixed inset-0 z-[90] flex items-center justify-center">
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-[85%] max-w-sm">
+                <div className="px-6 py-5 text-center font-bold text-red-600">此帐号已暂停使用，请联络工作人员。</div>
+                <div className="h-[1px] bg-slate-100"></div>
+                <div className="flex">
+                  <button
+                    className="flex-1 py-3 text-primary-600 font-bold active:opacity-70"
+                    onClick={async () => {
+                      try {
+                        const rt = localStorage.getItem('user_refresh_token') || ''
+                        if (rt) {
+                          const res = await fetch('/api/auth/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) })
+                          if (!res.ok) {
+                            try { await fetch('/auth/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) }) } catch {}
+                          }
+                        }
+                      } catch {}
+                      try { localStorage.removeItem('user_access_token'); localStorage.removeItem('user_refresh_token') } catch {}
+                      setShowDisabledPrompt(false)
+                      try { window.location.reload() } catch {}
+                    }}
+                  >确定</button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
       </div>
     </motion.div>

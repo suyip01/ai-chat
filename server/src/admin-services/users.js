@@ -1,6 +1,7 @@
 import pool from '../db.js';
 import bcrypt from 'bcryptjs';
 import { audit } from '../utils/audit.js';
+import { getRedis } from '../client-services/redis.js'
 
 export const ensureUsersSchema = async () => {
   const [tables] = await pool.query(
@@ -149,15 +150,22 @@ export const startAutoDeactivate = () => {
                      AND first_login_at IS NULL
                      AND used_count > 0`);
       if (mark && mark.affectedRows) audit('auto_deactivate_mark_first_login', { affectedRows: mark.affectedRows });
-      const sql = `UPDATE users
-                   SET is_active = 0
+      const [toDisable] = await pool.query(`SELECT id FROM users
                    WHERE is_active = 1
                      AND expire_after_login_minutes IS NOT NULL
                      AND expire_after_login_minutes > 0
                      AND first_login_at IS NOT NULL
-                     AND TIMESTAMPDIFF(MINUTE, first_login_at, NOW()) >= expire_after_login_minutes`;
-      const [res] = await pool.query(sql);
-      if (res && res.affectedRows) audit('auto_deactivate', { affectedRows: res.affectedRows });
+                     AND TIMESTAMPDIFF(MINUTE, first_login_at, NOW()) >= expire_after_login_minutes`)
+      const ids = Array.isArray(toDisable) ? toDisable.map((r) => r.id).filter(Boolean) : []
+      if (ids.length) {
+        const placeholders = ids.map(() => '?').join(',')
+        const [res] = await pool.query(`UPDATE users SET is_active = 0 WHERE id IN (${placeholders})`, ids)
+        try {
+          const r = await getRedis()
+          for (const uid of ids) { try { await r.set(`user:active:${uid}`, '0', { EX: 600 }) } catch {} }
+        } catch {}
+        if (res && res.affectedRows) audit('auto_deactivate', { affectedRows: res.affectedRows, ids })
+      }
     } catch (e) {
       audit('auto_deactivate_error', { message: e?.message || String(e) });
     }
