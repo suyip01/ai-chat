@@ -23,7 +23,7 @@ export class TextGenerationService {
     const sys = systemPromptOverride || this.systemPrompt;
     if (sys) messages.push({ role: 'system', content: sys });
     const normalized = Array.isArray(history) ? history.filter(x => x && typeof x.content === 'string') : [];
-    const sliced = normalized.slice(-80);
+    const sliced = normalized.slice(-100);
     for (const m of sliced) {
       const role = m.role === 'assistant' ? 'assistant' : 'user';
       messages.push({ role, content: m.content });

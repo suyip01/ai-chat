@@ -219,7 +219,7 @@ export const startChatWs = (server) => {
         try { console.log('\x1b[31mINCLUDE QUOTE START\x1b[0m', { sid, includeQuote: includeQuoteStart, count: llmCounts.get(sid) }) } catch {}
         const svc = new TextGenerationService()
         const sys = await buildSystem(sess, mode, roleOverride)
-        const history = await getMessages(sid, 80)
+        const history = await getMessages(sid, 100)
         wlog.info('llm.start', {
           userId: sess.userId,
           sid,

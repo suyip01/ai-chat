@@ -4,7 +4,7 @@ import { getMessages } from './chatMessages.js'
 import { createLogger } from '../utils/logger.js'
 const logger = createLogger({ area: 'client', component: 'service.chatSummary' })
 
-const thresholdRounds = parseInt(process.env.CHAT_SUMMARY_ROUNDS || '30')
+const thresholdRounds = parseInt(process.env.CHAT_SUMMARY_ROUNDS || '200')
 
 export const maybeSummarizeSession = async (sid) => {
   try {
@@ -13,7 +13,7 @@ export const maybeSummarizeSession = async (sid) => {
     const len = await r.lLen(`chat:msgs:${sid}`)
     logger.info('summary.len', { sid, total: len })
     if (Math.floor(len / 2) < thresholdRounds) return null
-    const history = await getMessages(sid, 6)
+    const history = await getMessages(sid, 400)
     const svc = new TextGenerationService()
     const prompt = '请用不超过100字的中文概括以下对话的关键信息、人物关系、用户偏好与目标，便于后续继续对话。'
     const content = prompt + '\n' + history.map(m => `${m.role === 'assistant' ? 'AI' : '用户'}: ${m.content}`).join('\n')
