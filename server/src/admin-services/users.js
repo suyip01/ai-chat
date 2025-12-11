@@ -61,7 +61,7 @@ export const listUsers = async (q) => {
         is_active AS isActive,
         created_at,
         expire_after_login_minutes AS expireMinutes
-     FROM users ${where} ORDER BY created_at ASC`,
+     FROM users ${where} ORDER BY created_at ASC, username ASC`,
     params
   );
   return rows;
@@ -98,17 +98,18 @@ export const createUser = async ({ username, nickname = null, avatar = null, ema
   return id;
 };
 
-export const updateUser = async (id, { nickname, avatar, email, chatLimit, isActive, expireAfterMinutes }) => {
+export const updateUser = async (id, { nickname, avatar, email, chatLimit, isActive, expireAfterMinutes, resetFirstLogin }) => {
   audit('admin_service', { op: 'updateUser', id })
   await ensureUsersSchema();
   const sets = [];
   const params = [];
-  if (typeof nickname === 'string') { sets.push('nickname=?'); params.push(nickname); }
+  if (typeof nickname === 'string' || nickname === null) { sets.push('nickname=?'); params.push(nickname); }
   if (typeof avatar === 'string') { sets.push('avatar=?'); params.push(avatar); }
   if (typeof email === 'string') { sets.push('email=?'); params.push(email); }
   if (typeof chatLimit === 'number') { sets.push('chat_limit=?'); params.push(chatLimit); }
   if (typeof isActive === 'number') { sets.push('is_active=?'); params.push(isActive); }
-  if (typeof expireAfterMinutes === 'number') { sets.push('expire_after_login_minutes=?'); params.push(expireAfterMinutes); }
+  if (typeof expireAfterMinutes === 'number' || expireAfterMinutes === null) { sets.push('expire_after_login_minutes=?'); params.push(expireAfterMinutes); }
+  if (resetFirstLogin === true) { sets.push('first_login_at=NULL'); }
   if (!sets.length) return false;
   params.push(id);
   const [res] = await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id=?`, params);

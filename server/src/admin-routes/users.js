@@ -38,8 +38,8 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { nickname, avatar, email, chatLimit, isActive, expireAfterMinutes } = req.body || {};
-    const ok = await updateUser(id, { nickname, avatar, email, chatLimit, isActive, expireAfterMinutes });
+    const { nickname, avatar, email, chatLimit, isActive, expireAfterMinutes, resetFirstLogin } = req.body || {};
+    const ok = await updateUser(id, { nickname, avatar, email, chatLimit, isActive, expireAfterMinutes, resetFirstLogin });
     if (!ok) return res.status(400).json({ error: 'no_fields' });
     res.json({ ok: true });
   } catch (e) {

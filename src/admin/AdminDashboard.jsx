@@ -37,6 +37,30 @@ const AdminDashboard = () => {
     }
   };
 
+  const routeForTab = (tab) => {
+    switch (tab) {
+      case 'templates':
+        return '/super-admin/sysprompt'
+      case 'stories':
+        return '/super-admin/stories'
+      case 'characters':
+      case 'official_characters':
+        return '/super-admin/characters/official'
+      case 'user_characters':
+        return '/super-admin/characters/user'
+      case 'users':
+        return '/super-admin/users'
+      case 'model_settings':
+        return '/super-admin/settings/model'
+      case 'model_manage':
+        return '/super-admin/settings/models'
+      case 'admin_accounts':
+        return '/super-admin/settings/admins'
+      default:
+        return '/super-admin/stories'
+    }
+  }
+
   useEffect(() => {
     const token = localStorage.getItem('admin_access_token');
     const user = localStorage.getItem('admin_username');
@@ -44,8 +68,15 @@ const AdminDashboard = () => {
     if (token) {
       setIsLoggedIn(true);
       if (user) setUsername(user);
-      setActiveTab('templates');
-      if (path !== '/super-admin/sysprompt') navigate('/super-admin/sysprompt');
+      // infer tab from path
+      if (path.startsWith('/super-admin/stories')) setActiveTab('stories')
+      else if (path.startsWith('/super-admin/characters/official')) setActiveTab('official_characters')
+      else if (path.startsWith('/super-admin/characters/user')) setActiveTab('user_characters')
+      else if (path.startsWith('/super-admin/users')) setActiveTab('users')
+      else if (path.startsWith('/super-admin/settings/model')) setActiveTab('model_settings')
+      else if (path.startsWith('/super-admin/settings/models')) setActiveTab('model_manage')
+      else if (path.startsWith('/super-admin/settings/admins')) setActiveTab('admin_accounts')
+      else { setActiveTab('templates'); if (path !== '/super-admin/sysprompt') navigate('/super-admin/sysprompt') }
     } else {
       setIsLoggedIn(false);
       if (path !== '/super-admin/login') navigate('/super-admin/login');
@@ -75,7 +106,7 @@ const AdminDashboard = () => {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          if (tab === 'templates') navigate('/super-admin/sysprompt');
+          navigate(routeForTab(tab));
         }}
         onLogout={() => {
           setIsLoggedIn(false);

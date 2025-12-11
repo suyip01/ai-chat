@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Send, MoreVertical, X, ChevronRight, User as UserIcon, MessageSquare, Cpu } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, X, ChevronRight, User as UserIcon, MessageSquare, Cpu, Image as ImageIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion'
 import { androidSlideRight, fade } from '../animations'
 import { UserCharacterSettings } from '../components/UserCharacterSettings';
@@ -52,6 +52,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const [userImgError, setUserImgError] = useState(false)
   const [isSessionInvalid, setIsSessionInvalid] = useState(false)
   const [showDisabledPrompt, setShowDisabledPrompt] = useState(false)
+  const [isBgSheetOpen, setIsBgSheetOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -64,6 +65,38 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const modelKey = `chat_model_${character.id}`;
   const tempKey = `chat_temp_${character.id}`;
   const modelNameKey = `chat_model_name_${character.id}`;
+  const bgKey = `chat_bg_${character.id}`;
+  const [chatBg, setChatBg] = useState<string | undefined>(undefined)
+  const bgInputRef = useRef<HTMLInputElement>(null)
+  const [isBgDark, setIsBgDark] = useState<boolean | null>(null)
+
+  const analyzeBgBrightness = (src?: string) => {
+    if (!src) return;
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = src;
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const w = 32, h = 32;
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          ctx.drawImage(img, 0, 0, w, h);
+          const data = ctx.getImageData(0, 0, w, h).data;
+          let sum = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2];
+            const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            sum += lum;
+          }
+          const avg = sum / (w * h);
+          setIsBgDark(avg < 128);
+        } catch { }
+      };
+    } catch { }
+  };
 
   const effectivePersona = useMemo<UserPersona | undefined>(() => {
     if (personaLocal) return personaLocal;
@@ -221,9 +254,15 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       if (typeof t === 'number' && !isNaN(t)) { setModelTemp(t); setHasTempOverride(true) }
       const mname = localStorage.getItem(modelNameKey) || undefined
       if (mname) setModelNick(mname)
+      const bg = localStorage.getItem(bgKey) || undefined
+      if (bg) setChatBg(bg)
     } catch { }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character.id]);
+
+  useEffect(() => {
+    if (chatBg) analyzeBgBrightness(chatBg)
+  }, [chatBg])
 
   useEffect(() => {
     const key = `chat_session_${currentUserId}_${character.id}`;
@@ -388,9 +427,21 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           </div>
         </div>
 
-        <div ref={contentRef} className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-primary-50" style={{ overflowAnchor: 'none' }}>
+        <div
+          ref={contentRef}
+          className={`flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar ${chatBg ? '' : 'bg-primary-50'}`}
+          style={{
+            overflowAnchor: 'none',
+            backgroundImage: chatBg ? `url(${chatBg})` : undefined,
+            backgroundSize: chatBg ? 'cover' : undefined,
+            backgroundPosition: chatBg ? 'center' : undefined,
+            backgroundRepeat: chatBg ? 'no-repeat' : undefined,
+          }}
+        >
           <div className="flex justify-center my-4">
-            <span className="bg-black/10 text-white text-[10px] px-3 py-1 rounded-full font-medium">今天</span>
+            <span
+              className={`text-[10px] px-3 py-1 rounded-full font-medium backdrop-blur-sm ${chatBg ? (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'bg-black/10 text-white'}`}
+            >今天</span>
           </div>
 
           {messages.map((msg, index) => {
@@ -438,9 +489,15 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                   {/* Timestamp */}
                   <div className={`flex items-center gap-2 mt-1 ${isMe ? 'mr-1' : 'ml-1'}`}>
                     {isMe && msg.read && (
-                      <span className="text-[10px] text-slate-400">已读</span>
+                      <span
+                        className={`text-[10px] ${chatBg ? 'px-1.5 py-0.5 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'text-slate-400'}`}
+                        style={chatBg ? { textShadow: isBgDark ? '0 1px 1px rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.6)' } : undefined}
+                      >已读</span>
                     )}
-                    <span className="text-[10px] text-slate-400">{formatTime(msg.timestamp)}</span>
+                    <span
+                      className={`text-[10px] ${chatBg ? 'px-1.5 py-0.5 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'text-slate-400'}`}
+                      style={chatBg ? { textShadow: isBgDark ? '0 1px 1px rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.6)' } : undefined}
+                    >{formatTime(msg.timestamp)}</span>
                   </div>
                 </div>
 
@@ -548,16 +605,16 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                   </button>
                   */}
 
-                  <div className="h-[1px] bg-slate-50 mx-4"></div>
+                <div className="h-[1px] bg-slate-50 mx-4"></div>
 
-                  {/* Chat Mode */}
-                  <div className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
-                    <div className="flex items-center gap-3 text-slate-700">
-                      <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                        <MessageSquare size={18} />
-                      </div>
-                      <span className="font-bold text-sm">聊天模式</span>
+                {/* Chat Mode */}
+                <div className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                  <div className="flex items-center gap-3 text-slate-700">
+                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                      <MessageSquare size={18} />
                     </div>
+                    <span className="font-bold text-sm">聊天模式</span>
+                  </div>
 
                     {/* Toggle */}
                     <div className="flex bg-slate-100 p-1 rounded-lg">
@@ -573,11 +630,62 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                       >
                         场景
                       </button>
-                    </div>
                   </div>
+                </div>
+
+                <div className="h-[1px] bg-slate-50 mx-4"></div>
+
+                <button
+                  onClick={() => { setIsSettingsOpen(false); setIsBgSheetOpen(true); }}
+                  className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+                >
+                  <div className="flex items-center gap-3 text-slate-700">
+                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                      <ImageIcon size={18} />
+                    </div>
+                    <span className="font-bold text-sm">聊天背景更改</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300" />
+                </button>
                 </div>
               </motion.div>
             </>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence initial={false}>
+          {isBgSheetOpen && (
+            <motion.div
+              className="absolute inset-0 bg-white z-[70] will-change-transform"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={androidSlideRight}
+            >
+              <div className="p-5 border-b border-slate-100 flex items-center gap-3">
+                <button onClick={() => setIsBgSheetOpen(false)} className="p-2 -ml-2 text-slate-800 hover:bg-black/5 rounded-full">
+                  <ArrowLeft size={24} />
+                </button>
+                <h3 className="font-bold text-lg text-slate-800">聊天背景</h3>
+              </div>
+              <div className="p-2">
+                <button
+                  onClick={() => { setChatBg(undefined); setIsBgDark(null); try { localStorage.removeItem(bgKey) } catch {}; setIsBgSheetOpen(false) }}
+                  className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+                >
+                  <span className="font-bold text-sm text-slate-700">重置背景</span>
+                  <ChevronRight size={16} className="text-slate-300" />
+                </button>
+                <div className="h-[1px] bg-slate-50 mx-4"></div>
+                <button
+                  onClick={() => { setIsBgSheetOpen(false); bgInputRef.current?.click(); }}
+                  className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+                >
+                  <span className="font-bold text-sm text-slate-700">从相册中选择</span>
+                  <ChevronRight size={16} className="text-slate-300" />
+                </button>
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
 
@@ -692,6 +800,27 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
             </div>
           </>
         )}
+
+        <input
+          type="file"
+          accept="image/*"
+          ref={bgInputRef}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) {
+              const r = new FileReader()
+              r.onload = (ev) => {
+                const result = ev.target?.result as string
+                setChatBg(result)
+                try { localStorage.setItem(bgKey, result) } catch {}
+                analyzeBgBrightness(result)
+              }
+              r.readAsDataURL(f)
+            }
+            try { e.currentTarget.value = '' } catch {}
+          }}
+        />
 
       </div>
     </motion.div>

@@ -16,10 +16,23 @@ const UsersViewContent = () => {
   const [pwd1, setPwd1] = useState('');
   const [pwd2, setPwd2] = useState('');
   const [deleteUser, setDeleteUser] = useState(null);
+  const [nicknameUser, setNicknameUser] = useState(null);
+  const [newNickname, setNewNickname] = useState('');
+  const [statusUser, setStatusUser] = useState(null);
+  const [newStatus, setNewStatus] = useState(1);
+  const [expireUser, setExpireUser] = useState(null);
+  const [newExpire, setNewExpire] = useState('');
+  const [resetFirstLogin, setResetFirstLogin] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchIds, setBatchIds] = useState(null);
   const { showToast } = useToast();
-  useEffect(() => { usersAPI.list().then(setUsers).catch(() => {}); }, []);
+  const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
+  useEffect(() => {
+    usersAPI.list().then(setUsers).catch(() => {});
+    const onRefresh = () => { usersAPI.list().then(setUsers).catch(() => {}); }
+    try { window.addEventListener('admin.users.refresh', onRefresh) } catch {}
+    return () => { try { window.removeEventListener('admin.users.refresh', onRefresh) } catch {} }
+  }, []);
   const handleAddUser = async (newUser) => {
     try {
       const { id } = await usersAPI.create(newUser);
@@ -80,6 +93,85 @@ const UsersViewContent = () => {
       </div>
     </div>
   );
+  const nicknameModal = nicknameUser && (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+      <div className="bg-white rounded-2xl p-6 w-96">
+        <div className="font-bold mb-3">修改用户 {nicknameUser.username} 昵称</div>
+        <div className="space-y-3">
+          <input type="text" placeholder="输入新昵称" className="dream-input w-full px-4 py-3 rounded-2xl text-sm font-bold text-gray-700" value={newNickname} onChange={e => setNewNickname(e.target.value)} />
+        </div>
+        <div className="flex gap-2 justify-end mt-5">
+          <button className="px-4 py-2 rounded-xl bg-gray-100 text-gray-600" onClick={() => { setNicknameUser(null); setNewNickname(''); }}>取消</button>
+          <button className="px-4 py-2 rounded-xl bg-pink-500 text-white" onClick={async () => {
+            try {
+              await usersAPI.update(nicknameUser.id, { nickname: newNickname || null });
+              setUsers(prev => prev.map(u => u.id === nicknameUser.id ? { ...u, nickname: newNickname || null } : u));
+              showToast('昵称已更新');
+            } catch { showToast('更新失败', 'error'); }
+            setNicknameUser(null); setNewNickname('');
+          }}>保存</button>
+        </div>
+      </div>
+    </div>
+  );
+  const statusModal = statusUser && (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+      <div className="bg-white rounded-2xl p-6 w-96">
+        <div className="font-bold mb-3">修改用户 {statusUser.username} 状态</div>
+        <div className="flex justify-center my-6">
+          <div className="bg-gray-100 rounded-full p-1 flex relative w-48 h-10 cursor-pointer" onClick={() => setNewStatus(v => v === 1 ? 0 : 1)}>
+            <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full transition-all duration-300 shadow-sm ${newStatus === 1 ? 'left-1 bg-white' : 'left-[calc(50%+2px)] bg-white'}`}></div>
+            <div className={`flex-1 flex items-center justify-center z-10 text-xs font-bold transition-colors duration-300 ${newStatus === 1 ? 'text-green-500' : 'text-gray-400'}`}>Active</div>
+            <div className={`flex-1 flex items-center justify-center z-10 text-xs font-bold transition-colors duration-300 ${newStatus === 0 ? 'text-red-500' : 'text-gray-400'}`}>Inactive</div>
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end mt-5">
+          <button className="px-4 py-2 rounded-xl bg-gray-100 text-gray-600" onClick={() => { setStatusUser(null); }}>取消</button>
+          <button className="px-4 py-2 rounded-xl bg-pink-500 text-white" onClick={async () => {
+            try {
+              await usersAPI.update(statusUser.id, { isActive: newStatus });
+              setUsers(prev => prev.map(u => u.id === statusUser.id ? { ...u, isActive: newStatus } : u));
+              showToast('状态已更新');
+            } catch { showToast('更新失败', 'error'); }
+            setStatusUser(null);
+          }}>保存</button>
+        </div>
+      </div>
+    </div>
+  );
+  const expireModal = expireUser && (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+      <div className="bg-white rounded-2xl p-6 w-96">
+        <div className="font-bold mb-6">修改用户 {expireUser.username} 过期时间</div>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <label className="text-sm text-gray-600 font-bold">过期时间（分钟）</label>
+            <input type="number" placeholder="输入分钟数" className="dream-input w-32 px-3 py-2 rounded-xl text-sm font-bold text-gray-700 text-center" value={newExpire} onChange={e => setNewExpire(e.target.value)} />
+          </div>
+          <div className="flex items-center justify-between">
+             <label className="text-sm text-gray-600 font-bold">清除首次登录时间</label>
+             <div className="bg-gray-100 rounded-full p-1 flex relative w-32 h-8 cursor-pointer" onClick={() => setResetFirstLogin(v => !v)}>
+                <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full transition-all duration-300 shadow-sm ${resetFirstLogin ? 'left-1 bg-white' : 'left-[calc(50%+2px)] bg-white'}`}></div>
+                <div className={`flex-1 flex items-center justify-center z-10 text-xs font-bold transition-colors duration-300 ${resetFirstLogin ? 'text-green-500' : 'text-gray-400'}`}>是</div>
+                <div className={`flex-1 flex items-center justify-center z-10 text-xs font-bold transition-colors duration-300 ${!resetFirstLogin ? 'text-red-500' : 'text-gray-400'}`}>否</div>
+             </div>
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end mt-8">
+          <button className="px-4 py-2 rounded-xl bg-gray-100 text-gray-600" onClick={() => { setExpireUser(null); setNewExpire(''); setResetFirstLogin(false); }}>取消</button>
+          <button className="px-4 py-2 rounded-xl bg-pink-500 text-white" onClick={async () => {
+            try {
+              const minutes = newExpire ? parseInt(newExpire) : null;
+              await usersAPI.update(expireUser.id, { expireAfterMinutes: minutes, resetFirstLogin });
+              setUsers(prev => prev.map(u => u.id === expireUser.id ? { ...u, expireMinutes: minutes } : u));
+              showToast('过期设置已更新');
+            } catch { showToast('更新失败', 'error'); }
+            setExpireUser(null); setNewExpire(''); setResetFirstLogin(false);
+          }}>保存</button>
+        </div>
+      </div>
+    </div>
+  );
   const changePwdModal = pwdUser && (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
       <div className="bg-white rounded-2xl p-6 w-96">
@@ -122,13 +214,17 @@ const UsersViewContent = () => {
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const pagedUsers = filteredUsers.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize);
   const jumpTo = (n) => { const t = Math.max(1, Math.min(totalPages, parseInt(n) || 1)); setPageIndex(t - 1); };
+  React.useEffect(() => { if (pageIndex >= totalPages) setPageIndex(Math.max(0, totalPages - 1)); }, [totalPages]);
   if (view === 'create') return <UserCreateView onCancel={() => setView('list')} onSave={handleAddUser} notify={showToast} />;
-  if (view === 'import') return <UsersImportView onCancel={() => setView('list')} notify={showToast} />;
+  if (view === 'import') return <UsersImportView onCancel={() => { setView('list'); usersAPI.list().then(setUsers).catch(() => {}); }} notify={showToast} />;
   return (
     <div className="space-y-6 animate-fade-in">
       {confirmDeleteModal}
       {batchDeleteModal}
       {changePwdModal}
+      {nicknameModal}
+      {statusModal}
+      {expireModal}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-cute text-pink-900 flex items-center gap-2"><span className="w-1.5 h-6 bg-yellow-400 rounded-full inline-block"></span> 用户管理</h2>
@@ -159,7 +255,7 @@ const UsersViewContent = () => {
           </thead>
           <tbody className="text-sm divide-y divide-pink-50">
             {pagedUsers.length > 0 ? pagedUsers.map((user) => (
-              <UserRow key={user.id} user={user} selected={selectedIds.has(user.id)} onSelectChange={toggleSelect} onDelete={() => setDeleteUser(user)} onChangePwd={() => setPwdUser(user)} />
+              <UserRow key={user.id} user={user} selected={selectedIds.has(user.id)} onSelectChange={toggleSelect} onDelete={() => setDeleteUser(user)} onChangePwd={() => setPwdUser(user)} onEditNickname={(u) => { setNicknameUser(u); setNewNickname(u.nickname || ''); }} onEditStatus={(u) => { setStatusUser(u); setNewStatus(u.isActive === 1 || u.isActive === true ? 1 : 0); }} onEditExpire={(u) => { setExpireUser(u); setNewExpire(u.expireMinutes || ''); setResetFirstLogin(false); }} />
             )) : (
               <tr>
                 <td colSpan="8" className="p-10 text-center text-gray-400">未找到匹配的用户。</td>
@@ -167,21 +263,31 @@ const UsersViewContent = () => {
             )}
           </tbody>
         </table>
-        <div className="p-4 flex items-center justify-end gap-3">
-          <div className="text-xs text-gray-500 mr-auto">第 {pageIndex+1} / {totalPages} 页；每页 {pageSize} 条</div>
-          <label className="text-xs text-gray-600">每页</label>
-          <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value) || 10); setPageIndex(0); }} className="dream-input px-2 py-1 rounded-md text-xs">
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-          <button onClick={() => setPageIndex(Math.max(0, pageIndex-1))} disabled={pageIndex===0} className={`px-2.5 py-1 rounded-md text-xs ${pageIndex===0 ? 'bg-gray-200 text-gray-400' : 'bg-white text-gray-600 hover:bg-gray-50'} border border-gray-200`}>上一页</button>
-          <button onClick={() => setPageIndex(Math.min(totalPages-1, pageIndex+1))} disabled={pageIndex>=totalPages-1} className={`px-2.5 py-1 rounded-md text-xs ${pageIndex>=totalPages-1 ? 'bg-gray-200 text-gray-400' : 'bg-white text-gray-600 hover:bg-gray-50'} border border-gray-200`}>下一页</button>
-          <div className="flex items-center gap-1">
-            <span className="text-sm text-gray-600">跳转</span>
-            <input type="number" min="1" max={totalPages} defaultValue={pageIndex+1} onKeyDown={(e) => { if (e.key === 'Enter') jumpTo(e.currentTarget.value); }} className="dream-input w-20 px-3 py-1.5 rounded-lg text-sm text-center" />
+        <div className="p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500">总计 {users.length} 条</span>
+            <label className="text-xs text-gray-600">每页</label>
+            <div className="relative z-[200]">
+              <button onClick={() => setIsPageSizeOpen(v=>!v)} className={`px-2.5 py-1 rounded-md text-xs bg-white text-gray-700 border border-gray-200 ${isPageSizeOpen ? 'ring-4 ring-pink-100/50 border-pink-500' : ''}`}>{pageSize}</button>
+              {isPageSizeOpen && (
+                <ul className="absolute bottom-full mb-1 min-w-[4rem] bg-white border border-pink-200 rounded-xl shadow-xl z-[200]">
+                  {[10,20,50].map(v => (
+                    <li key={v} onClick={() => { setPageSize(v); setPageIndex(0); setIsPageSizeOpen(false); }} className="px-3 py-1.5 text-xs text-gray-700 hover:bg-pink-50 cursor-pointer">
+                      {v}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <button onClick={() => setPageIndex(Math.max(0, pageIndex-1))} disabled={pageIndex===0} className={`px-2.5 py-1 rounded-md text-xs ${pageIndex===0 ? 'bg-gray-200 text-gray-400' : 'bg-white text-gray-600 hover:bg-gray-50'} border border-gray-200`}>上一页</button>
+            <button onClick={() => setPageIndex(Math.min(totalPages-1, pageIndex+1))} disabled={pageIndex>=totalPages-1} className={`px-2.5 py-1 rounded-md text-xs ${pageIndex>=totalPages-1 ? 'bg-gray-200 text-gray-400' : 'bg-white text-gray-600 hover:bg-gray-50'} border border-gray-200`}>下一页</button>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-gray-600">跳转</span>
+              <input type="number" min="1" max={totalPages} defaultValue={pageIndex+1} onKeyDown={(e) => { if (e.key === 'Enter') jumpTo(e.currentTarget.value); }} className="dream-input px-2 py-1 rounded-md text-xs text-center" />
+              <span className="text-xs text-gray-500">/ {totalPages} 页</span>
+            </div>
           </div>
-          <div className="ml-3 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <button onClick={selectPage} className="px-2.5 py-1 rounded-md text-xs bg-white text-gray-700 hover:bg-gray-50 border border-gray-200">全选当页</button>
             <button onClick={startBatchDelete} disabled={!pagedUsers.some(u => selectedIds.has(u.id))} className={`px-2.5 py-1 rounded-md text-xs border border-gray-200 ${pagedUsers.some(u => selectedIds.has(u.id)) ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-200 text-gray-400'}`}>批量删除</button>
             <button onClick={clearSelection} className="px-2.5 py-1 rounded-md text-xs bg-white text-gray-700 hover:bg-gray-50 border border-gray-200">清空选择</button>

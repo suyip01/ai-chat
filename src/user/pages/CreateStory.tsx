@@ -6,6 +6,7 @@ import { ImageCropper } from '../components/ImageCropper';
 import { useToast } from '../components/Toast';
 import { LazyImage } from '../components/LazyImage'
 import { identifyUser, setTag } from '../services/analytics'
+import { saveDraft, getDraft, clearDraft } from '../services/draftStorage'
 
 interface CreateStoryProps {
   onBack: () => void;
@@ -137,6 +138,28 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
       content: initialStory.content || prev.content,
       tags: Array.isArray(initialStory.tags) ? initialStory.tags : prev.tags
     }))
+  }, [initialStory])
+
+  // Auto-save draft
+  const autoSaveTimerRef = useRef<any>(null);
+  useEffect(() => {
+    if (initialStory) return
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(() => {
+      const uid = localStorage.getItem('user_id') || 'guest'
+      saveDraft(`create_story_draft_${uid}`, form)
+    }, 300)
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }
+  }, [form, initialStory])
+
+  // Load draft
+  useEffect(() => {
+    if (initialStory) return
+    ;(async () => {
+      const uid = localStorage.getItem('user_id') || 'guest'
+      const draft = await getDraft(`create_story_draft_${uid}`)
+      if (draft) setForm(prev => ({ ...prev, ...draft }))
+    })()
   }, [initialStory])
 
   useEffect(() => {
@@ -309,6 +332,10 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
         }
         if (status === 'published') onPublish(newStory)
         else onSaveDraft(newStory)
+        if (!initialStory) {
+          const uid = localStorage.getItem('user_id') || 'guest'
+          clearDraft(`create_story_draft_${uid}`)
+        }
         return
       }
       showCenter('保存失败，请重试。', 'error')

@@ -5,6 +5,7 @@ import { Character, CharacterStatus } from '../types';
 import { ImageCropper } from '../components/ImageCropper';
 import { createCharacter, createUserCharacterDraft, updateUserCharacter, updateUserCharacterDraft, getUserCharacter } from '../services/userCharactersService'
 import { identifyUser, setTag } from '../services/analytics'
+import { saveDraft, getDraft, clearDraft } from '../services/draftStorage'
 
 interface CreateCharacterProps {
   onBack: () => void;
@@ -133,6 +134,28 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
     })();
   }, [isEdit, characterId, initial]);
 
+  // Auto-save draft
+  const autoSaveTimerRef = useRef<any>(null);
+  useEffect(() => {
+    if (isEdit) return
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(() => {
+      const uid = localStorage.getItem('user_id') || 'guest'
+      saveDraft(`create_character_draft_${uid}`, form)
+    }, 300)
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }
+  }, [form, isEdit])
+
+  // Load draft
+  useEffect(() => {
+    if (isEdit) return
+    ;(async () => {
+      const uid = localStorage.getItem('user_id') || 'guest'
+      const draft = await getDraft(`create_character_draft_${uid}`)
+      if (draft) setForm(prev => ({ ...prev, ...draft }))
+    })()
+  }, [isEdit])
+
   const roleTypes = ['原创角色', '二次创作', '其他'];
   const relationships = ['陌生人', '暧昧', '恋爱中', '冷战', '分手'];
   const availableTags = [
@@ -247,9 +270,15 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
             } as any
             if (onSaveDraft) onSaveDraft(draftCharacter)
           } catch {}
-          try { localStorage.removeItem('create_character_draft') } catch {}
+          try { 
+            const uid = localStorage.getItem('user_id') || 'guest'
+            localStorage.removeItem('create_character_draft'); 
+            clearDraft(`create_character_draft_${uid}`); 
+          } catch {}
       } else {
+          const uid = localStorage.getItem('user_id') || 'guest'
           localStorage.removeItem('create_character_draft');
+          clearDraft(`create_character_draft_${uid}`);
           setForm({
             type: '原创角色',
             avatar: '',
@@ -376,6 +405,11 @@ export const CreateCharacter: React.FC<CreateCharacterProps> = ({ onBack, onCrea
 
     // Remove draft on successful creation
     localStorage.removeItem('create_character_draft');
+    if (!isEdit) {
+      const uid = localStorage.getItem('user_id') || 'guest'
+      clearDraft(`create_character_draft_${uid}`);
+    }
+
     if (isEdit) {
       onUpdated ? onUpdated(newCharacter) : onCreate(newCharacter)
     } else {
