@@ -14,13 +14,19 @@ router.get('/', async (req, res) => {
     req.log.debug('stories.list.debug', { limit, offset })
     const items = await listStories()
     const published = (items || []).filter(it => String(it.status || '') === 'published')
-    const paged = published.slice(offset, offset + limit)
+    const publishedSorted = published.sort((a, b) => {
+      const ta = new Date(a?.created_at || 0).getTime()
+      const tb = new Date(b?.created_at || 0).getTime()
+      return tb - ta
+    })
+    const paged = publishedSorted.slice(offset, offset + limit)
     const out = paged.map(it => ({
       id: it.id,
       title: it.title,
       description: it.description,
       image: it.image,
       author: it.author,
+      created_at: it.created_at,
       tags: Array.isArray(it.tags) ? it.tags : [],
       likes: it.likes,
       publish_date: it.publish_date,

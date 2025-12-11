@@ -22,6 +22,7 @@ export const listPublishedCharacters = async ({ tag = null, limit = 24, offset =
           c.plot_summary,
           c.opening_line,
           c.character_type,
+          c.created_at,
           (SELECT GROUP_CONCAT(ct.tag) FROM character_tags ct WHERE ct.character_id=c.id) AS tags
        FROM characters c
        LEFT JOIN admins a ON a.username = c.creator
@@ -48,6 +49,7 @@ export const listPublishedCharacters = async ({ tag = null, limit = 24, offset =
       plot_summary: r.plot_summary,
       opening_line: r.opening_line,
       character_type: r.character_type,
+      created_at: r.created_at,
       tags: r.tags ? r.tags.split(',') : [],
     }));
   } catch (err) {

@@ -131,6 +131,7 @@ const App: React.FC = () => {
       ; (async () => {
         try {
           const items = await listStoriesClient({ limit: 10, offset: 0 })
+          items.sort((a: any, b: any) => Number(b?.created_at || 0) - Number(a?.created_at || 0))
           setStories(items)
           setStoryOffset(items.length)
           setHasMoreStories(items.length === 10)
@@ -143,7 +144,8 @@ const App: React.FC = () => {
     setLoadingCharacters(true);
     listCharacters({ limit: 10, offset: 0 })
       .then(items => {
-        const mapped: Character[] = items.map(it => ({
+        const sorted = [...items].sort((a: any, b: any) => Number(b?.created_at || 0) - Number(a?.created_at || 0))
+        const mapped: Character[] = sorted.map(it => ({
           id: String(it.id),
           name: it.name || '未知',
           avatar: it.avatar || '',
@@ -337,6 +339,7 @@ const App: React.FC = () => {
       (async () => {
         try {
           const items = await listStoriesClient({ limit: 10, offset: storyOffset })
+          items.sort((a: any, b: any) => Number(b?.created_at || 0) - Number(a?.created_at || 0))
           if (items.length) setStories(prev => [...prev, ...items])
           setStoryOffset(prev => prev + items.length)
           setHasMoreStories(items.length === 10)
@@ -365,7 +368,8 @@ const App: React.FC = () => {
       (async () => {
         try {
           const items = await listCharacters({ limit: 10, offset: charOffset });
-          const mapped: Character[] = items.map(it => ({
+          const sorted = [...items].sort((a: any, b: any) => Number(b?.created_at || 0) - Number(a?.created_at || 0))
+          const mapped: Character[] = sorted.map(it => ({
             id: String(it.id),
             name: it.name || '未知',
             avatar: it.avatar || '',

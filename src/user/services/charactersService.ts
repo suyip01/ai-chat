@@ -15,6 +15,7 @@ export type PublishedCharacter = {
   plotTheme?: string;
   plotDescription?: string;
   openingLine?: string;
+  created_at?: number | string;
 };
 
 const toCharacter = (item: any): PublishedCharacter => ({
@@ -34,6 +35,7 @@ const toCharacter = (item: any): PublishedCharacter => ({
   plotTheme: item?.plotTheme ?? item?.plot_theme ?? '',
   plotDescription: item?.plotDescription ?? item?.plot_summary ?? '',
   openingLine: item?.openingLine ?? item?.opening_line ?? '',
+  created_at: item?.created_at ?? 0,
 });
 
 export const listCharacters = async (params?: { tag?: string; limit?: number; offset?: number }) => {
@@ -46,6 +48,7 @@ export const listCharacters = async (params?: { tag?: string; limit?: number; of
   if (!res.ok) throw new Error('failed');
   const data = await res.json();
   const items = Array.isArray(data?.items) ? data.items : [];
+  items.sort((a, b) => Number(b?.created_at || 0) - Number(a?.created_at || 0));
   return items.map(toCharacter);
 };
 
