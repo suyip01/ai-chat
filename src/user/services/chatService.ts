@@ -1,23 +1,4 @@
-import { BASE_URL } from '../api'
-import { Message, MessageType, UserPersona } from '../types'
-
-const token = () => localStorage.getItem('user_access_token') || ''
-const refreshToken = () => localStorage.getItem('user_refresh_token') || ''
-const refreshAccessToken = async (): Promise<boolean> => {
-  const rt = refreshToken()
-  if (!rt) return false
-  try {
-    const rf = await fetch(`${BASE_URL}/auth/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) })
-    if (!rf.ok) return false
-    const data = await rf.json()
-    const at = data?.access_token || ''
-    if (!at) return false
-    try { localStorage.setItem('user_access_token', at) } catch {}
-    return true
-  } catch {
-    return false
-  }
-}
+import { UserPersona } from '../types'
 
 const genderMap = (g?: 'male'|'female'|'secret') => {
   if (g === 'male') return '男'
@@ -58,31 +39,7 @@ export const updateUserChatRole = async (id: number, persona?: UserPersona) => {
   return true
 }
 
-export const upsertUserChatRole = async (persona?: UserPersona) => {
-  const existing = localStorage.getItem('user_chat_role_id')
-  const body = {
-    name: persona?.name || '未命名',
-    age: parseInt(persona?.age || '0') || null,
-    gender: genderMap(persona?.gender),
-    profession: persona?.profession || null,
-    basic_info: persona?.basicInfo || null,
-    personality: persona?.personality || null,
-    avatar: persona?.avatar || null,
-  }
-  if (existing) {
-    const id = parseInt(existing)
-    const res = await fetch(`${BASE_URL}/user/chat-role/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-      body: JSON.stringify(body)
-    })
-    if (!res.ok) throw new Error('update_role_failed')
-    return id
-  }
-  const id = await ensureUserChatRole(persona)
-  localStorage.setItem('user_chat_role_id', String(id))
-  return id
-}
+
 
 export const fetchUserChatRoles = async (): Promise<Array<{ id: number; name: string; age: number | null; gender: string; profession: string | null; basic_info: string | null; personality: string | null; avatar: string | null }>> => {
   const { authFetch } = await import('./http')
@@ -110,107 +67,9 @@ export const createChatSession = async (characterId: string|number, userChatRole
   return { sessionId: data.sessionId, model: data.model, temperature: data.temperature }
 }
 
-export const fetchHistory = async (_sessionId: string, _limit = 100): Promise<Message[]> => {
-  return []
-}
 
-export const connectChatWs = (sessionId: string, onAssistantMessage: (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => void, onControl?: (payload: any) => void) => {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  const wsOrigin = `${proto}://${location.host}`
-  const url = `${wsOrigin}/ws/chat`
-  console.log('[ws] connecting', url)
-  let ws: WebSocket | null = null
-  let manualClose = false
-  let backoff = 1000
-  const maxBackoff = 10000
-  const queue: any[] = []
-  let lastPayload: any = null
-  let needResendLast = false
-  let serverReady = false
-  let readyTimer: any = null
 
-  const open = () => {
-    const tk = token()
-    const withQuery = tk ? `${url}?token=${encodeURIComponent(tk)}` : url
-    ws = new WebSocket(withQuery)
-    ws.onmessage = (ev) => {
-      try {
-        const data = JSON.parse(String(ev.data))
-        if (data && data.type === 'assistant_message' && typeof data.content === 'string') onAssistantMessage(data.content, data.quote, { chunkIndex: data.chunkIndex, chunkTotal: data.chunkTotal })
-        else if (data && data.type === 'force_logout') { try { onControl && onControl(data) } catch {} ; manualClose = true ; try { ws?.close(1008, 'account_disabled') } catch {} }
-        else if (data && data.type === 'refresh_required') { try { onControl && onControl(data) } catch {} ; needResendLast = true; try { console.log('[ws] refresh_required, will resend last') } catch {} }
-        else if (data && data.type === 'ws_ready') {
-          serverReady = true
-          if (readyTimer) { try { clearTimeout(readyTimer) } catch {} ; readyTimer = null }
-          while (queue.length) {
-            const p = queue.shift()
-            try { ws?.send(JSON.stringify(p)) } catch {}
-          }
-          if (needResendLast && lastPayload) { try { console.log('[ws] resend last payload (ws_ready)', lastPayload) } catch {} ; try { ws?.send(JSON.stringify(lastPayload)) } catch {} ; needResendLast = false }
-        }
-      } catch {}
-    }
-    ws.onerror = (e) => { console.error('[ws] error', e) }
-    ws.onopen = () => {
-      console.log('[ws] open')
-      backoff = 1000
-      const typingFalse = { type: 'typing', sessionId, typing: false }
-      try { ws?.send(JSON.stringify(typingFalse)) } catch {}
-      serverReady = false
-      if (readyTimer) { try { clearTimeout(readyTimer) } catch {} ; readyTimer = null }
-      readyTimer = setTimeout(() => {
-        if (serverReady) return
-        while (queue.length) {
-          const p = queue.shift()
-          try { ws?.send(JSON.stringify(p)) } catch {}
-        }
-        if (needResendLast && lastPayload) { try { console.log('[ws] resend last payload (timeout)', lastPayload) } catch {} ; try { ws?.send(JSON.stringify(lastPayload)) } catch {} ; needResendLast = false }
-      }, 300)
-    }
-    ws.onclose = async (ev) => {
-      console.log('[ws] closed')
-      if (manualClose) return
-      const needRefresh = ev && (ev.code === 1008 || String(ev.reason || '').toLowerCase().includes('unauthorized'))
-      if (needRefresh) {
-        const ok = await refreshAccessToken()
-        if (lastPayload) needResendLast = true
-        if (ok) { backoff = 1000; open(); return }
-        try { localStorage.removeItem('user_access_token'); localStorage.removeItem('user_refresh_token') } catch {}
-        try { window.location.reload() } catch {}
-        return
-      }
-      setTimeout(open, backoff)
-      backoff = Math.min(backoff * 2, maxBackoff)
-    }
-  }
-  open()
-  const sendText = (text: string, chatMode?: 'daily'|'scene', userRole?: UserPersona, modelId?: string, temperature?: number) => {
-    const payload: any = { sessionId, text, chatMode }
-    if (userRole) {
-      payload.userRole = {
-        name: userRole.name,
-        gender: genderMap(userRole.gender),
-        age: userRole.age || '',
-        profession: userRole.profession || '',
-        basic_info: userRole.basicInfo || '',
-        personality: userRole.personality || '',
-        avatar: userRole.avatar || ''
-      }
-    }
-    if (modelId) payload.model_id = modelId
-    if (typeof temperature === 'number') payload.temperature = temperature
-    lastPayload = payload
-    if (ws && ws.readyState === WebSocket.OPEN) { try { console.log('[ws] send payload', payload) } catch {} ; ws.send(JSON.stringify(payload)) }
-    else { try { console.log('[ws] queue payload (ws not open)', payload) } catch {} ; queue.push(payload) }
-  }
-  const sendTyping = (typing: boolean) => {
-    const payload = { type: 'typing', sessionId, typing }
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload))
-    else queue.push(payload)
-  }
-  const close = () => { manualClose = true; try { ws?.close() } catch {} }
-  return { ws, sendText, sendTyping, close }
-}
+// Deprecated: connectChatWs removed in favor of sharedChatWs
 
 export const listModels = async (): Promise<Array<{ id: string; nickname: string }>> => {
   const { authFetch } = await import('./http')
@@ -220,28 +79,41 @@ export const listModels = async (): Promise<Array<{ id: string; nickname: string
   return Array.isArray(data.items) ? data.items : []
 }
 
-export const updateSessionConfig = async (sessionId: string, cfg: { modelId?: string; temperature?: number }) => {
-  const body: any = {}
-  if (cfg.modelId) body.model_id = cfg.modelId
-  if (typeof cfg.temperature === 'number') body.temperature = cfg.temperature
-  const { authFetch } = await import('./http')
-  const res = await authFetch(`/chat/sessions/${sessionId}/config`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-  if (!res.ok) throw new Error('update_session_config_failed')
-  return true
+
+
+const pendingSessionRequests = new Map<string, Promise<any>>();
+
+export const getSessionInfo = async (sessionId: string): Promise<{ model?: { id: string; nickname: string }; temperature?: number; session?: { sid: string; userId: string; characterId: string; userRoleId?: string; created_at?: string } }> => {
+  if (pendingSessionRequests.has(sessionId)) {
+    return pendingSessionRequests.get(sessionId);
+  }
+
+  const promise = (async () => {
+    try {
+      const { authFetch } = await import('./http')
+      const res = await authFetch(`/chat/sessions/${sessionId}`, { method: 'GET' })
+      if (!res.ok) {
+        if (res.status === 404) {
+          const err: any = new Error('session_not_found')
+          err.status = 404
+          throw err
+        }
+        throw new Error('get_session_failed')
+      }
+      const data = await res.json()
+      const sess = data?.session || {}
+      return { model: (sess as any)?.model, temperature: (sess as any)?.temperature, session: sess }
+    } finally {
+      pendingSessionRequests.delete(sessionId)
+    }
+  })()
+
+  pendingSessionRequests.set(sessionId, promise)
+  return promise
 }
 
-export const getSessionInfo = async (sessionId: string): Promise<{ model?: { id: string; nickname: string }; temperature?: number }> => {
+export const closeSession = async (sessionId: string): Promise<boolean> => {
   const { authFetch } = await import('./http')
-  const res = await authFetch(`/chat/sessions/${sessionId}`, { method: 'GET' })
-  if (!res.ok) {
-    if (res.status === 404) {
-      const err: any = new Error('session_not_found')
-      err.status = 404
-      throw err
-    }
-    throw new Error('get_session_failed')
-  }
-  const data = await res.json()
-  const sess = data?.session || {}
-  return { model: sess?.model, temperature: sess?.temperature }
+  const res = await authFetch(`/chat/sessions/${sessionId}/close`, { method: 'POST' })
+  return !!res && res.ok
 }

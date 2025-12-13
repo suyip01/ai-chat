@@ -45,6 +45,11 @@ export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin, 
             </div>
           )}
         </div>
+        {chat.unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-red-400 text-white text-[10px] font-bold rounded-full shadow ring-2 ring-white flex items-center justify-center">
+            {chat.unreadCount}
+          </span>
+        )}
       </div>
 
       {/* Content */}
@@ -77,12 +82,6 @@ export const ChatItem: React.FC<ChatItemProps> = ({ chat, onClick, onTogglePin, 
                     className={`transform rotate-45 ${chat.character.isPinned ? 'fill-primary-400' : ''}`} 
                 />
             </button>
-
-            {chat.unreadCount > 0 && (
-                <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-400 text-white text-[10px] font-bold rounded-full">
-                {chat.unreadCount}
-                </span>
-            )}
           </div>
         </div>
       </div>

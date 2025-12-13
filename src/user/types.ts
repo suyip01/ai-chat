@@ -69,9 +69,11 @@ export interface Message {
   type: MessageType;
   quote?: string;
   read?: boolean;
+  failed?: boolean;
 }
 
 export interface ChatPreview {
+  sessionId: string;
   characterId: string;
   character: Character;
   lastMessage: Message;

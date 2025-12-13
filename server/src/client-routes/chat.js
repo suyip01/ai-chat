@@ -3,6 +3,7 @@ import { userAuthRequired } from '../middleware/userAuth.js'
 import { createSession, getSession } from '../client-services/chatSessions.js'
 import { getMessages } from '../client-services/chatMessages.js'
 import pool from '../db.js'
+import { getRedis, keySess } from '../client-services/redis.js'
 
 const router = Router()
 router.use(userAuthRequired)
@@ -61,3 +62,16 @@ router.get('/models', async (req, res) => {
 })
 
 // removed: session config endpoint; model and temperature are provided per-message
+
+router.post('/sessions/:id/close', async (req, res) => {
+  try {
+    const sid = req.params.id
+    req.log.info('chat.sessions.close', { sid })
+    const r = await getRedis()
+    await r.hSet(keySess(sid), { closed_at: String(Date.now()) })
+    res.json({ ok: true })
+  } catch (e) {
+    req.log.error('chat.sessions.close.error', { message: e?.message || String(e), stack: e?.stack, sid: req.params.id })
+    res.status(500).json({ error: 'server_error' })
+  }
+})

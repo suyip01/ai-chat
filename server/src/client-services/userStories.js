@@ -67,9 +67,13 @@ export const createUserStory = async (userId, payload) => {
     characterIds = []
   } = payload || {}
   try {
+  logger.debug('service.userStories.create.user.sql', { sql: 'SELECT nickname, username FROM users WHERE id=? LIMIT 1', params: [userId] })
+  const [[u]] = await pool.query('SELECT nickname, username FROM users WHERE id=? LIMIT 1', [userId])
+  const author = (u?.nickname || u?.username || 'User')
+
   const sqlIns = `INSERT INTO stories (id, user_id, title, description, image, author, status, content)
-     VALUES (?,?,?,?,?,NULL,?,?)`
-  const paramsIns = [id, userId, title, description, image, status, content]
+     VALUES (?,?,?,?,?,?,?,?)`
+  const paramsIns = [id, userId, title, description, image, author, status, content]
   logger.debug('service.userStories.create.sql', { sql: sqlIns, params: paramsIns })
   await pool.query(sqlIns, paramsIns)
   if (Array.isArray(tags) && tags.length) {

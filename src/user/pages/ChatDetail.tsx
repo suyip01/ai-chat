@@ -1,14 +1,17 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Send, MoreVertical, X, ChevronRight, User as UserIcon, MessageSquare, Cpu, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, X, ChevronRight, User as UserIcon, MessageSquare, Cpu, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion'
 import { androidSlideRight, fade } from '../animations'
 import { UserCharacterSettings } from '../components/UserCharacterSettings';
 import { UserRoleSelectorSheet } from '../components/UserRoleSelectorSheet';
 import { ModelSelectorSheet } from '../components/ModelSelectorSheet';
 import { Character, Message, MessageType, UserPersona } from '../types';
-import { createChatSession, connectChatWs, updateSessionConfig, getSessionInfo } from '../services/chatService';
+import { createChatSession, getSessionInfo } from '../services/chatService';
+import { sharedChatWs } from '../services/sharedChatWs'
 import { trackEvent, setTag } from '../services/analytics'
+import { listMessages as dbListMessages, putConfig as dbPutConfig, getConfig as dbGetConfig, putSession as dbPutSession, addMessage as dbAddMessage } from '../services/chatDb'
+import { chatEvents } from '../services/chatEvents'
 
 interface ChatDetailProps {
   character: Character;
@@ -19,6 +22,7 @@ interface ChatDetailProps {
   onOpenUserSettings: () => void;
   onShowProfile: () => void;
   onUpdateUserPersona?: (persona: UserPersona) => void;
+  sessionId?: string;
 }
 
 export const ChatDetail: React.FC<ChatDetailProps> = ({
@@ -29,9 +33,10 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   onUpdateLastMessage,
   onOpenUserSettings,
   onShowProfile,
-  onUpdateUserPersona
+  onUpdateUserPersona,
+  sessionId: sessionIdProp
 }) => {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>(initialMessages.map(m => ({ ...m, saved: true } as any)));
   // Default to Scene mode with brackets pre-filled
   const [chatMode, setChatMode] = useState<'daily' | 'scene'>('scene');
   const [input, setInput] = useState('（）');
@@ -57,8 +62,8 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const updatePersona = onUpdateUserPersona ?? ((_: UserPersona) => { });
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const wsRef = useRef<{ sendText: (t: string, chatMode?: 'daily' | 'scene', userRole?: UserPersona, modelId?: string, temperature?: number) => void; sendTyping: (typing: boolean) => void; close: () => void } | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(sessionIdProp || null);
+  const wsSubRef = useRef<((text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => void) | null>(null)
   const currentUserId = (() => { try { return localStorage.getItem('user_id') || '0' } catch { return '0' } })();
   const histKey = `chat_history_${currentUserId}_${character.id}`;
   const configKey = `chat_config_${character.id}`;
@@ -69,6 +74,18 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   const [chatBg, setChatBg] = useState<string | undefined>(undefined)
   const bgInputRef = useRef<HTMLInputElement>(null)
   const [isBgDark, setIsBgDark] = useState<boolean | null>(null)
+  const ackTimersRef = useRef<Map<string, number>>(new Map())
+  const spinnerTimersRef = useRef<Map<string, number>>(new Map())
+  const sessionIdRef = useRef(sessionId)
+
+  useEffect(() => { sessionIdRef.current = sessionId }, [sessionId])
+
+  useEffect(() => {
+    return () => {
+      ackTimersRef.current.forEach(t => clearTimeout(t))
+      spinnerTimersRef.current.forEach(t => clearTimeout(t))
+    }
+  }, [])
 
   const analyzeBgBrightness = (src?: string) => {
     if (!src) return;
@@ -119,16 +136,39 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
   }, [personaLocal]);
 
   const appendAssistantWithRead = (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => {
+    const sid = sessionIdProp || sessionId
+    const chunkPart = (typeof meta?.chunkIndex === 'number') ? `c${meta!.chunkIndex}_${meta!.chunkTotal ?? 't'}` : Math.random().toString(36).slice(2)
+    const msg: Message = {
+      id: `msg_${Date.now()}_${chunkPart}`,
+      senderId: character.id,
+      text,
+      quote,
+      timestamp: new Date(),
+      type: MessageType.TEXT,
+      saved: true
+    } as any
     setMessages(prev => {
       const next = [...prev];
       for (let i = next.length - 1; i >= 0; i--) {
         if (next[i].senderId === 'user' && !(next[i] as any).read) { next[i] = { ...next[i], read: true }; break; }
       }
-      const msg: Message = { id: (Date.now() + 1).toString(), senderId: character.id, text, quote, timestamp: new Date(), type: MessageType.TEXT };
       next.push(msg);
+      try { console.log('[CHAT-LIVE] append assistant', { id: msg.id, chunk: meta }) } catch {}
+      messagesRef.current = next
       try { setTimeout(() => onUpdateLastMessage(msg), 0) } catch { }
       return next;
     });
+
+    if (sid) {
+      try {
+        const cur = localStorage.getItem('current_chat_sid') || ''
+        if (cur && cur === sid) {
+          // DB write centralized in sharedChatWs to avoid duplicates
+          console.log('[CHAT-DETAIL] skip write (centralized)', { sid, mid: msg.id })
+        }
+      } catch {}
+    }
+
     if (meta && typeof meta.chunkIndex === 'number' && typeof meta.chunkTotal === 'number') {
       setIsTyping(meta.chunkIndex < meta.chunkTotal);
     } else {
@@ -216,36 +256,62 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     }
   }, [])
 
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages }, [messages]);
+
+  useEffect(() => {
+    const sid = sessionIdProp || sessionId
+    return () => { void sid }
+  }, [sessionIdProp, sessionId])
+
   useEffect(() => {
     try {
-      const legacyKey = `chat_history_${character.id}`
-      const raw = localStorage.getItem(histKey) || (currentUserId === '0' ? localStorage.getItem(legacyKey) : null);
-      if (raw) {
-        const arr = JSON.parse(raw) as Array<{ id: string; senderId: string; text: string; ts: number; type: string; quote?: string; read?: boolean }>;
-        const msgs: Message[] = arr.map(m => ({ id: m.id, senderId: m.senderId, text: m.text, timestamp: new Date(m.ts), type: m.type as MessageType, quote: m.quote, read: m.read }));
-        if (msgs.length) setMessages(msgs);
+      const sid = sessionIdProp || sessionId
+      if (sid) {
+        dbListMessages(sid, 500).then(rows => {
+          try { console.log('[CHAT-ENTER] load messages', { sid, count: rows.length }) } catch {}
+          const msgs: Message[] = rows.map(r => ({ id: r.id || `msg_${r.timestamp}`, senderId: r.senderId, text: r.text, timestamp: new Date(r.timestamp), type: MessageType.TEXT, quote: r.quote, saved: true, failed: r.failed } as any))
+          setMessages(msgs)
+            ; (window as any).__last_msgs_cache = rows
+        }).catch(() => { })
       }
     } catch { }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [character.id]);
+  }, [character.id, sessionIdProp, sessionId]);
+
+  useEffect(() => {
+    const unsub = chatEvents.onMessageCommitted(({ sessionId: sid }) => {
+      const cur = sessionIdProp || sessionId
+      if (!cur || cur !== sid) return
+      // When message is committed, we might want to reload to ensure consistency, 
+      // but we also have it live.
+      // If we blindly reload, we might flicker. 
+      // Since appendAssistantWithRead manages live updates, strict reloading might NOT be necessary if the content is same.
+      // However, to ensure we have the 'saved' state or identical IDs, let's just reload nicely or merge.
+      // For now, let's keep the reload but check if it causes jump.
+
+      dbListMessages(cur, 500).then(rows => {
+        const msgs: Message[] = rows.map(r => ({ id: r.id || `msg_${r.timestamp}`, senderId: r.senderId, text: r.text, timestamp: new Date(r.timestamp), type: MessageType.TEXT, quote: r.quote }))
+        // If the new list is longer or different, set it.
+        setMessages(msgs)
+      }).catch(() => { })
+    })
+    return () => { try { unsub() } catch { } }
+  }, [sessionIdProp, sessionId])
 
   useEffect(() => {
     try {
-      const arr = messages.map(m => ({ id: m.id, senderId: m.senderId, text: m.text, ts: m.timestamp?.getTime?.() ? m.timestamp.getTime() : Date.now(), type: m.type, quote: m.quote, read: (m as any).read }));
-      localStorage.setItem(histKey, JSON.stringify(arr));
-    } catch { }
-  }, [messages]);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(configKey);
-      if (raw) {
-        const cfg = JSON.parse(raw) as { chatMode?: 'daily' | 'scene'; persona?: UserPersona };
-        if (cfg?.chatMode === 'daily' || cfg?.chatMode === 'scene') {
-          setChatMode(cfg.chatMode);
-          setInput(cfg.chatMode === 'scene' ? '（）' : '');
-        }
-        if (cfg?.persona) setPersonaLocal(cfg.persona);
+      const sid = sessionIdProp || sessionId
+      if (sid) {
+        dbGetConfig(sid).then(cfg => {
+          if (!cfg) return
+          if (cfg.mode === 'daily' || cfg.mode === 'scene') {
+            setChatMode(cfg.mode)
+            setInput(cfg.mode === 'scene' ? '（）' : '')
+          }
+          if (cfg.persona) setPersonaLocal(cfg.persona as any)
+          if (typeof cfg.temperature === 'number') setModelTemp(cfg.temperature!)
+        }).catch(() => { })
       }
       const mid = localStorage.getItem(modelKey) || undefined
       const tRaw = localStorage.getItem(tempKey)
@@ -266,8 +332,12 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
   useEffect(() => {
     const key = `chat_session_${currentUserId}_${character.id}`;
-    const sid = localStorage.getItem(key) || localStorage.getItem(`chat_session_${character.id}`);
+    let activeSid: string | null = null;
+    let activeSub: ((text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => void) | null = null;
+
     const setup = async () => {
+      let sid = localStorage.getItem(key) || localStorage.getItem(`chat_session_${character.id}`);
+
       if (sid) {
         setSessionId(sid);
         // migrate legacy session key
@@ -275,11 +345,6 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         try {
           const info = await getSessionInfo(sid)
           if (info?.temperature !== undefined) { setModelTemp(info.temperature as number); try { localStorage.setItem(tempKey, String(info.temperature)) } catch { } }
-          const conn = connectChatWs(sid, (text, quote, meta) => {
-            appendAssistantWithRead(text, quote, meta);
-          }, (payload) => { if (payload && payload.type === 'force_logout') setShowDisabledPrompt(true) });
-          wsRef.current = conn;
-          return;
         } catch (e: any) {
           const msg = String(e?.message || '')
           if (msg === 'session_not_found' || e?.status === 404) {
@@ -287,25 +352,71 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
             return
           }
         }
+      } else {
+        try {
+          const ridRaw = localStorage.getItem('user_chat_role_id');
+          const rid = ridRaw ? parseInt(ridRaw) : undefined;
+          const created = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
+          sid = created.sessionId;
+          localStorage.setItem(key, sid);
+          setSessionId(sid);
+          if (created.model?.id) { setModelId(created.model.id); try { localStorage.setItem(modelKey, created.model.id) } catch { } }
+          if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch { } }
+        } catch { }
       }
-      try {
-        const ridRaw = localStorage.getItem('user_chat_role_id');
-        const rid = ridRaw ? parseInt(ridRaw) : undefined;
-        const created = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
-        const sid = created.sessionId;
-        localStorage.setItem(key, sid);
-        setSessionId(sid);
-        if (created.model?.id) { setModelId(created.model.id); try { localStorage.setItem(modelKey, created.model.id) } catch { } }
 
-        if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch { } }
-        const conn = connectChatWs(sid, (text, quote, meta) => {
-          appendAssistantWithRead(text, quote, meta);
-        }, (payload) => { if (payload && payload.type === 'force_logout') setShowDisabledPrompt(true) });
-        wsRef.current = conn;
+      if (sid) {
+        activeSid = sid
+        try { localStorage.setItem('current_chat_sid', sid) } catch { }
+        sharedChatWs.ensureConnected()
+        const sub = (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => {
+          appendAssistantWithRead(text, quote, meta)
+        }
+        activeSub = sub
+        if (!wsSubRef.current) {
+          wsSubRef.current = sub
+          sharedChatWs.subscribe(sid, sub)
+        }
+        sharedChatWs.addControlListener((payload) => {
+          if (!payload) return
+          if (payload.type === 'force_logout') setShowDisabledPrompt(true)
+          if (payload.type === 'user_ack') {
+            const sidAck = String(payload.sessionId || '')
+            const msgId = String(payload.clientMsgId || payload.client_msg_id || '')
+            const curSid = sessionIdProp || sessionIdRef.current || activeSid
+            if (curSid && sidAck && curSid === sidAck && msgId) {
+              setIsTyping(true)
+              setMessages(prev => {
+                const next = prev.map(m => {
+                  if (m.senderId === 'user' && (m as any).id === msgId) {
+                    const updated = { ...m, saved: true, failed: false, pendingAck: false, spinning: false } as any
+                    dbAddMessage({ ...updated, sessionId: curSid, userId: currentUserId, timestamp: updated.timestamp.getTime(), failed: false }).catch(() => { })
+                    return updated
+                  }
+                  return m
+                })
+                return next
+              })
+              const t = ackTimersRef.current.get(msgId)
+              if (t) { try { clearTimeout(t) } catch {}; ackTimersRef.current.delete(msgId) }
+              const st = spinnerTimersRef.current.get(msgId)
+              if (st) { try { clearTimeout(st) } catch {}; spinnerTimersRef.current.delete(msgId) }
+            }
+          }
+        })
+      }
+    };
+
+    setup();
+
+    return () => {
+      if (activeSid && activeSub) { try { sharedChatWs.unsubscribe(activeSid, activeSub as any) } catch { } }
+      wsSubRef.current = null
+      try {
+        const cur = localStorage.getItem('current_chat_sid') || ''
+        if (cur && cur === activeSid) localStorage.removeItem('current_chat_sid')
       } catch { }
     };
-    setup();
-    return () => { wsRef.current?.close(); wsRef.current = null };
   }, [character.id]);
 
   const handleModeSwitch = (mode: 'daily' | 'scene') => {
@@ -332,9 +443,10 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
             const cfg = JSON.parse(raw) as { chatMode?: 'daily' | 'scene'; persona?: UserPersona }
             if (cfg && cfg.persona) nextPersona = cfg.persona
           }
-        } catch {}
+        } catch { }
       }
-      localStorage.setItem(configKey, JSON.stringify({ chatMode: mode, persona: nextPersona }))
+      const sid = sessionIdProp || sessionId
+      if (sid) dbPutConfig(sid, { sessionId: sid, mode, persona: nextPersona })
       trackEvent('聊天模式.切换', { 目标模式: mode === 'scene' ? '场景' : '日常' })
       setTag('聊天模式', mode === 'scene' ? '场景' : '日常')
     } catch { }
@@ -346,45 +458,72 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     if (input.trim() === '（）' || input.trim() === '()') return;
 
     const userMsg: Message = {
-      id: Date.now().toString(),
+      id: `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`,
       senderId: 'user',
       text: input,
       timestamp: new Date(),
       type: MessageType.TEXT,
-      read: false
-    };
+      read: false,
+      saved: false
+    } as any;
 
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => [...prev, { ...userMsg, pendingAck: true } as any]);
     try { setTimeout(() => onUpdateLastMessage(userMsg), 0) } catch { }
     // Reset input based on mode
     setInput(chatMode === 'scene' ? '（）' : '');
-    setIsTyping(true);
-    try { trackEvent('聊天.发送', { 文本长度: input.length, 聊天模式: chatMode === 'scene' ? '场景' : '日常' }) } catch {}
+    try { trackEvent('聊天.发送', { 文本长度: input.length, 聊天模式: chatMode === 'scene' ? '场景' : '日常' }) } catch { }
 
     try {
-      if (!sessionId) {
+      let sidToUse = sessionIdProp || sessionId || null
+      if (!sidToUse) {
         const ridRaw = localStorage.getItem('user_chat_role_id');
         const rid = ridRaw ? parseInt(ridRaw) : undefined;
         const created = await createChatSession(character.id, typeof rid === 'number' ? rid : undefined);
         const sid = created.sessionId;
         localStorage.setItem(`chat_session_${currentUserId}_${character.id}`, sid);
         setSessionId(sid);
-        const conn = connectChatWs(sid, (text, quote, meta) => {
-          appendAssistantWithRead(text, quote, meta);
-        });
-        wsRef.current = conn;
+        try { await dbPutSession({ sessionId: sid, userId: currentUserId, characterId: String(character.id) }) } catch { }
+        sidToUse = sid
+        sharedChatWs.ensureConnected()
+        const sub = (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => {
+          appendAssistantWithRead(text, quote, meta)
+        }
+        if (!wsSubRef.current) {
+          wsSubRef.current = sub
+          sharedChatWs.subscribe(sid, sub)
+        }
       }
-      wsRef.current?.sendText(
-        userMsg.text,
-        chatMode,
-        effectivePersona,
-        hasModelOverride ? modelId : undefined,
-        hasTempOverride ? modelTemp : undefined
-      );
-      wsRef.current?.sendTyping(false);
+      if (sidToUse) {
+        dbAddMessage({ id: userMsg.id, sessionId: sidToUse, userId: currentUserId, senderId: 'user', text: userMsg.text, timestamp: userMsg.timestamp.getTime(), type: 'TEXT' }).catch(() => { })
+        sharedChatWs.sendText(
+          sidToUse,
+          userMsg.text,
+          chatMode,
+          effectivePersona,
+          hasModelOverride ? modelId : undefined,
+          hasTempOverride ? modelTemp : undefined,
+          userMsg.id
+        )
+        sharedChatWs.sendTyping(sidToUse, false)
+        const timer = window.setTimeout(() => {
+          setMessages(prev => prev.map(m => (m.senderId === 'user' && (m as any).id === userMsg.id && !(m as any).saved) ? ({ ...m, failed: true, pendingAck: false, spinning: false } as any) : m))
+          dbAddMessage({ ...userMsg, sessionId: sidToUse, userId: currentUserId, timestamp: userMsg.timestamp.getTime(), failed: true }).catch(() => { })
+          ackTimersRef.current.delete(userMsg.id)
+          const st = spinnerTimersRef.current.get(userMsg.id)
+          if (st) { try { clearTimeout(st) } catch {}; spinnerTimersRef.current.delete(userMsg.id) }
+        }, 8000)
+        ackTimersRef.current.set(userMsg.id, timer)
+
+        const spinnerTimer = window.setTimeout(() => {
+          setMessages(prev => prev.map(m => (m.senderId === 'user' && (m as any).id === userMsg.id && (m as any).pendingAck) ? ({ ...m, spinning: true } as any) : m))
+          spinnerTimersRef.current.delete(userMsg.id)
+        }, 2000)
+        spinnerTimersRef.current.set(userMsg.id, spinnerTimer)
+      }
     } catch (e) {
       console.error(e);
       setIsTyping(false);
+      setMessages(prev => prev.map(m => (m.senderId === 'user' && (m as any).id === userMsg.id) ? ({ ...m, failed: true, pendingAck: false } as any) : m))
     }
   };
 
@@ -448,68 +587,143 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
             const isMe = msg.senderId === 'user';
 
             return (
-              <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} mb-4 group`}>
+              <div key={`${msg.id}_${index}`} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} mb-4 group`}>
 
-                {/* Character Avatar */}
-                {!isMe && (
-                  <div className="flex-shrink-0 mr-3 flex flex-col items-center gap-1">
-                    <div
-                      onClick={onShowProfile}
-                      className="w-10 h-10 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center text-blue-500 font-bold border border-white cursor-pointer active:scale-95 transition-transform"
-                    >
-                      {(!charImgError && character.avatar) ? (
-                        <img src={character.avatar} alt={character.name} className="w-full h-full object-cover" onError={() => setCharImgError(true)} />
-                      ) : (
-                        character.name[0]
-                      )}
-                    </div>
-                  </div>
-                )}
+                {/* User Message Layout Refactored for Vertical Alignment */}
+                {isMe ? (
+                  <div className="flex w-full justify-end mb-4 group">
+                     {/* Wrapper for Content + Indicators */}
+                     <div className="flex flex-col items-end max-w-[75%]">
+                       <div className="flex items-center justify-end gap-2">
+                          {/* Retry Button */}
+                          {(msg as any).failed && (
+                            <div className="flex items-center justify-center">
+                              <button
+                                className="w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform"
+                                onClick={() => {
+                                  const sidToUse = sessionIdProp || sessionId
+                                  if (!sidToUse) return
+                                  const mid = (msg as any).id
+                                  setMessages(prev => prev.map(m => (m as any).id === mid ? ({ ...m, failed: false, pendingAck: true, spinning: false } as any) : m))
+                                  
+                                  sharedChatWs.sendText(
+                                    sidToUse,
+                                    msg.text,
+                                    chatMode,
+                                    effectivePersona,
+                                    hasModelOverride ? modelId : undefined,
+                                    hasTempOverride ? modelTemp : undefined,
+                                    mid
+                                  )
+                                  const old = ackTimersRef.current.get(mid)
+                                  if (old) { try { clearTimeout(old) } catch {}; ackTimersRef.current.delete(mid) }
+                                  const oldS = spinnerTimersRef.current.get(mid)
+                                  if (oldS) { try { clearTimeout(oldS) } catch {}; spinnerTimersRef.current.delete(mid) }
 
-                {/* Message Bubble */}
-                <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]`}>
-                  <div
-                    className={`
-                      px-4 py-3 text-[15px] shadow-sm leading-relaxed relative
-                      ${isMe
-                        ? 'bg-[#A855F7] text-white rounded-[20px] rounded-tr-sm'
-                        : 'bg-white text-slate-800 rounded-[20px] rounded-tl-sm border border-slate-100'
-                      }
-                    `}
-                  >
-                    {msg.text}
+                                  const t = window.setTimeout(() => {
+                                    setMessages(prev => prev.map(m => ((m as any).id === mid && !(m as any).saved) ? ({ ...m, failed: true, pendingAck: false, spinning: false } as any) : m))
+                                    dbAddMessage({ ...msg, sessionId: sidToUse, userId: currentUserId, timestamp: msg.timestamp.getTime(), failed: true } as any).catch(() => { })
+                                    ackTimersRef.current.delete(mid)
+                                    const st = spinnerTimersRef.current.get(mid)
+                                    if (st) { try { clearTimeout(st) } catch {}; spinnerTimersRef.current.delete(mid) }
+                                  }, 8000)
+                                  ackTimersRef.current.set(mid, t)
+
+                                  const spinnerTimer = window.setTimeout(() => {
+                                    setMessages(prev => prev.map(m => (m.senderId === 'user' && (m as any).id === mid && (m as any).pendingAck) ? ({ ...m, spinning: true } as any) : m))
+                                    spinnerTimersRef.current.delete(mid)
+                                  }, 2000)
+                                  spinnerTimersRef.current.set(mid, spinnerTimer)
+                                }}
+                                title="重新发送"
+                              >
+                                <span className="font-bold text-xs">!</span>
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Loading Spinner */}
+                          {(msg as any).spinning && !(msg as any).failed && (
+                            <div className={`flex items-center justify-center ${chatBg ? 'p-1 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30' : 'bg-black/30') : ''}`}>
+                              <Loader2 className={`w-4 h-4 animate-spin ${chatBg ? (isBgDark ? 'text-slate-800' : 'text-white') : 'text-slate-400'}`} />
+                            </div>
+                          )}
+
+                          {/* Message Bubble */}
+                          <div
+                            className={`
+                              px-4 py-3 text-[15px] shadow-sm leading-relaxed relative
+                              bg-[#A855F7] text-white rounded-[20px] rounded-tr-sm
+                            `}
+                          >
+                            {msg.text}
+                          </div>
+                       </div>
+                       
+                       {/* Timestamp */}
+                       <div className="flex items-center gap-2 mt-1 mr-1">
+                          {msg.read && (
+                            <span
+                              className={`text-[10px] ${chatBg ? 'px-1.5 py-0.5 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'text-slate-400'}`}
+                              style={chatBg ? { textShadow: isBgDark ? '0 1px 1px rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.6)' } : undefined}
+                            >已读</span>
+                          )}
+                          <span
+                            className={`text-[10px] ${chatBg ? 'px-1.5 py-0.5 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'text-slate-400'}`}
+                            style={chatBg ? { textShadow: isBgDark ? '0 1px 1px rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.6)' } : undefined}
+                          >{formatTime(msg.timestamp)}</span>
+                       </div>
+                     </div>
+
+                     {/* User Avatar */}
+                     <div className="flex-shrink-0 ml-3">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-pink-200 flex items-center justify-center text-pink-600 font-bold border border-white shadow-sm">
+                          {(!userImgError && effectivePersona?.avatar) ? (
+                            <img src={effectivePersona.avatar} alt={effectivePersona?.name || '我'} className="w-full h-full object-cover" onError={() => setUserImgError(true)} />
+                          ) : (
+                            (effectivePersona?.name ? effectivePersona.name[0] : '我')
+                          )}
+                        </div>
+                      </div>
                   </div>
-                  {!isMe && msg.quote && (
-                    <div className="mt-1 max-w-full">
-                      <div className="inline-block bg-slate-100 text-slate-500 text-xs leading-tight rounded-[12px] px-2 py-1 border border-slate-200">
-                        {msg.quote}
+                ) : (
+                  // Character Message Layout (Unchanged)
+                  <div className="flex w-full justify-start mb-4 group">
+                    <div className="flex-shrink-0 mr-3 flex flex-col items-center gap-1">
+                      <div
+                        onClick={onShowProfile}
+                        className="w-10 h-10 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center text-blue-500 font-bold border border-white cursor-pointer active:scale-95 transition-transform"
+                      >
+                        {(!charImgError && character.avatar) ? (
+                          <img src={character.avatar} alt={character.name} className="w-full h-full object-cover" onError={() => setCharImgError(true)} />
+                        ) : (
+                          character.name[0]
+                        )}
                       </div>
                     </div>
-                  )}
-                  {/* Timestamp */}
-                  <div className={`flex items-center gap-2 mt-1 ${isMe ? 'mr-1' : 'ml-1'}`}>
-                    {isMe && msg.read && (
-                      <span
-                        className={`text-[10px] ${chatBg ? 'px-1.5 py-0.5 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'text-slate-400'}`}
-                        style={chatBg ? { textShadow: isBgDark ? '0 1px 1px rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.6)' } : undefined}
-                      >已读</span>
-                    )}
-                    <span
-                      className={`text-[10px] ${chatBg ? 'px-1.5 py-0.5 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'text-slate-400'}`}
-                      style={chatBg ? { textShadow: isBgDark ? '0 1px 1px rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.6)' } : undefined}
-                    >{formatTime(msg.timestamp)}</span>
-                  </div>
-                </div>
 
-                {/* User Avatar */}
-                {isMe && (
-                  <div className="flex-shrink-0 ml-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-pink-200 flex items-center justify-center text-pink-600 font-bold border border-white shadow-sm">
-                      {(!userImgError && effectivePersona?.avatar) ? (
-                        <img src={effectivePersona.avatar} alt={effectivePersona?.name || '我'} className="w-full h-full object-cover" onError={() => setUserImgError(true)} />
-                      ) : (
-                        (effectivePersona?.name ? effectivePersona.name[0] : '我')
+                    <div className="flex flex-col items-start max-w-[75%]">
+                      <div
+                        className={`
+                          px-4 py-3 text-[15px] shadow-sm leading-relaxed relative
+                          bg-white text-slate-800 rounded-[20px] rounded-tl-sm border border-slate-100
+                        `}
+                      >
+                        {msg.text}
+                      </div>
+                      {msg.quote && (
+                        <div className="mt-1 max-w-full">
+                          <div className="inline-block bg-slate-100 text-slate-500 text-xs leading-tight rounded-[12px] px-2 py-1 border border-slate-200">
+                            {msg.quote}
+                          </div>
+                        </div>
                       )}
+                      <div className="flex items-center gap-2 mt-1 ml-1">
+                        <span
+                          className={`text-[10px] ${chatBg ? 'px-1.5 py-0.5 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'text-slate-400'}`}
+                          style={chatBg ? { textShadow: isBgDark ? '0 1px 1px rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.6)' } : undefined}
+                        >{formatTime(msg.timestamp)}</span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -529,7 +743,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => { setInput(e.target.value); wsRef.current?.sendTyping(true); }}
+                onChange={(e) => { setInput(e.target.value); if (sessionId) sharedChatWs.sendTyping(sessionId, true); }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -537,7 +751,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                   }
                 }}
                 onFocus={() => { scrollToBottom(); setTimeout(scrollToBottom, 150); setTimeout(scrollToBottom, 300); resizeTextarea(); setTimeout(resizeTextarea, 0); }}
-                onBlur={() => wsRef.current?.sendTyping(false)}
+                onBlur={() => { if (sessionId) sharedChatWs.sendTyping(sessionId, false) }}
                 placeholder=""
                 className="w-full bg-transparent border-none outline-none focus:ring-0 text-slate-700 text-sm p-0 resize-none max-h-24 overflow-y-auto no-scrollbar leading-5 placeholder:text-slate-400"
                 rows={1}
@@ -569,13 +783,13 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
 
                 <div className="p-2">
                   {/* My Character Settings */}
-                <button
-                  onClick={() => {
-                    setIsSettingsOpen(false);
-                    setIsRoleSheetOpen(true);
-                  }}
-                  className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
-                >
+                  <button
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      setIsRoleSheetOpen(true);
+                    }}
+                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+                  >
                     <div className="flex items-center gap-3 text-slate-700">
                       <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
                         <UserIcon size={18} />
@@ -605,16 +819,16 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                   </button>
                   */}
 
-                <div className="h-[1px] bg-slate-50 mx-4"></div>
+                  <div className="h-[1px] bg-slate-50 mx-4"></div>
 
-                {/* Chat Mode */}
-                <div className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                      <MessageSquare size={18} />
+                  {/* Chat Mode */}
+                  <div className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                    <div className="flex items-center gap-3 text-slate-700">
+                      <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                        <MessageSquare size={18} />
+                      </div>
+                      <span className="font-bold text-sm">聊天模式</span>
                     </div>
-                    <span className="font-bold text-sm">聊天模式</span>
-                  </div>
 
                     {/* Toggle */}
                     <div className="flex bg-slate-100 p-1 rounded-lg">
@@ -630,23 +844,23 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                       >
                         场景
                       </button>
-                  </div>
-                </div>
-
-                <div className="h-[1px] bg-slate-50 mx-4"></div>
-
-                <button
-                  onClick={() => { setIsSettingsOpen(false); setIsBgSheetOpen(true); }}
-                  className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
-                >
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                      <ImageIcon size={18} />
                     </div>
-                    <span className="font-bold text-sm">聊天背景更改</span>
                   </div>
-                  <ChevronRight size={16} className="text-slate-300" />
-                </button>
+
+                  <div className="h-[1px] bg-slate-50 mx-4"></div>
+
+                  <button
+                    onClick={() => { setIsSettingsOpen(false); setIsBgSheetOpen(true); }}
+                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
+                  >
+                    <div className="flex items-center gap-3 text-slate-700">
+                      <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                        <ImageIcon size={18} />
+                      </div>
+                      <span className="font-bold text-sm">聊天背景更改</span>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-300" />
+                  </button>
                 </div>
               </motion.div>
             </>
@@ -670,7 +884,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
               </div>
               <div className="p-2">
                 <button
-                  onClick={() => { setChatBg(undefined); setIsBgDark(null); try { localStorage.removeItem(bgKey) } catch {}; setIsBgSheetOpen(false) }}
+                  onClick={() => { setChatBg(undefined); setIsBgDark(null); try { localStorage.removeItem(bgKey) } catch { }; setIsBgSheetOpen(false) }}
                   className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors"
                 >
                   <span className="font-bold text-sm text-slate-700">重置背景</span>
@@ -743,24 +957,42 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                         const sid = created.sessionId;
                         const uid = localStorage.getItem('user_id') || '0'
                         const key = `chat_session_${uid}_${character.id}`
-                        try { localStorage.removeItem(key) } catch {}
+                        try { localStorage.removeItem(key) } catch { }
                         localStorage.setItem(key, sid);
-                        try { localStorage.removeItem(histKey) } catch {}
+                        try { localStorage.removeItem(histKey) } catch { }
                         {
                           const opener = character.openingLine || character.oneLinePersona || ''
                           const mid = `msg_${Date.now()}`
                           const record = { id: mid, senderId: character.id, text: opener, ts: Date.now(), type: MessageType.TEXT }
-                          try { localStorage.setItem(histKey, JSON.stringify([record])) } catch {}
+                          try { localStorage.setItem(histKey, JSON.stringify([record])) } catch { }
                           const newMsg: Message = { id: mid, senderId: character.id, text: opener, timestamp: new Date(), type: MessageType.TEXT }
                           setMessages([newMsg])
-                          try { setTimeout(() => onUpdateLastMessage(newMsg), 0) } catch {}
+                          try { setTimeout(() => onUpdateLastMessage(newMsg), 0) } catch { }
                         }
                         setSessionId(sid);
                         setIsSessionInvalid(false);
                         if (created.model?.id) { setModelId(created.model.id); try { localStorage.setItem(modelKey, created.model.id) } catch { } }
                         if (typeof created.temperature === 'number') { setModelTemp(created.temperature!); try { localStorage.setItem(tempKey, String(created.temperature!)) } catch { } }
-                        const conn = connectChatWs(sid, (text, quote, meta) => { appendAssistantWithRead(text, quote, meta) }, (payload) => { if (payload && payload.type === 'force_logout') setShowDisabledPrompt(true) });
-                        wsRef.current = conn;
+                        sharedChatWs.ensureConnected()
+                        const sub = (text: string, quote?: string, meta?: { chunkIndex?: number; chunkTotal?: number }) => appendAssistantWithRead(text, quote, meta)
+                        if (!wsSubRef.current) {
+                          wsSubRef.current = sub
+                          sharedChatWs.subscribe(sid, sub)
+                        }
+                        sharedChatWs.addControlListener((payload) => {
+                          if (!payload) return
+                          if (payload.type === 'force_logout') setShowDisabledPrompt(true)
+                          if (payload.type === 'user_ack') {
+                            const sidAck = String(payload.sessionId || '')
+                            const msgId = String(payload.clientMsgId || '')
+                            const curSid = sid
+                            if (curSid && sidAck && curSid === sidAck && msgId) {
+                              setMessages(prev => prev.map(m => (m.senderId === 'user' && (m as any).id === msgId) ? ({ ...m, saved: true, failed: false, pendingAck: false } as any) : m))
+                              const t = ackTimersRef.current.get(msgId)
+                              if (t) { try { clearTimeout(t) } catch {}; ackTimersRef.current.delete(msgId) }
+                            }
+                          }
+                        })
                       } catch { }
                     }}
                   >新建会话</button>
@@ -786,13 +1018,13 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                         if (rt) {
                           const res = await fetch('/api/auth/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) })
                           if (!res.ok) {
-                            try { await fetch('/auth/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) }) } catch {}
+                            try { await fetch('/auth/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) }) } catch { }
                           }
                         }
-                      } catch {}
-                      try { localStorage.removeItem('user_access_token'); localStorage.removeItem('user_refresh_token') } catch {}
+                      } catch { }
+                      try { localStorage.removeItem('user_access_token'); localStorage.removeItem('user_refresh_token') } catch { }
                       setShowDisabledPrompt(false)
-                      try { window.location.reload() } catch {}
+                      try { window.location.reload() } catch { }
                     }}
                   >确定</button>
                 </div>
@@ -813,12 +1045,12 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
               r.onload = (ev) => {
                 const result = ev.target?.result as string
                 setChatBg(result)
-                try { localStorage.setItem(bgKey, result) } catch {}
+                try { localStorage.setItem(bgKey, result) } catch { }
                 analyzeBgBrightness(result)
               }
               r.readAsDataURL(f)
             }
-            try { e.currentTarget.value = '' } catch {}
+            try { e.currentTarget.value = '' } catch { }
           }}
         />
 

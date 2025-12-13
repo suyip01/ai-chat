@@ -5,7 +5,7 @@ const safe = () => typeof window !== 'undefined' && typeof window.clarity === 'f
 
 export const identifyUser = (info: { userId?: string | number; sessionId?: string | null; pageId?: string | null; name?: string | null }) => {
   try {
-    try { console.log('[analytics] identifyUser', String(info.userId ?? ''), info?.name ?? null); } catch {}
+    //try { console.log('[analytics] identifyUser', String(info.userId ?? ''), info?.name ?? null); } catch {}
     if (!safe()) return;
     const uid = (info.userId !== undefined && info.userId !== null) ? String(info.userId) : ''
     const sid = info.sessionId ?? null

@@ -116,7 +116,9 @@ export const startChatWs = (server) => {
         const piece = chunks[i]
         await appendAssistantMessage(sid, piece, { model, temperature, chunkIndex: i + 1, chunkTotal: chunks.length, withQuote: includeQuote && i === 0, quote: includeQuote && i === 0 ? quote : undefined })
         const withQuote = includeQuote && i === 0
-        const payloadOut = withQuote ? { type: 'assistant_message', content: piece, quote, chunkIndex: i + 1, chunkTotal: chunks.length } : { type: 'assistant_message', content: piece, chunkIndex: i + 1, chunkTotal: chunks.length }
+        const payloadOut = withQuote
+          ? { type: 'assistant_message', sessionId: sid, content: piece, quote, chunkIndex: i + 1, chunkTotal: chunks.length }
+          : { type: 'assistant_message', sessionId: sid, content: piece, chunkIndex: i + 1, chunkTotal: chunks.length }
         const target = wsBySid.get(sid) || ws
         try {
           target.send(JSON.stringify(payloadOut))
@@ -225,6 +227,11 @@ export const startChatWs = (server) => {
           } : undefined
         }
         await appendUserMessage(sid, payload.text, meta)
+        try {
+          const clientMsgId = payload.client_msg_id || null
+          const target = wsBySid.get(sid) || ws
+          target && target.send(JSON.stringify({ type: 'user_ack', sessionId: sid, clientMsgId: clientMsgId }))
+        } catch {}
         try {
           const r = await getRedis()
           await r.hSet(keySess(sid), { last_chat_mode: mode, last_model: String(model || ''), last_temperature: String(temperature) })

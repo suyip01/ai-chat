@@ -29,6 +29,14 @@ router.put('/profile', async (req, res) => {
     if (!fields.length) return res.status(400).json({ error: 'nothing_to_update' })
     params.push(req.user.id)
     await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id=?`, params)
+
+    // Sync nickname to characters and stories
+    if (typeof nickname === 'string') {
+      req.log.info('userProfile.update.sync_nickname', { userId: req.user.id, nickname })
+      await pool.query('UPDATE characters SET creator=? WHERE user_id=? AND creator_role=?', [nickname, req.user.id, 'user_role'])
+      await pool.query('UPDATE stories SET author=? WHERE user_id=?', [nickname, req.user.id])
+    }
+
     req.log.info('userProfile.update.ok', { userId: req.user.id, fields })
     res.json({ ok: true })
   } catch (e) {

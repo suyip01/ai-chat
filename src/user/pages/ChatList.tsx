@@ -73,10 +73,10 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, onChatClick, onToggle
       animate={isDetailOpen && isTouch ? { x: '-100%' } : { x: 0 }}
       transition={isDetailOpen && isTouch ? { duration: 0.3, ease: 'linear' } : { duration: 0 }}
     >
-
       {pinnedChats.length > 0 && (
         <div className="mb-6">
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">置顶</h2>
+
           {pinnedChats.map(chat => (
             <div key={chat.characterId} className="relative overflow-hidden mb-3 rounded-2xl">
               {(() => {

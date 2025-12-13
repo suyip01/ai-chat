@@ -6,7 +6,8 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       server: {
-        port: 5173,
+        port: 5174,
+        strictPort: true,
         host: '0.0.0.0',
         proxy: {
           '/uploads': {
@@ -45,6 +46,7 @@ export default defineConfig(({ mode }) => {
       },
       preview: {
         host: '0.0.0.0',
+        port: 5174,
       },
     };
 });

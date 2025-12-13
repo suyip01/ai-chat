@@ -1,12 +1,9 @@
-
-import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, Camera, Plus, ChevronRight, X, ChevronDown, Save, Send, Trash2, AlertCircle } from 'lucide-react';
+import React, { useRef, useEffect } from 'react';
+import { ChevronLeft, Camera, Plus, ChevronRight, X, ChevronDown, Send, Trash2, AlertCircle, Search } from 'lucide-react';
 import { Story, Character, StoryRole } from '../types';
 import { ImageCropper } from '../components/ImageCropper';
-import { useToast } from '../components/Toast';
-import { LazyImage } from '../components/LazyImage'
-import { identifyUser, setTag } from '../services/analytics'
-import { saveDraft, getDraft, clearDraft } from '../services/draftStorage'
+import { LazyImage } from '../components/LazyImage';
+import { useCreateStory } from '../hooks/useCreateStory';
 
 interface CreateStoryProps {
   onBack: () => void;
@@ -18,181 +15,40 @@ interface CreateStoryProps {
   importableRoles?: Array<{ id: string; name: string; avatar: string; desc: string; isPrivate: boolean; isMine: boolean }>;
 }
 
-export const CreateStory: React.FC<CreateStoryProps> = ({
-  onBack,
-  onPublish,
-  onSaveDraft,
-  availableCharacters,
-  myUserCharacters = [],
-  initialStory,
-  importableRoles = []
-}) => {
-  const { showCenter } = useToast();
-  const [form, setForm] = useState<{
-    title: string;
-    description: string;
-    image: string;
-    content: string;
-    tags: string[];
-    roles: StoryRole[];
-  }>(() => {
-    if (initialStory) {
-      return {
-        title: initialStory.title,
-        description: initialStory.description,
-        image: initialStory.image,
-        content: initialStory.content,
-        tags: initialStory.tags,
-        roles: initialStory.availableRoles || []
-      };
-    }
-    return {
-      title: '',
-      description: '',
-      image: '',
-      content: '',
-      tags: [],
-      roles: []
-    };
-  });
-
-  // UI States
-  const [showTagModal, setShowTagModal] = useState(false);
-  const [showRoleModal, setShowRoleModal] = useState(false);
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errors, setErrors] = useState<Record<string, boolean>>({});
-  const [customTagInput, setCustomTagInput] = useState('');
-  const [tempImage, setTempImage] = useState<string | null>(null);
-  const [preMountLoading, setPreMountLoading] = useState(false);
-  const [showRoleTips, setShowRoleTips] = useState(false);
-  const roleTipsRef = useRef<HTMLDivElement | null>(null);
-  const [localImportableRoles, setLocalImportableRoles] = useState(importableRoles);
-  const combineRequestedRef = useRef(false)
-  useEffect(() => {
-    try {
-      const uid = localStorage.getItem('user_id') || '0'
-      const uname = localStorage.getItem('user_username') || uid
-      const nickname = localStorage.getItem('user_nickname') || '我'
-      identifyUser({ userId: uname, pageId: 'CREATE_STORY', name: nickname })
-      setTag('页面', initialStory ? '编辑故事' : '创作故事')
-    } catch {}
-  }, [initialStory])
-  useEffect(() => {
-    setLocalImportableRoles(importableRoles || []);
-  }, [importableRoles]);
-  useEffect(() => {
-    if (combineRequestedRef.current) return
-    if (localImportableRoles && localImportableRoles.length) return
-    combineRequestedRef.current = true
-    ;(async () => {
-      try {
-        const { authFetch } = await import('../services/http')
-        const res = await authFetch('/stories/combine')
-        if (res && res.ok) {
-          const data = await res.json()
-          const items = Array.isArray(data?.items) ? data.items : []
-          setLocalImportableRoles(items.map((it: any) => ({ id: String(it.character_id), name: it.character_name, avatar: it.character_avatar || '', desc: it.desc || '', isPrivate: !!it.isPrivate, isMine: !!it.isMine })))
-        }
-      } catch { }
-    })()
-  }, [])
-  const myRoles = React.useMemo(() => {
-    const src = Array.isArray(myUserCharacters) ? myUserCharacters : []
-    return src
-      .filter(c => (c as any).isPublished === true && (c as any).isPublic === false)
-      .map(c => ({ id: String(c.id), name: c.name, avatar: c.avatar, desc: c.oneLinePersona || c.bio || '', isPrivate: true, isMine: true }))
-  }, [myUserCharacters])
+export const CreateStory: React.FC<CreateStoryProps> = (props) => {
+  const { onBack, initialStory } = props;
   
-  const prefilledRef = useRef(false)
-  useEffect(() => {
-    if (prefilledRef.current) return
-    const ids: Array<string|number> = Array.isArray((initialStory as any)?.characterIds) ? (initialStory as any).characterIds : []
-    if (!ids.length) return
-    if (!localImportableRoles || !localImportableRoles.length) return
-    const idSet = new Set(ids.map(x => String(x)))
-    const matched = localImportableRoles
-      .filter(r => idSet.has(String(r.id)))
-      .map(r => ({ name: r.name, avatar: r.avatar, description: r.desc || '暂无描述' }))
-    if (matched.length) {
-      prefilledRef.current = true
-      setForm(prev => ({ ...prev, roles: matched }))
-    }
-  }, [initialStory, localImportableRoles])
-
-  useEffect(() => {
-    if (!initialStory) return
-    const roles = (initialStory.availableRoles || []) as StoryRole[]
-    if (roles.length) {
-      setForm(prev => ({ ...prev, roles }))
-      prefilledRef.current = true
-    }
-  }, [initialStory])
-
-  useEffect(() => {
-    if (!initialStory) return
-    setForm(prev => ({
-      ...prev,
-      title: initialStory.title || prev.title,
-      description: initialStory.description || prev.description,
-      image: initialStory.image || prev.image,
-      content: initialStory.content || prev.content,
-      tags: Array.isArray(initialStory.tags) ? initialStory.tags : prev.tags
-    }))
-  }, [initialStory])
-
-  // Auto-save draft
-  const autoSaveTimerRef = useRef<any>(null);
-  useEffect(() => {
-    if (initialStory) return
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
-    autoSaveTimerRef.current = setTimeout(() => {
-      const uid = localStorage.getItem('user_id') || 'guest'
-      saveDraft(`create_story_draft_${uid}`, form)
-    }, 300)
-    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }
-  }, [form, initialStory])
-
-  // Load draft
-  useEffect(() => {
-    if (initialStory) return
-    ;(async () => {
-      const uid = localStorage.getItem('user_id') || 'guest'
-      const draft = await getDraft(`create_story_draft_${uid}`)
-      if (draft) setForm(prev => ({ ...prev, ...draft }))
-    })()
-  }, [initialStory])
-
-  useEffect(() => {
-    if (!showRoleTips) return
-    const timer = setTimeout(() => setShowRoleTips(false), 6000)
-    return () => clearTimeout(timer)
-  }, [showRoleTips])
-
-  useEffect(() => {
-    if (!showRoleTips) return
-    const onDocClick = (e: MouseEvent) => {
-      const el = roleTipsRef.current
-      if (!el) { setShowRoleTips(false); return }
-      const target = e.target as Node
-      if (!el.contains(target)) setShowRoleTips(false)
-    }
-    window.addEventListener('click', onDocClick, true)
-    return () => window.removeEventListener('click', onDocClick, true)
-  }, [showRoleTips])
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const pageScrollRef = useRef<HTMLDivElement | null>(null);
-  const importScrollRef = useRef<HTMLDivElement | null>(null);
-
-  const dataUrlToBlob = (dataUrl: string) => {
-    const parts = dataUrl.split(',');
-    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
-    const bstr = atob(parts[1]);
-    let n = bstr.length;
-    const u8 = new Uint8Array(n);
-    while (n--) u8[n] = bstr.charCodeAt(n);
-    return new Blob([u8], { type: mime });
-  };
+  const {
+    form, setForm,
+    showTagModal, setShowTagModal,
+    showRoleModal, setShowRoleModal,
+    showErrorModal, setShowErrorModal,
+    errors, 
+    customTagInput, setCustomTagInput,
+    tempImage, setTempImage,
+    preMountLoading,
+    showRoleTips, setShowRoleTips,
+    roleTipsRef,
+    localImportableRoles,
+    submitting,
+    fileInputRef,
+    pageScrollRef,
+    importScrollRef,
+    handleImageClick,
+    handleFileChange,
+    toggleTag,
+    addCustomTag,
+    handleAddRole,
+    removeRole,
+    handlePublish,
+    handleSaveDraft,
+    loadMoreRoles,
+    hasMoreRoles,
+    isLoadingMoreRoles,
+    isSearching, setIsSearching,
+    searchText, setSearchText,
+    executeSearch
+  } = useCreateStory(props);
 
   const availableTags = [
     'BG', 'BL', 'GL', '暗恋', '校园',
@@ -201,225 +57,44 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
     '爽文', '娱乐圈', '青梅竹马', '强强', '同人'
   ];
 
-  const handleImageClick = () => {
-    fileInputRef.current?.click();
-  };
-
-
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPreMountLoading(true);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setTempImage(reader.result as string);
-        setPreMountLoading(false);
-      };
-      reader.readAsDataURL(file);
-    }
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const toggleTag = (tag: string) => {
-    if (form.tags.includes(tag)) {
-      setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
-    } else {
-      setForm(prev => ({ ...prev, tags: [...prev.tags, tag] }));
-    }
-  };
-
-  const addCustomTag = () => {
-    const val = customTagInput.trim();
-    if (val && !form.tags.includes(val)) {
-      setForm(prev => ({ ...prev, tags: [...prev.tags, val] }));
-      setCustomTagInput('');
-    }
-  };
-
-  const handleAddRole = (character: Character) => {
-    // Prevent duplicates
-    if (form.roles.some(r => r.name === character.name)) return;
-
-    const newRole: StoryRole = {
-      name: character.name,
-      avatar: character.avatar,
-      description: character.oneLinePersona || character.bio || '暂无描述'
-    };
-
-    setForm(prev => ({ ...prev, roles: [...prev.roles, newRole] }));
-    setShowRoleModal(false);
-  };
-
-  const removeRole = (roleName: string) => {
-    setForm(prev => ({ ...prev, roles: prev.roles.filter(r => r.name !== roleName) }));
-  };
-
-  const createStoryObject = (status: 'published' | 'draft'): Story => {
-    return {
-      id: initialStory ? initialStory.id : Date.now(),
-      title: form.title || '未命名故事',
-      description: form.description || '暂无简介',
-      image: form.image || 'https://image.pollinations.ai/prompt/abstract%20book%20cover%20pastel?width=600&height=300&nologo=true',
-      content: form.content,
-      tags: form.tags,
-      author: '我',
-      likes: '0',
-      availableRoles: form.roles,
-      status: status,
-      isUserCreated: true,
-      publishDate: new Date().toISOString()
-    };
-  };
-
-  const resolveCharacterIds = (): Array<number | string> => {
-    const names = form.roles.map(r => r.name)
-    const m: Record<string, string | number> = {}
-    importableRoles.forEach(r => { m[r.name] = r.id })
-    return names.map(n => m[n]).filter(Boolean) as Array<number | string>
-  }
-
-  const [submitting, setSubmitting] = useState<'none' | 'publish' | 'draft'>('none')
-
-  const saveToServer = async (status: 'published' | 'draft') => {
-    try {
-      setSubmitting(status === 'published' ? 'publish' : 'draft')
-      let imageUrl = form.image || ''
-      try {
-        const token = localStorage.getItem('user_access_token')
-        if (form.image && form.image.startsWith('data:image')) {
-          const blob = dataUrlToBlob(form.image)
-          const fd = new FormData()
-          const fname = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`
-          imageUrl = `/uploads/covers/${fname}`
-          fd.append('cover', blob, 'cover.jpg')
-          fd.append('filename', fname)
-          const up = await fetch('/api/uploads/cover', { method: 'POST', headers: { Authorization: token ? `Bearer ${token}` : '' }, body: fd })
-          if (up && up.ok) {
-            const j = await up.json()
-            if (j && j.url) imageUrl = j.url
-          }
-        }
-      } catch { }
-      const payload = {
-        title: form.title,
-        description: form.description,
-        image: imageUrl,
-        status,
-        content: form.content,
-        tags: form.tags,
-        characterIds: resolveCharacterIds()
-      }
-      const { authFetch } = await import('../services/http')
-      const isEdit = !!initialStory
-      const url = isEdit ? `/user/stories/${initialStory?.id}` : '/user/stories'
-      const method = isEdit ? 'PUT' : 'POST'
-      const res = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      if (res && res.ok) {
-        let idOut: number | string | undefined
-        try { const data = await res.json(); idOut = data?.id } catch { idOut = initialStory?.id }
-        const newStory: Story = {
-          id: typeof idOut === 'number' ? idOut : (initialStory ? initialStory.id : Date.now()),
-          title: form.title,
-          description: form.description,
-          image: imageUrl || form.image,
-          content: form.content,
-          tags: form.tags,
-          author: localStorage.getItem('user_nickname') || '我',
-          likes: '0',
-          availableRoles: form.roles,
-          status
-        }
-        if (status === 'published') onPublish(newStory)
-        else onSaveDraft(newStory)
-        if (!initialStory) {
-          const uid = localStorage.getItem('user_id') || 'guest'
-          clearDraft(`create_story_draft_${uid}`)
-        }
-        return
-      }
-      showCenter('保存失败，请重试。', 'error')
-    } catch {
-      showCenter('保存失败，请重试。', 'error')
-    } finally {
-      setSubmitting('none')
-    }
-  }
-
-  const updateDraft = async () => {
-    try {
-      setSubmitting('draft')
-      let imageUrl = form.image || ''
-      try {
-        const token = localStorage.getItem('user_access_token')
-        if (form.image && form.image.startsWith('data:image')) {
-          const blob = dataUrlToBlob(form.image)
-          const fd = new FormData()
-          const fname = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`
-          imageUrl = `/uploads/covers/${fname}`
-          fd.append('cover', blob, 'cover.jpg')
-          fd.append('filename', fname)
-          const up = await fetch('/api/uploads/cover', { method: 'POST', headers: { Authorization: token ? `Bearer ${token}` : '' }, body: fd })
-          if (up && up.ok) {
-            const j = await up.json()
-            if (j && j.url) imageUrl = j.url
-          }
-        }
-      } catch { }
-      const payload = {
-        title: form.title,
-        description: form.description,
-        image: imageUrl,
-        content: form.content,
-        tags: form.tags,
-        characterIds: resolveCharacterIds()
-      }
-      const { authFetch } = await import('../services/http')
-      const res = await authFetch(`/user/stories/${initialStory?.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      if (res && res.ok) {
-        const newStory: Story = {
-          id: typeof (initialStory?.id) === 'number' ? (initialStory as Story).id : Date.now(),
-          title: form.title,
-          description: form.description,
-          image: imageUrl || form.image,
-          content: form.content,
-          tags: form.tags,
-          author: localStorage.getItem('user_nickname') || '我',
-          likes: '0',
-          availableRoles: form.roles,
-          status: initialStory?.status
-        }
-        onSaveDraft(newStory)
-        return
-      }
-      showCenter('保存失败，请重试。', 'error')
-    } catch {
-      showCenter('保存失败，请重试。', 'error')
-    } finally {
-      setSubmitting('none')
-    }
-  }
-
-  const validate = () => {
-    const e: Record<string, boolean> = {}
-    if (!form.title.trim()) e.title = true
-    if (!form.content.trim()) e.content = true
-    setErrors(e)
-    return Object.keys(e).length === 0
-  }
-
-  const handlePublish = () => {
-    if (!validate()) { setShowErrorModal(true); return }
-    saveToServer('published')
-  };
-
-  const handleSaveDraft = () => {
-    if (!validate()) { setShowErrorModal(true); return }
-    if (initialStory) { updateDraft(); return }
-    saveToServer('draft')
-  };
-
   const labelClass = "field-label font-kosugi mb-3 text-slate-700 font-bold text-sm block";
+
+  // Intersection Observer for infinite scroll in role modal
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  
+  // Set up observer for role list items
+  useEffect(() => {
+    if (!showRoleModal) return;
+    
+    // Disconnect previous observer
+    if (observerRef.current) observerRef.current.disconnect();
+    
+    observerRef.current = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          loadMoreRoles();
+        }
+      });
+    }, {
+      root: importScrollRef.current,
+      threshold: 0.1,
+      rootMargin: '100px'
+    });
+    
+    // We want to observe the 4th to last item to trigger the next page load
+    const items = importScrollRef.current?.querySelectorAll('[data-role-index]');
+    if (items && items.length > 0) {
+      const targetIndex = Math.max(0, items.length - 4);
+      const targetEl = items[targetIndex];
+      if (targetEl) {
+        observerRef.current?.observe(targetEl);
+      }
+    }
+    
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+    };
+  }, [showRoleModal, localImportableRoles, loadMoreRoles]);
 
   return (
     <div className="fixed inset-0 bg-white z-[60]">
@@ -685,9 +360,55 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
           <>
             <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[61]" onClick={() => setShowRoleModal(false)}></div>
             <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-md bg-white rounded-t-[30px] overflow-hidden z-[62] flex flex-col h-[70vh] animate-in slide-in-from-bottom duration-300 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
-              <div className="px-5 py-4 flex justify-between items-center border-b border-purple-50">
-                <h3 className="text-lg font-bold text-purple-900 font-kosugi">选择角色导入</h3>
-                <button onClick={() => setShowRoleModal(false)} className="p-2 bg-slate-100 rounded-full"><X size={16} /></button>
+              <div className="px-5 py-4 flex justify-between items-center border-b border-purple-50 min-h-[64px]">
+                {!isSearching ? (
+                  <>
+                    <h3 className="text-lg font-bold text-purple-900 font-kosugi">选择角色导入</h3>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setIsSearching(true)} 
+                        className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200 transition"
+                      >
+                        <Search size={18} />
+                      </button>
+                      <button 
+                        onClick={() => setShowRoleModal(false)} 
+                        className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200 transition"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center w-full gap-3 animate-in fade-in duration-200">
+                    <div className="flex-1 relative">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        autoFocus
+                        type="text" 
+                        placeholder="搜索角色..." 
+                        className="w-full bg-slate-100 pl-10 pr-4 py-2.5 rounded-full text-sm outline-none text-slate-700 placeholder:text-slate-400"
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            executeSearch(searchText);
+                          }
+                        }}
+                      />
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setIsSearching(false);
+                        setSearchText('');
+                        executeSearch(''); // Reset search
+                      }} 
+                      className="text-sm font-bold text-slate-500 whitespace-nowrap px-1 active:opacity-70"
+                    >
+                      取消
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3" ref={importScrollRef}>
                 {(localImportableRoles || [])
@@ -697,9 +418,10 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
                     const ra = rank(a), rb = rank(b)
                     return ra === rb ? 0 : (ra < rb ? -1 : 1)
                   })
-                  .map(item => (
+                  .map((item, idx) => (
                     <div
                       key={`imp_${item.id || item.name}`}
+                      data-role-index={idx}
                       onClick={() => handleAddRole({ name: item.name, avatar: item.avatar, oneLinePersona: item.desc, bio: item.desc } as any)}
                       className="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-2xl shadow-sm active:scale-[0.98] transition cursor-pointer hover:border-purple-200"
                     >
@@ -711,11 +433,20 @@ export const CreateStory: React.FC<CreateStoryProps> = ({
                       {item.isMine && item.isPrivate && (
                         <span className="text-pink-500 text-[10px] font-bold mr-2">私密</span>
                       )}
+                      {item.isMine && !item.isPrivate && (
+                        <span className="text-green-500 text-[10px] font-bold mr-2">公开</span>
+                      )}
                       <div className="ml-auto bg-purple-50 text-purple-600 p-2 rounded-full">
                         <Plus size={16} />
                       </div>
                     </div>
                   ))}
+                  {isLoadingMoreRoles && (
+                    <div className="py-4 text-center text-xs text-slate-400">加载更多...</div>
+                  )}
+                  {!hasMoreRoles && localImportableRoles.length > 0 && (
+                    <div className="py-4 text-center text-xs text-slate-300">没有更多了</div>
+                  )}
               </div>
             </div>
           </>

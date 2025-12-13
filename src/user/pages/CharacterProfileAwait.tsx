@@ -32,6 +32,17 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
   useEffect(() => {
     let mounted = true
     let iv: any
+    setLatest(character) // Update latest immediately when prop changes
+
+    const isDataSynced = (apiData: any) => {
+      if (!apiData) return false
+      // If prop character has data, apiData must match it to be considered synced
+      if (character.name && apiData.name !== character.name) return false
+      if (character.oneLinePersona && (apiData.tagline || '') !== character.oneLinePersona) return false
+      if (character.personality && (apiData.personality || '') !== character.personality) return false
+      return true
+    }
+
     const tick = async () => {
       try {
         const data = await getUserCharacter(createdId)
@@ -50,6 +61,13 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
           return
         }
         if (data && (statusStr === 'published' || hasSP)) {
+          // Check if data is synced with latest local changes
+          if (!isDataSynced(data)) {
+             // Not synced yet (backend is stale), keep polling
+             setReady(false)
+             return
+          }
+
           setReady(true)
           setIsDraft(false)
           setLatest(prev => ({
@@ -78,6 +96,41 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
         const data = await getUserCharacter(createdId)
         if (!mounted) return
         if (data) {
+          // Only update display if we have data, but keep local overrides if API is stale
+          // actually setLatest is handled in tick when ready, or here partially?
+          // Let's just update basic info but wait for sync to setReady
+          
+          const hasSP = !!data.hasSystemPrompt
+          const statusStr = typeof data.status === 'string' ? data.status.trim() : ''
+          
+          if (statusStr === 'draft') {
+            setIsDraft(true)
+            setReady(false)
+            return
+          }
+          
+          if (statusStr === 'publishing' || !hasSP) {
+            setIsDraft(false)
+            setReady(false)
+            iv = setInterval(tick, 3000)
+            tick()
+            return
+          }
+          
+          // Published state
+          if (!isDataSynced(data)) {
+             // Stale data, treat as publishing
+             setIsDraft(false)
+             setReady(false)
+             iv = setInterval(tick, 3000)
+             tick()
+             return
+          }
+
+          // Synced and published
+          setIsDraft(false)
+          setReady(true)
+          // Update latest with confirmed backend data
           setLatest(prev => ({
             ...prev,
             id: String(data.id || prev.id),
@@ -93,29 +146,6 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
             plotDescription: String(data.plot_summary || prev.plotDescription || ''),
             openingLine: String(data.opening_line || prev.openingLine || ''),
           }))
-          const hasSP = !!data.hasSystemPrompt
-          const statusStr = typeof data.status === 'string' ? data.status.trim() : ''
-          if (statusStr === 'draft') {
-            setIsDraft(true)
-            setReady(false)
-            return
-          }
-          if (statusStr === 'publishing') {
-            setIsDraft(false)
-            setReady(false)
-            iv = setInterval(tick, 3000)
-            tick()
-            return
-          }
-          if (!hasSP) {
-            setIsDraft(false)
-            setReady(false)
-            iv = setInterval(tick, 3000)
-            tick()
-            return
-          }
-          setIsDraft(false)
-          setReady(true)
           return
         }
         setIsDraft(false)
@@ -129,7 +159,7 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
     }
     init()
     return () => { mounted = false; clearInterval(iv) }
-  }, [createdId])
+  }, [createdId, character]) // Added character to dependencies
 
   const visibleTags = showAllTags ? latest.tags : latest.tags.slice(0, 4)
   const hasMoreTags = latest.tags.length > 4

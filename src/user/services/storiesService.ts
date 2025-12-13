@@ -7,12 +7,13 @@ export type StoryPreview = {
   author?: string
 }
 
-export const listStories = async (params?: { limit?: number; offset?: number }) => {
+export const listStories = async (params?: { limit?: number; offset?: number; search?: string }) => {
   const qs = new URLSearchParams()
+  if (params?.search) qs.set('search', params.search)
   if (params?.limit) qs.set('limit', String(params.limit))
   if (typeof params?.offset === 'number') qs.set('offset', String(params.offset))
   const { authFetch } = await import('./http')
-  const res = await authFetch(`/stories/?${qs.toString()}`)
+  const res = await authFetch(`/stories?${qs.toString()}`)
   if (!res.ok) throw new Error('failed')
   const data = await res.json()
   const items = Array.isArray(data?.items) ? data.items : []

@@ -2,16 +2,27 @@ import pool from '../db.js';
 import { createLogger } from '../utils/logger.js';
 const logger = createLogger({ area: 'client', component: 'service.characters' });
 
-export const listPublishedCharacters = async ({ tag = null, limit = 24, offset = 0, visibility = 'public' } = {}) => {
+export const listPublishedCharacters = async ({ tag = null, limit = 24, offset = 0, visibility = 'public', search = '' } = {}) => {
   try {
-    const whereBase = "c.status='published' AND c.visibility=?";
-    const whereTag = tag ? "AND EXISTS (SELECT 1 FROM character_tags ct WHERE ct.character_id=c.id AND ct.tag=?)" : "";
-    const params = tag ? [visibility, tag, limit, offset] : [visibility, limit, offset];
+    let whereBase = "c.status='published' AND c.visibility=?";
+    const params = [visibility];
+
+    if (tag) {
+      whereBase += " AND EXISTS (SELECT 1 FROM character_tags ct WHERE ct.character_id=c.id AND ct.tag=?)";
+      params.push(tag);
+    }
+
+    if (search) {
+      whereBase += " AND (c.name LIKE ? OR c.tagline LIKE ? OR c.creator LIKE ?)";
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    params.push(limit, offset);
     const sql = `SELECT 
           c.id,
           c.name,
           c.avatar,
-          COALESCE(u.nickname, a.nickname, c.creator) AS creator,
+          c.creator,
           c.creator AS creator_username,
           c.age,
           c.occupation,
@@ -25,9 +36,7 @@ export const listPublishedCharacters = async ({ tag = null, limit = 24, offset =
           c.created_at,
           (SELECT GROUP_CONCAT(ct.tag) FROM character_tags ct WHERE ct.character_id=c.id) AS tags
        FROM characters c
-       LEFT JOIN admins a ON a.username = c.creator
-       LEFT JOIN users u ON u.username = c.creator
-       WHERE ${whereBase} ${whereTag}
+       WHERE ${whereBase}
        ORDER BY c.created_at DESC
        LIMIT ? OFFSET ?`;
     logger.debug('service.characters.list.sql', { sql, paramsShape: { visibility, limit, offset, hasTag: !!tag } });
@@ -58,6 +67,56 @@ export const listPublishedCharacters = async ({ tag = null, limit = 24, offset =
   }
 };
 
+export const listPublicCharactersExcludeUser = async (excludeUsername, { limit = 10, offset = 0, search = '', excludeUserId = null, excludeNickname = null } = {}) => {
+  try {
+    let whereClause = "c.status='published' AND c.visibility='public' AND c.creator != ?";
+    const params = [excludeUsername];
+
+    if (excludeNickname) {
+      whereClause += " AND c.creator != ?";
+      params.push(excludeNickname);
+    }
+
+    if (excludeUserId) {
+      whereClause += " AND (c.user_id != ? OR c.user_id IS NULL)";
+      params.push(excludeUserId);
+    }
+
+    if (search) {
+      whereClause += " AND (c.name LIKE ? OR c.tagline LIKE ? OR c.creator LIKE ?)";
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    const sql = `SELECT 
+          c.id,
+          c.name,
+          c.avatar,
+          c.tagline,
+          c.plot_summary,
+          c.creator
+       FROM characters c
+       WHERE ${whereClause}
+       ORDER BY c.created_at DESC
+       LIMIT ? OFFSET ?`;
+
+    params.push(limit, offset);
+
+    logger.debug('service.characters.listExclude.sql', { sql, params });
+    const [rows] = await pool.query(sql, params);
+    return rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      avatar: r.avatar,
+      tagline: r.tagline,
+      plot_summary: r.plot_summary,
+      creator: r.creator
+    }));
+  } catch (err) {
+    logger.error('service.characters.listExclude.error', { message: err?.message, stack: err?.stack, params: { excludeUsername, limit, offset } });
+    return [];
+  }
+};
+
 export const getPublishedCharacter = async (id) => {
   try {
     const sql = `SELECT 
@@ -65,7 +124,7 @@ export const getPublishedCharacter = async (id) => {
           c.name,
           c.gender,
           c.avatar,
-          COALESCE(u.nickname, a.nickname, c.creator) AS creator,
+          c.creator,
           c.age,
           c.occupation,
           c.tagline,
@@ -77,8 +136,6 @@ export const getPublishedCharacter = async (id) => {
           c.character_type,
           (SELECT GROUP_CONCAT(ct.tag) FROM character_tags ct WHERE ct.character_id=c.id) AS tags
        FROM characters c
-       LEFT JOIN admins a ON a.username = c.creator
-       LEFT JOIN users u ON u.username = c.creator
        WHERE c.status='published' AND c.visibility='public' AND c.id=?
        LIMIT 1`;
     logger.debug('service.characters.get.sql', { sql, params: [id] });

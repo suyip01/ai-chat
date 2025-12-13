@@ -10,8 +10,9 @@ router.get('/', async (req, res) => {
     const tag = (req.query.tag || '').trim() || null;
     const limit = parseInt(req.query.limit || '24');
     const offset = parseInt(req.query.offset || '0');
-    req.log.debug('characters.list.debug', { tag, limit, offset });
-    const items = await listPublishedCharacters({ tag, limit, offset });
+    const search = (req.query.search || '').trim() || null;
+    req.log.debug('characters.list.debug', { tag, limit, offset, search });
+    const items = await listPublishedCharacters({ tag, limit, offset, search });
     req.log.info('characters.list', { tag, limit, offset, count: items?.length || 0 })
     res.json({ items });
   } catch (err) {

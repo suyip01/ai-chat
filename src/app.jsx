@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 const AdminDashboard = lazy(() => import('./admin/AdminDashboard.jsx'));
-const UserApp = lazy(() => import('./user/App.tsx'));
+import UserApp from './user/App.tsx'
 
 export default function App() {
   const NoRecordWrapper = ({ children }) => {

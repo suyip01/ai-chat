@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { listStories, getStory } from '../admin-services/stories.js'
-import { listPublishedCharacters } from '../client-services/characters.js'
+import { listPublishedCharacters, listPublicCharactersExcludeUser } from '../client-services/characters.js'
 import { listUserCharacters } from '../client-services/userCharacters.js'
 import { userAuthRequired } from '../middleware/userAuth.js'
 
@@ -11,9 +11,17 @@ router.get('/', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit || '12')
     const offset = parseInt(req.query.offset || '0')
-    req.log.debug('stories.list.debug', { limit, offset })
+    const search = (req.query.search || '').trim().toLowerCase()
+    req.log.debug('stories.list.debug', { limit, offset, search })
     const items = await listStories()
-    const published = (items || []).filter(it => String(it.status || '') === 'published')
+    let published = (items || []).filter(it => String(it.status || '') === 'published')
+    if (search) {
+      published = published.filter(it =>
+        (it.title && it.title.toLowerCase().includes(search)) ||
+        (it.author && it.author.toLowerCase().includes(search)) ||
+        (Array.isArray(it.tags) && it.tags.some(tag => String(tag).toLowerCase().includes(search)))
+      )
+    }
     const publishedSorted = published.sort((a, b) => {
       const ta = new Date(a?.created_at || 0).getTime()
       const tb = new Date(b?.created_at || 0).getTime()
@@ -42,14 +50,33 @@ router.get('/', async (req, res) => {
 // Combined roles for story creation: public published + user's private published
 router.get('/combine', async (req, res) => {
   try {
-    req.log.debug('stories.combine.debug', { userId: req.user.id, username: req.user.username })
-    const pubAll = await listPublishedCharacters({ visibility: 'public', limit: 300 })
-    const mineAll = await listUserCharacters(req.user.id)
-    const pub = (pubAll || []).filter(it => String(it.creator_username || '') !== String(req.user.username))
-    const myPublished = (mineAll || []).filter(it => String(it.mypage_status) === 'published')
+    const limit = parseInt(req.query.limit || '10')
+    const offset = parseInt(req.query.offset || '0')
+    const search = req.query.search || ''
+    req.log.debug('stories.combine.debug', { userId: req.user.id, username: req.user.username, limit, offset, search })
+
+    let items = []
+
+    // Only fetch user characters on the first page
+    if (offset === 0) {
+      const mineAll = await listUserCharacters(req.user.id, search)
+      const myPublished = (mineAll || []).filter(it => String(it.mypage_status) === 'published')
+      const mapMine = (c) => ({ character_id: String(c.mypage_id), character_name: c.mypage_name, character_avatar: c.mypage_avatar || '', desc: c.mypage_tagline || '', isPrivate: String(c.mypage_visibility) === 'private', isMine: true })
+      items = [...myPublished.map(mapMine)]
+    }
+
+    // Fetch public characters excluding current user
+    const pub = await listPublicCharactersExcludeUser(req.user.username, {
+      limit,
+      offset,
+      search,
+      excludeUserId: req.user.id,
+      excludeNickname: req.user.nickname
+    })
     const mapPub = (c) => ({ character_id: String(c.id), character_name: c.name, character_avatar: c.avatar, desc: c.tagline || c.plot_summary || '', isPrivate: false, isMine: false })
-    const mapMine = (c) => ({ character_id: String(c.mypage_id), character_name: c.mypage_name, character_avatar: c.mypage_avatar || '', desc: c.mypage_tagline || '', isPrivate: String(c.mypage_visibility) === 'private', isMine: true })
-    const items = [...pub.map(mapPub), ...myPublished.map(mapMine)]
+
+    items = [...items, ...pub.map(mapPub)]
+
     req.log.info('stories.combine.roles', { count: items.length })
     res.json({ items })
   } catch (err) {

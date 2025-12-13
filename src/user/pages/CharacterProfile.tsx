@@ -88,7 +88,7 @@ export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, o
                 <span className="mx-2 bg-white w-1 h-1 rounded-full"></span>
                 <span>{character.age}</span>
               </div>
-              <div className="text-white text-xs font-medium pl-1">
+              <div className="font-bold text-white text-xs font-medium pl-1">
                 by {character.creator}
               </div>
             </div>

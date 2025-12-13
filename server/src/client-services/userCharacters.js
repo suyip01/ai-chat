@@ -2,9 +2,9 @@ import pool from '../db.js'
 import { createLogger } from '../utils/logger.js'
 const logger = createLogger({ area: 'client', component: 'service.userCharacters' })
 
-export const listUserCharacters = async (userId) => {
+export const listUserCharacters = async (userId, search = '') => {
   try {
-  const sql =
+  let sql =
     `SELECT c.id AS mypage_id,
             c.name AS mypage_name,
             c.tagline AS mypage_tagline,
@@ -12,9 +12,16 @@ export const listUserCharacters = async (userId) => {
             c.avatar AS mypage_avatar,
             c.status AS mypage_status
      FROM characters c
-     WHERE c.creator_role = 'user_role' AND c.user_id = ?
-     ORDER BY c.created_at ASC`,
-    params = [userId]
+     WHERE c.creator_role = 'user_role' AND c.user_id = ?`
+  const params = [userId]
+  
+  if (search) {
+    sql += ` AND (c.name LIKE ? OR c.tagline LIKE ? OR c.creator LIKE ?)`
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`)
+  }
+  
+  sql += ` ORDER BY c.created_at ASC`
+  
   logger.debug('service.userCharacters.list.sql', { sql, params })
   const [rows] = await pool.query(sql, params)
   logger.info('service.userCharacters.list.result', { rowCount: rows.length, rows })

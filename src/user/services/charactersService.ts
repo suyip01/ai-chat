@@ -38,13 +38,14 @@ const toCharacter = (item: any): PublishedCharacter => ({
   created_at: item?.created_at ?? 0,
 });
 
-export const listCharacters = async (params?: { tag?: string; limit?: number; offset?: number }) => {
+export const listCharacters = async (params?: { tag?: string; limit?: number; offset?: number; search?: string }) => {
   const qs = new URLSearchParams();
   if (params?.tag) qs.set('tag', params.tag);
+  if (params?.search) qs.set('search', params.search);
   if (params?.limit) qs.set('limit', String(params.limit));
   if (typeof params?.offset === 'number') qs.set('offset', String(params.offset));
   const { authFetch } = await import('./http')
-  const res = await authFetch(`/characters/?${qs.toString()}`)
+  const res = await authFetch(`/characters?${qs.toString()}`)
   if (!res.ok) throw new Error('failed');
   const data = await res.json();
   const items = Array.isArray(data?.items) ? data.items : [];
