@@ -23,7 +23,7 @@ const buildSystem = async (sess, mode, roleOverride) => {
         const fields = await r.hmGet(ck, 'system_prompt', 'system_prompt_scene')
         charPrompt = mode === 'scene' ? (fields?.[1] || '') : (fields?.[0] || '')
       }
-    } catch {}
+    } catch { }
     const base = mode === 'scene' ? (charPrompt || sess.system_prompt_scene) : (charPrompt || sess.system_prompt)
     if (base) parts.push(base)
     if (summary) parts.push(`历史记忆：${summary}`)
@@ -101,7 +101,7 @@ export const startChatWs = (server) => {
           const isSending = sendingSids.has(sid)
           if (!isSending && stillQueue === 0) {
             llmCounts.set(sid, 0)
-            try { console.log('\x1b[31mLLM COUNT RESET\x1b[0m', { sid, count: llmCounts.get(sid) }) } catch {}
+            try { console.log('\x1b[31mLLM COUNT RESET\x1b[0m', { sid, count: llmCounts.get(sid) }) } catch { }
           }
           resetCountTimers.delete(sid)
         }, 1200)
@@ -145,7 +145,7 @@ export const startChatWs = (server) => {
         wlog.error('usage.increment.error', { error: e?.message || e })
       }
       llmCounts.set(sid, Math.max(0, (llmCounts.get(sid) || 1) - 1))
-      try { console.log('\x1b[31mLLM COUNT --\x1b[0m', { sid, count: llmCounts.get(sid) }) } catch {}
+      try { console.log('\x1b[31mLLM COUNT --\x1b[0m', { sid, count: llmCounts.get(sid) }) } catch { }
       sendingSids.delete(sid)
       if ((sendQueues.get(sid) || []).length) runNext()
     }
@@ -167,19 +167,19 @@ export const startChatWs = (server) => {
         const u = new URL(req.url, base)
         const tk = u.searchParams.get('token')
         if (tk) return tk
-      } catch {}
+      } catch { }
       const h = req.headers.authorization || ''
       return h.startsWith('Bearer ') ? h.slice(7) : null
     }
     const tok = getToken()
-    if (!tok) { try { createLogger({ component: 'ws' }).info('auth.missing') } catch {}; try { ws.close(1008, 'unauthorized') } catch {}; return }
+    if (!tok) { try { createLogger({ component: 'ws' }).info('auth.missing') } catch { }; try { ws.close(1008, 'unauthorized') } catch { }; return }
     try {
       await verifyAccessActive(tok)
-      try { createLogger({ component: 'ws' }).info('auth.ok') } catch {}
-      try { ws.send(JSON.stringify({ type: 'ws_ready' })) } catch {}
+      try { createLogger({ component: 'ws' }).info('auth.ok') } catch { }
+      try { ws.send(JSON.stringify({ type: 'ws_ready' })) } catch { }
     } catch (e) {
-      try { createLogger({ component: 'ws' }).info('auth.fail', { error: e?.message || e }) } catch {}
-      try { ws.close(1008, 'unauthorized') } catch {}
+      try { createLogger({ component: 'ws' }).info('auth.fail', { error: e?.message || e }) } catch { }
+      try { ws.close(1008, 'unauthorized') } catch { }
       return
     }
     ws.on('message', async (raw) => {
@@ -201,11 +201,11 @@ export const startChatWs = (server) => {
       try { wlog.info('auth.recheck.start', { sid }); await verifyAccessActive(tok); wlog.info('auth.recheck.ok', { sid }) } catch (e) {
         const m = e?.message || ''
         if (m === 'account_disabled') {
-          try { ws.send(JSON.stringify({ type: 'force_logout' })) } catch {}
-          try { ws.close(1008, 'account_disabled') } catch {}
+          try { ws.send(JSON.stringify({ type: 'force_logout' })) } catch { }
+          try { ws.close(1008, 'account_disabled') } catch { }
         } else {
-          try { ws.send(JSON.stringify({ type: 'refresh_required' })) } catch {}
-          try { ws.close(1008, 'unauthorized') } catch {}
+          try { ws.send(JSON.stringify({ type: 'refresh_required' })) } catch { }
+          try { ws.close(1008, 'unauthorized') } catch { }
         }
         return
       }
@@ -231,18 +231,18 @@ export const startChatWs = (server) => {
           const clientMsgId = payload.client_msg_id || null
           const target = wsBySid.get(sid) || ws
           target && target.send(JSON.stringify({ type: 'user_ack', sessionId: sid, clientMsgId: clientMsgId }))
-        } catch {}
+        } catch { }
         try {
           const r = await getRedis()
           await r.hSet(keySess(sid), { last_chat_mode: mode, last_model: String(model || ''), last_temperature: String(temperature) })
-        } catch {}
+        } catch { }
       }
       const triggerText = String(payload.text || '')
       const job = async () => {
         llmCounts.set(sid, (llmCounts.get(sid) || 0) + 1)
-        try { console.log('\x1b[31mLLM COUNT ++\x1b[0m', { sid, count: llmCounts.get(sid) }) } catch {}
+        try { console.log('\x1b[31mLLM COUNT ++\x1b[0m', { sid, count: llmCounts.get(sid) }) } catch { }
         const includeQuoteStart = (llmCounts.get(sid) || 0) > 1
-        try { console.log('\x1b[31mINCLUDE QUOTE START\x1b[0m', { sid, includeQuote: includeQuoteStart, count: llmCounts.get(sid) }) } catch {}
+        try { console.log('\x1b[31mINCLUDE QUOTE START\x1b[0m', { sid, includeQuote: includeQuoteStart, count: llmCounts.get(sid) }) } catch { }
         const svc = new TextGenerationService()
         const sys = await buildSystem(sess, mode, roleOverride)
         const history = await getMessages(sid, 100)
@@ -274,7 +274,7 @@ export const startChatWs = (server) => {
         wlog.info('llm.done', { userId: sess.userId, sid, model, temperature, duration_ms: durMs !== undefined ? Math.round(durMs) : undefined, rawLen: String(reply || '').length, rawPreview: String(reply || '').slice(0, 160) })
         const content = mode === 'daily' ? String(reply || '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '') : String(reply || '')
         wlog.info('reply.len', { userId: sess.userId, sid, len: String(content).length })
-        const chunks = content.split('\n').map(s => s.trim()).filter(s => s.length)
+        const chunks = content.split(/[\n\s]+/).map(s => s.trim()).filter(s => s.length)
         const includeQuote = includeQuoteStart || ((svc.lastAttempts || 1) > 1)
         wlog.info('llm.count', { userId: sess.userId, sid, countStart: llmCounts.get(sid) || 0, includeQuote, quotePreview: quote ? String(quote).slice(0, 30) : '' })
         wlog.info('reply.chunks', { userId: sess.userId, sid, total: chunks.length, chunkPreviews: chunks.slice(0, 5).map(c => String(c).slice(0, 80)) })

@@ -21,7 +21,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
   const [delayPassed, setDelayPassed] = useState(false);
   const [imageReady, setImageReady] = useState(false);
   const [overlayMount, setOverlayMount] = useState(true);
-  
+
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -94,10 +94,10 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
 
   const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDragging) return;
-    e.preventDefault(); 
+    e.preventDefault();
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    
+
     setOffset({
       x: clientX - dragStart.x,
       y: clientY - dragStart.y
@@ -136,26 +136,26 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
     ctx.scale(fitScale, fitScale);
     ctx.drawImage(img, -nw / 2, -nh / 2);
 
-    try { trackEvent('头像裁剪.确认') } catch {}
+    try { trackEvent('头像裁剪.确认') } catch { }
     onCrop(canvas.toDataURL('image/jpeg', 0.9));
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center animate-in fade-in duration-300">
-      
+    <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center animate-in fade-in duration-300 mx-auto w-full max-w-md md:rounded-3xl md:overflow-hidden">
+
       {/* Top Bar */}
       <div className="absolute top-0 w-full p-4 flex justify-between items-center z-20 text-white">
-          <button onClick={() => { try { trackEvent('头像裁剪.取消') } catch {}; onCancel() }} className="p-2 bg-white/10 rounded-full">
-            <X size={24} />
-          </button>
-          <h3 className="font-bold text-lg tracking-wider">调整图片</h3>
-          <button onClick={handleCrop} className="p-2 bg-purple-500 rounded-full text-white shadow-lg shadow-purple-500/30">
-            <Check size={24} />
-          </button>
+        <button onClick={() => { try { trackEvent('头像裁剪.取消') } catch { }; onCancel() }} className="p-2 bg-white/10 rounded-full">
+          <X size={24} />
+        </button>
+        <h3 className="font-bold text-lg tracking-wider">调整图片</h3>
+        <button onClick={handleCrop} className="p-2 bg-purple-500 rounded-full text-white shadow-lg shadow-purple-500/30">
+          <Check size={24} />
+        </button>
       </div>
 
       {/* Cropping Area */}
-      <div 
+      <div
         ref={containerRef}
         className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center touch-none select-none"
         style={{ isolation: 'isolate' }}
@@ -167,67 +167,67 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCrop, on
         onTouchMove={handlePointerMove}
         onTouchEnd={handlePointerUp}
       >
-          {/* The Image */}
-          <img 
-            ref={imgRef}
-            src={normalizedSrc} 
-            alt="Crop target" 
-            className="absolute max-w-none transition-transform duration-75 ease-linear pointer-events-none"
-            style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) translateZ(0)`,
-                //height: cropH,
-                height: 'auto',
-                width: cropW,
-                willChange: 'transform',
-                backfaceVisibility: 'hidden'
-                //width: 'auto'
-            }}
-            onLoad={() => setImageReady(true)}
-            draggable={false}
-          />
+        {/* The Image */}
+        <img
+          ref={imgRef}
+          src={normalizedSrc}
+          alt="Crop target"
+          className="absolute max-w-none transition-transform duration-75 ease-linear pointer-events-none"
+          style={{
+            transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) translateZ(0)`,
+            //height: cropH,
+            height: 'auto',
+            width: cropW,
+            willChange: 'transform',
+            backfaceVisibility: 'hidden'
+            //width: 'auto'
+          }}
+          onLoad={() => setImageReady(true)}
+          draggable={false}
+        />
 
-          <div className="absolute inset-0 pointer-events-none z-10">
-            <div className="absolute top-0 left-0 right-0 bg-black/80" style={{ height: `calc(50% - ${cropH / 2}px)` }} />
-            <div className="absolute bottom-0 left-0 right-0 bg-black/80" style={{ height: `calc(50% - ${cropH / 2}px)` }} />
-            <div className="absolute left-0 bg-black/80" style={{ top: `calc(50% - ${cropH / 2}px)`, bottom: `calc(50% - ${cropH / 2}px)`, width: `calc(50% - ${cropW / 2}px)` }} />
-            <div className="absolute right-0 bg-black/80" style={{ top: `calc(50% - ${cropH / 2}px)`, bottom: `calc(50% - ${cropH / 2}px)`, width: `calc(50% - ${cropW / 2}px)` }} />
-            <div 
-              ref={cropRef}
-              className="absolute border-2 border-white box-content"
-              style={{ width: cropW, height: cropH, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
-            >
-              <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-30">
-                <div className="border-r border-white"></div>
-                <div className="border-r border-white"></div>
-                <div className="border-b border-white col-span-3 row-start-1"></div>
-                <div className="border-b border-white col-span-3 row-start-2"></div>
-              </div>
+        <div className="absolute inset-0 pointer-events-none z-10">
+          <div className="absolute top-0 left-0 right-0 bg-black/80" style={{ height: `calc(50% - ${cropH / 2}px)` }} />
+          <div className="absolute bottom-0 left-0 right-0 bg-black/80" style={{ height: `calc(50% - ${cropH / 2}px)` }} />
+          <div className="absolute left-0 bg-black/80" style={{ top: `calc(50% - ${cropH / 2}px)`, bottom: `calc(50% - ${cropH / 2}px)`, width: `calc(50% - ${cropW / 2}px)` }} />
+          <div className="absolute right-0 bg-black/80" style={{ top: `calc(50% - ${cropH / 2}px)`, bottom: `calc(50% - ${cropH / 2}px)`, width: `calc(50% - ${cropW / 2}px)` }} />
+          <div
+            ref={cropRef}
+            className="absolute border-2 border-white box-content"
+            style={{ width: cropW, height: cropH, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+          >
+            <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-30">
+              <div className="border-r border-white"></div>
+              <div className="border-r border-white"></div>
+              <div className="border-b border-white col-span-3 row-start-1"></div>
+              <div className="border-b border-white col-span-3 row-start-2"></div>
             </div>
           </div>
+        </div>
       </div>
 
       {/* Controls */}
       <div className="absolute bottom-0 w-full bg-slate-900/80 p-6 pb-10 flex flex-col gap-4 z-20">
-         <div className="flex items-center gap-4 text-white justify-center">
-             <Minus size={20} className="text-slate-400" />
-             <input 
-                type="range" 
-                min="0.5" 
-                max="3" 
-                step="0.05" 
-                value={zoom}
-                onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="w-64 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-purple-500"
-             />
-             <Plus size={20} className="text-slate-400" />
-         </div>
+        <div className="flex items-center gap-4 text-white justify-center">
+          <Minus size={20} className="text-slate-400" />
+          <input
+            type="range"
+            min="0.5"
+            max="3"
+            step="0.05"
+            value={zoom}
+            onChange={(e) => setZoom(parseFloat(e.target.value))}
+            className="w-64 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-purple-500"
+          />
+          <Plus size={20} className="text-slate-400" />
+        </div>
       </div>
-      
+
       {/* Hidden Canvas for Processing */}
       <canvas ref={canvasRef} className="hidden" />
       {overlayMount && (
         <div
-          className={`fixed inset-0 z-[120] bg-black flex items-center justify-center transition-opacity duration-300 ${(!delayPassed || !imageReady) ? 'opacity-100' : 'opacity-0'}`}
+          className={`absolute inset-0 z-[120] bg-black flex items-center justify-center transition-opacity duration-300 ${(!delayPassed || !imageReady) ? 'opacity-100' : 'opacity-0'}`}
           style={{ pointerEvents: (!delayPassed || !imageReady) ? 'auto' : 'none' }}
         >
           <div className="flex flex-col items-center gap-4 text-white">

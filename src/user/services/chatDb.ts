@@ -3,7 +3,7 @@ const DB_VERSION = 1
 
 type MessageRow = { id?: string; sessionId: string; userId: string; senderId: string; text: string; quote?: string; timestamp: number; type: string; failed?: boolean }
 type SessionRow = { sessionId: string; userId: string; characterId: string; createdAt?: number; unreadCount?: number }
-type ConfigRow = { sessionId: string; mode?: 'daily' | 'scene'; persona?: any; modelId?: string; temperature?: number; background?: string; misc?: any }
+type ConfigRow = { sessionId: string; mode?: 'daily' | 'scene'; persona?: any; modelId?: string; temperature?: number; modelNick?: string; background?: string; misc?: any }
 
 const openDb = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
   const req = indexedDB.open(DB_NAME, DB_VERSION)

@@ -27,7 +27,7 @@ export const CharacterProfile: React.FC<CharacterProfileProps> = ({ character, o
       setTag('页面', '角色详情')
       setTag('角色ID', String((character as any)?.id ?? ''))
       setTag('角色名', (character as any)?.name ?? '')
-    } catch {}
+    } catch { }
   }, [character])
 
   // Logic: Show first 4 initially. If showAllTags is true, show all.

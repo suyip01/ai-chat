@@ -435,18 +435,12 @@ const App: React.FC = () => {
 
                 for (let i = 0; i < idsToFetch.length; i++) {
                   const cid = idsToFetch[i]
-                  if (ignore) {
-                    // Release locks for all remaining items including current
-                    for (let j = i; j < idsToFetch.length; j++) {
-                      fetchingMissingChars.current.delete(idsToFetch[j])
-                    }
-                    break
-                  }
+
                   try {
                     let full = await getCharacter(cid).catch(() => null)
                     if (!full) full = await getUserCharacter(cid).catch(() => null)
 
-                    if (full && !ignore) {
+                    if (full) {
                       const resolved: Character = {
                         id: String(full.id || full.mypage_id),
                         name: full.name || full.mypage_name || '未知',

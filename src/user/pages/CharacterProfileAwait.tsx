@@ -27,7 +27,7 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
       setTag('页面', '角色详情(创建中)')
       setTag('角色ID', String(createdId))
       setTag('角色名', latest?.name || '')
-    } catch {}
+    } catch { }
   }, [createdId, latest?.name])
   useEffect(() => {
     let mounted = true
@@ -63,9 +63,9 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
         if (data && (statusStr === 'published' || hasSP)) {
           // Check if data is synced with latest local changes
           if (!isDataSynced(data)) {
-             // Not synced yet (backend is stale), keep polling
-             setReady(false)
-             return
+            // Not synced yet (backend is stale), keep polling
+            setReady(false)
+            return
           }
 
           setReady(true)
@@ -99,16 +99,16 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
           // Only update display if we have data, but keep local overrides if API is stale
           // actually setLatest is handled in tick when ready, or here partially?
           // Let's just update basic info but wait for sync to setReady
-          
+
           const hasSP = !!data.hasSystemPrompt
           const statusStr = typeof data.status === 'string' ? data.status.trim() : ''
-          
+
           if (statusStr === 'draft') {
             setIsDraft(true)
             setReady(false)
             return
           }
-          
+
           if (statusStr === 'publishing' || !hasSP) {
             setIsDraft(false)
             setReady(false)
@@ -116,15 +116,15 @@ export const CharacterProfileAwait: React.FC<Props> = ({ character, createdId, o
             tick()
             return
           }
-          
+
           // Published state
           if (!isDataSynced(data)) {
-             // Stale data, treat as publishing
-             setIsDraft(false)
-             setReady(false)
-             iv = setInterval(tick, 3000)
-             tick()
-             return
+            // Stale data, treat as publishing
+            setIsDraft(false)
+            setReady(false)
+            iv = setInterval(tick, 3000)
+            tick()
+            return
           }
 
           // Synced and published

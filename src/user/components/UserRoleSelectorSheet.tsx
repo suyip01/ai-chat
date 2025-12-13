@@ -49,25 +49,15 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
 
   useEffect(() => {
     if (!roles.length) return
-    let cfgPersona: UserPersona | undefined
-    if (characterId !== undefined && characterId !== null) {
-      try {
-        const raw = localStorage.getItem(`chat_config_${String(characterId)}`)
-        if (raw) {
-          const cfg = JSON.parse(raw) as { chatMode?: 'daily' | 'scene'; persona?: UserPersona }
-          if (cfg && cfg.persona) cfgPersona = cfg.persona
-        }
-      } catch {}
-    }
-    const pn = cfgPersona?.name
-    if (pn) {
-      const byName = roles.find(r => r.name === pn)
-      if (byName) {
-        setSelected(byName.id); return
+    if (currentPersona?.name) {
+      const match = roles.find(r => r.name === currentPersona.name)
+      if (match) {
+        setSelected(match.id)
+        return
       }
     }
     setSelected(null)
-  }, [roles, characterId])
+  }, [roles, currentPersona])
 
   const handleSelect = (r: any) => {
     setSelected(r.id)
@@ -81,7 +71,7 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
       avatar: r.avatar || undefined
     }
     try { localStorage.setItem('user_chat_role_id', String(r.id)) } catch { }
-    try { trackEvent('角色.选择', { 角色名: persona.name, 角色ID: r.id }); setTag('角色名', persona.name) } catch {}
+    try { trackEvent('角色.选择', { 角色名: persona.name, 角色ID: r.id }); setTag('角色名', persona.name) } catch { }
     onSelect(persona, r.id)
     onClose()
   }
@@ -97,7 +87,7 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
       personality: r.personality || '',
       avatar: r.avatar || undefined
     }
-    try { trackEvent('角色.编辑', { 角色ID: r.id, 角色名: persona.name }) } catch {}
+    try { trackEvent('角色.编辑', { 角色ID: r.id, 角色名: persona.name }) } catch { }
     if (onEdit) onEdit(persona, r.id)
     onClose()
   }
@@ -173,10 +163,10 @@ export const UserRoleSelectorSheet: React.FC<Props> = ({ isOpen, currentPersona,
             <motion.div
               key="sheet"
               className="absolute bottom-0 left-0 right-0 bg-transparent will-change-transform transform-gpu"
-              initial={{ y: '100%' }}
+              initial={{ y: isTouch ? '100%' : 0 }}
               animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={androidBottomSheet}
+              exit={{ y: isTouch ? '100%' : 0 }}
+              transition={{ ...androidBottomSheet, duration: isTouch ? 0.28 : 0 }}
             >
               <div className="mx-auto w-full max-w-md bg-white rounded-t-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
                 <div className="sticky top-0 bg-white/95 backdrop-blur-md p-3 border-b border-slate-100 flex justify-between items-center z-10">
