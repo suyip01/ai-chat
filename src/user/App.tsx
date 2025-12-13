@@ -111,7 +111,27 @@ const App: React.FC = () => {
       const target = homeTab === 'stories' ? storiesScrollPosRef.current : charsScrollPosRef.current
       if (scrollRootRef.current) scrollRootRef.current.scrollTop = target
     }
-  }, [activeTab, homeTab])
+  }, [activeTab])
+
+  // event listener for toast click
+  useEffect(() => {
+    const handleOpenChat = (e: CustomEvent) => {
+      const sid = e.detail?.sessionId
+      if (!sid) return
+      const target = chatsRef.current.find(c => c.sessionId === sid)
+      if (target) {
+        setChatFromList(true)
+        setSelectedChat(target)
+        setActiveTab(NavTab.CHAT)
+        // reset unread in DB
+        try { dbResetUnread(sid) } catch { }
+        // update UI
+        setChats(prev => prev.map(c => c.sessionId === sid ? { ...c, unreadCount: 0 } : c))
+      }
+    }
+    window.addEventListener('open-chat-session', handleOpenChat as any)
+    return () => { window.removeEventListener('open-chat-session', handleOpenChat as any) }
+  }, [])
 
   const handleHomeTabClick = (tab: 'stories' | 'characters') => {
     const now = Date.now()
@@ -1268,6 +1288,7 @@ const App: React.FC = () => {
           <AnimatePresence initial={false}>
             {selectedChat && !isUserSettingsOpen && !isCreating && (
               <ChatDetail
+                key={selectedChat.sessionId}
                 character={selectedChat.character}
                 initialMessages={getInitialMessages(selectedChat)}
                 sessionId={selectedChat.sessionId}

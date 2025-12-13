@@ -153,7 +153,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
         if (next[i].senderId === 'user' && !(next[i] as any).read) { next[i] = { ...next[i], read: true }; break; }
       }
       next.push(msg);
-      try { console.log('[CHAT-LIVE] append assistant', { id: msg.id, chunk: meta }) } catch {}
+      try { console.log('[CHAT-LIVE] append assistant', { id: msg.id, chunk: meta }) } catch { }
       messagesRef.current = next
       try { setTimeout(() => onUpdateLastMessage(msg), 0) } catch { }
       return next;
@@ -166,7 +166,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           // DB write centralized in sharedChatWs to avoid duplicates
           console.log('[CHAT-DETAIL] skip write (centralized)', { sid, mid: msg.id })
         }
-      } catch {}
+      } catch { }
     }
 
     if (meta && typeof meta.chunkIndex === 'number' && typeof meta.chunkTotal === 'number') {
@@ -269,7 +269,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
       const sid = sessionIdProp || sessionId
       if (sid) {
         dbListMessages(sid, 500).then(rows => {
-          try { console.log('[CHAT-ENTER] load messages', { sid, count: rows.length }) } catch {}
+          try { console.log('[CHAT-ENTER] load messages', { sid, count: rows.length }) } catch { }
           const msgs: Message[] = rows.map(r => ({ id: r.id || `msg_${r.timestamp}`, senderId: r.senderId, text: r.text, timestamp: new Date(r.timestamp), type: MessageType.TEXT, quote: r.quote, saved: true, failed: r.failed } as any))
           setMessages(msgs)
             ; (window as any).__last_msgs_cache = rows
@@ -398,9 +398,9 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                 return next
               })
               const t = ackTimersRef.current.get(msgId)
-              if (t) { try { clearTimeout(t) } catch {}; ackTimersRef.current.delete(msgId) }
+              if (t) { try { clearTimeout(t) } catch { }; ackTimersRef.current.delete(msgId) }
               const st = spinnerTimersRef.current.get(msgId)
-              if (st) { try { clearTimeout(st) } catch {}; spinnerTimersRef.current.delete(msgId) }
+              if (st) { try { clearTimeout(st) } catch { }; spinnerTimersRef.current.delete(msgId) }
             }
           }
         })
@@ -510,7 +510,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
           dbAddMessage({ ...userMsg, sessionId: sidToUse, userId: currentUserId, timestamp: userMsg.timestamp.getTime(), failed: true }).catch(() => { })
           ackTimersRef.current.delete(userMsg.id)
           const st = spinnerTimersRef.current.get(userMsg.id)
-          if (st) { try { clearTimeout(st) } catch {}; spinnerTimersRef.current.delete(userMsg.id) }
+          if (st) { try { clearTimeout(st) } catch { }; spinnerTimersRef.current.delete(userMsg.id) }
         }, 8000)
         ackTimersRef.current.set(userMsg.id, timer)
 
@@ -535,10 +535,10 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
     <motion.div
       className="fixed inset-0 bg-primary-50 z-50"
       style={{ ...viewportStyle, overscrollBehavior: 'none', position: 'fixed' }}
-      initial={{ x: ((navigator as any)?.maxTouchPoints > 0) ? '100%' : 0 }}
+      initial={{ x: '100%' }}
       animate={{ x: 0 }}
-      exit={{ x: ((navigator as any)?.maxTouchPoints > 0) ? '100%' : 0 }}
-      transition={{ duration: ((navigator as any)?.maxTouchPoints > 0) ? 0.3 : 0, ease: 'linear' }}
+      exit={{ x: '100%' }}
+      transition={{ duration: 0.3, ease: 'easeInOut' }}
     >
       <div className="mx-auto w-full max-w-md h-full flex flex-col relative bg-white shadow-2xl rounded-none md:rounded-3xl md:overflow-hidden">
         <div className="bg-primary-50/95 backdrop-blur-md pt-[env(safe-area-inset-top)] shadow-none z-10 border-b border-white/50 flex-shrink-0">
@@ -592,99 +592,99 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                 {/* User Message Layout Refactored for Vertical Alignment */}
                 {isMe ? (
                   <div className="flex w-full justify-end mb-4 group">
-                     {/* Wrapper for Content + Indicators */}
-                     <div className="flex flex-col items-end max-w-[75%]">
-                       <div className="flex items-center justify-end gap-2">
-                          {/* Retry Button */}
-                          {(msg as any).failed && (
-                            <div className="flex items-center justify-center">
-                              <button
-                                className="w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform"
-                                onClick={() => {
-                                  const sidToUse = sessionIdProp || sessionId
-                                  if (!sidToUse) return
-                                  const mid = (msg as any).id
-                                  setMessages(prev => prev.map(m => (m as any).id === mid ? ({ ...m, failed: false, pendingAck: true, spinning: false } as any) : m))
-                                  
-                                  sharedChatWs.sendText(
-                                    sidToUse,
-                                    msg.text,
-                                    chatMode,
-                                    effectivePersona,
-                                    hasModelOverride ? modelId : undefined,
-                                    hasTempOverride ? modelTemp : undefined,
-                                    mid
-                                  )
-                                  const old = ackTimersRef.current.get(mid)
-                                  if (old) { try { clearTimeout(old) } catch {}; ackTimersRef.current.delete(mid) }
-                                  const oldS = spinnerTimersRef.current.get(mid)
-                                  if (oldS) { try { clearTimeout(oldS) } catch {}; spinnerTimersRef.current.delete(mid) }
+                    {/* Wrapper for Content + Indicators */}
+                    <div className="flex flex-col items-end max-w-[75%]">
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Retry Button */}
+                        {(msg as any).failed && (
+                          <div className="flex items-center justify-center">
+                            <button
+                              className="w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm active:scale-90 transition-transform"
+                              onClick={() => {
+                                const sidToUse = sessionIdProp || sessionId
+                                if (!sidToUse) return
+                                const mid = (msg as any).id
+                                setMessages(prev => prev.map(m => (m as any).id === mid ? ({ ...m, failed: false, pendingAck: true, spinning: false } as any) : m))
 
-                                  const t = window.setTimeout(() => {
-                                    setMessages(prev => prev.map(m => ((m as any).id === mid && !(m as any).saved) ? ({ ...m, failed: true, pendingAck: false, spinning: false } as any) : m))
-                                    dbAddMessage({ ...msg, sessionId: sidToUse, userId: currentUserId, timestamp: msg.timestamp.getTime(), failed: true } as any).catch(() => { })
-                                    ackTimersRef.current.delete(mid)
-                                    const st = spinnerTimersRef.current.get(mid)
-                                    if (st) { try { clearTimeout(st) } catch {}; spinnerTimersRef.current.delete(mid) }
-                                  }, 8000)
-                                  ackTimersRef.current.set(mid, t)
+                                sharedChatWs.sendText(
+                                  sidToUse,
+                                  msg.text,
+                                  chatMode,
+                                  effectivePersona,
+                                  hasModelOverride ? modelId : undefined,
+                                  hasTempOverride ? modelTemp : undefined,
+                                  mid
+                                )
+                                const old = ackTimersRef.current.get(mid)
+                                if (old) { try { clearTimeout(old) } catch { }; ackTimersRef.current.delete(mid) }
+                                const oldS = spinnerTimersRef.current.get(mid)
+                                if (oldS) { try { clearTimeout(oldS) } catch { }; spinnerTimersRef.current.delete(mid) }
 
-                                  const spinnerTimer = window.setTimeout(() => {
-                                    setMessages(prev => prev.map(m => (m.senderId === 'user' && (m as any).id === mid && (m as any).pendingAck) ? ({ ...m, spinning: true } as any) : m))
-                                    spinnerTimersRef.current.delete(mid)
-                                  }, 2000)
-                                  spinnerTimersRef.current.set(mid, spinnerTimer)
-                                }}
-                                title="重新发送"
-                              >
-                                <span className="font-bold text-xs">!</span>
-                              </button>
-                            </div>
-                          )}
+                                const t = window.setTimeout(() => {
+                                  setMessages(prev => prev.map(m => ((m as any).id === mid && !(m as any).saved) ? ({ ...m, failed: true, pendingAck: false, spinning: false } as any) : m))
+                                  dbAddMessage({ ...msg, sessionId: sidToUse, userId: currentUserId, timestamp: msg.timestamp.getTime(), failed: true } as any).catch(() => { })
+                                  ackTimersRef.current.delete(mid)
+                                  const st = spinnerTimersRef.current.get(mid)
+                                  if (st) { try { clearTimeout(st) } catch { }; spinnerTimersRef.current.delete(mid) }
+                                }, 8000)
+                                ackTimersRef.current.set(mid, t)
 
-                          {/* Loading Spinner */}
-                          {(msg as any).spinning && !(msg as any).failed && (
-                            <div className={`flex items-center justify-center ${chatBg ? 'p-1 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30' : 'bg-black/30') : ''}`}>
-                              <Loader2 className={`w-4 h-4 animate-spin ${chatBg ? (isBgDark ? 'text-slate-800' : 'text-white') : 'text-slate-400'}`} />
-                            </div>
-                          )}
+                                const spinnerTimer = window.setTimeout(() => {
+                                  setMessages(prev => prev.map(m => (m.senderId === 'user' && (m as any).id === mid && (m as any).pendingAck) ? ({ ...m, spinning: true } as any) : m))
+                                  spinnerTimersRef.current.delete(mid)
+                                }, 2000)
+                                spinnerTimersRef.current.set(mid, spinnerTimer)
+                              }}
+                              title="重新发送"
+                            >
+                              <span className="font-bold text-xs">!</span>
+                            </button>
+                          </div>
+                        )}
 
-                          {/* Message Bubble */}
-                          <div
-                            className={`
+                        {/* Loading Spinner */}
+                        {(msg as any).spinning && !(msg as any).failed && (
+                          <div className={`flex items-center justify-center ${chatBg ? 'p-1 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30' : 'bg-black/30') : ''}`}>
+                            <Loader2 className={`w-4 h-4 animate-spin ${chatBg ? (isBgDark ? 'text-slate-800' : 'text-white') : 'text-slate-400'}`} />
+                          </div>
+                        )}
+
+                        {/* Message Bubble */}
+                        <div
+                          className={`
                               px-4 py-3 text-[15px] shadow-sm leading-relaxed relative
                               bg-[#A855F7] text-white rounded-[20px] rounded-tr-sm
                             `}
-                          >
-                            {msg.text}
-                          </div>
-                       </div>
-                       
-                       {/* Timestamp */}
-                       <div className="flex items-center gap-2 mt-1 mr-1">
-                          {msg.read && (
-                            <span
-                              className={`text-[10px] ${chatBg ? 'px-1.5 py-0.5 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'text-slate-400'}`}
-                              style={chatBg ? { textShadow: isBgDark ? '0 1px 1px rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.6)' } : undefined}
-                            >已读</span>
-                          )}
+                        >
+                          {msg.text}
+                        </div>
+                      </div>
+
+                      {/* Timestamp */}
+                      <div className="flex items-center gap-2 mt-1 mr-1">
+                        {msg.read && (
                           <span
                             className={`text-[10px] ${chatBg ? 'px-1.5 py-0.5 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'text-slate-400'}`}
                             style={chatBg ? { textShadow: isBgDark ? '0 1px 1px rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.6)' } : undefined}
-                          >{formatTime(msg.timestamp)}</span>
-                       </div>
-                     </div>
-
-                     {/* User Avatar */}
-                     <div className="flex-shrink-0 ml-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-pink-200 flex items-center justify-center text-pink-600 font-bold border border-white shadow-sm">
-                          {(!userImgError && effectivePersona?.avatar) ? (
-                            <img src={effectivePersona.avatar} alt={effectivePersona?.name || '我'} className="w-full h-full object-cover" onError={() => setUserImgError(true)} />
-                          ) : (
-                            (effectivePersona?.name ? effectivePersona.name[0] : '我')
-                          )}
-                        </div>
+                          >已读</span>
+                        )}
+                        <span
+                          className={`text-[10px] ${chatBg ? 'px-1.5 py-0.5 rounded-full backdrop-blur-sm ' + (isBgDark ? 'bg-white/30 text-slate-800' : 'bg-black/30 text-white') : 'text-slate-400'}`}
+                          style={chatBg ? { textShadow: isBgDark ? '0 1px 1px rgba(255,255,255,0.5)' : '0 1px 1px rgba(0,0,0,0.6)' } : undefined}
+                        >{formatTime(msg.timestamp)}</span>
                       </div>
+                    </div>
+
+                    {/* User Avatar */}
+                    <div className="flex-shrink-0 ml-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-pink-200 flex items-center justify-center text-pink-600 font-bold border border-white shadow-sm">
+                        {(!userImgError && effectivePersona?.avatar) ? (
+                          <img src={effectivePersona.avatar} alt={effectivePersona?.name || '我'} className="w-full h-full object-cover" onError={() => setUserImgError(true)} />
+                        ) : (
+                          (effectivePersona?.name ? effectivePersona.name[0] : '我')
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   // Character Message Layout (Unchanged)
@@ -989,7 +989,7 @@ export const ChatDetail: React.FC<ChatDetailProps> = ({
                             if (curSid && sidAck && curSid === sidAck && msgId) {
                               setMessages(prev => prev.map(m => (m.senderId === 'user' && (m as any).id === msgId) ? ({ ...m, saved: true, failed: false, pendingAck: false } as any) : m))
                               const t = ackTimersRef.current.get(msgId)
-                              if (t) { try { clearTimeout(t) } catch {}; ackTimersRef.current.delete(msgId) }
+                              if (t) { try { clearTimeout(t) } catch { }; ackTimersRef.current.delete(msgId) }
                             }
                           }
                         })
